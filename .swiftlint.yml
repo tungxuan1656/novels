@@ -1,0 +1,98 @@
+# SwiftLint configuration for Novels — single module apps/novels, Swift 5.0, iOS 26.5
+# Tuned for small team: not too strict, but catches real issues.
+
+included:
+  - apps
+
+excluded:
+  - DerivedData
+  - build
+  - .build
+  - Pods
+  - vendor
+  - .codegraph
+  - .swiftpm
+
+disabled_rules:
+  - todo # allow TODO/FIXME markers
+  - trailing_whitespace # handled by SwiftFormat --trimwhitespace
+
+opt_in_rules:
+  - empty_count
+  - closure_spacing
+  - collection_alignment
+  - explicit_init
+  - fatal_error_message
+  - first_where
+  - overridden_super_call
+  - redundant_nil_coalescing
+  - sorted_first_last
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+  - closure_end_indentation
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+
+# Allow TODOs; keep force_cast as warning (default) — do not disable globally.
+# force_cast is warning-level by default; team reviews case-by-case.
+
+line_length:
+  warning: 120
+  error: 150
+  ignores_function_declarations: true
+  ignores_comments: true
+  ignores_urls: true
+  ignores_interpolated_strings: true
+
+file_length:
+  warning: 500
+  error: 1000
+
+type_body_length:
+  warning: 300
+  error: 400
+
+function_body_length:
+  warning: 60
+  error: 100
+
+function_parameter_count:
+  warning: 5
+  error: 8
+
+cyclomatic_complexity:
+  warning: 15
+  error: 25
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 1
+  max_length:
+    warning: 40
+    error: 50
+  excluded:
+    - id
+    - x
+    - y
+    - i
+    - j
+    - k
+    - to
+    - ok
+    - vc
+    - vm
+  validates_start_with_lowercase: true
+
+type_name:
+  min_length:
+    warning: 3
+    error: 3
+  max_length:
+    warning: 40
+    error: 50
+
+force_cast: warning
+force_try: warning
+
+reporter: "xcode"

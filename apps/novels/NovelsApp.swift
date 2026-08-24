@@ -1,5 +1,5 @@
 //
-//  novelsApp.swift
+//  NovelsApp.swift
 //  novels
 //
 //  Created by Tùng Đoàn on 24/8/26.
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct novelsApp: App {
+struct NovelsApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

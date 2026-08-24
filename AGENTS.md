@@ -6,7 +6,7 @@ Product: iPhone only, iOS 26+, Vietnamese UI (project still family 1,2 — see `
 
 Routes — topology: `ARCHITECTURE.md`; product: `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/flows.md`, `docs/product/business-rules.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/`; design: `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`; contracts: `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`; decisions: `docs/decisions/index.md` (tech incl. `local-persistence.md`, `book-identity.md`) + `docs/product/decisions.md` (business) + `SECURITY.md`; persistence/identity/settings → `docs/decisions/local-persistence.md`, `docs/decisions/book-identity.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`; work state: `feature_index.json`, `features/`, `progress.md`; verify: `init.sh`.
 
-Stack: `SwiftUI / Xcode — apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Single module `apps/novels`. No SwiftPM/Node, no test target yet (first feature will add tests), no SwiftLint/SwiftFormat.
+Stack: `SwiftUI / Xcode — apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Single module `apps/novels`. SwiftLint 0.65.1 + SwiftFormat 0.62.1 via `.swiftlint.yml`/`.swiftformat` + `.githooks/pre-commit` (setup `scripts/setup.sh`). No SwiftPM/Node, no test target yet (first feature will add tests).
 
 ## Assess the task
 
@@ -64,6 +64,6 @@ A feature is done only when:
 
 ## Verification
 
-- Full: `./init.sh` → format (SKIP) → lint (SKIP) → build (xcodebuild simulator) → test (SKIP). Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme novels, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). No SwiftLint/SwiftFormat, no test target/dir — explicit SKIP in `init.sh`.
+- Full: `./init.sh` → format (`swiftformat --lint apps --verbose`) → lint (`swiftlint lint --strict`) → build (xcodebuild simulator) → test (SKIP). Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme novels, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). No test target/dir — explicit SKIP in `init.sh`. Lint/format active via `.swiftlint.yml`/`.swiftformat`/`.githooks/pre-commit`, setup via `scripts/setup.sh`.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->
