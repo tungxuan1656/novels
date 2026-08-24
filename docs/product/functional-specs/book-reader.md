@@ -44,8 +44,8 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (Book, Chapter, Reference, ReadingSession, TypographySetting)
+- Domain: [domain-model.md](../domain-model.md) (Book, Chapter, Reference, ReadingSession, TypographySetting) — `Book.id` / `ReadingSession.bookId` is slug `book.json.id`
 - Flows: [flows.md](../flows.md) §1 Startup and Resume, §4 Reading and Navigation
 - Integrations: [integrations.md](../integrations.md) (none for raw reading)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-09, BR-11
-- Tech counterpart: [book-reader.md](./book-reader.md) — tech shapes colocated in this functional spec
+- Contracts: [local-data](../../contracts/local-data.md) (WKWebView + `Application Support`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)

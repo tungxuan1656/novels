@@ -1,6 +1,6 @@
 # Screens — Novels
 
-> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md).
+> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). iPhone only, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 ## 1. Screen Map
 
@@ -9,7 +9,7 @@ Seven screens plus overlays. Shared container with safe area, header, divider, c
 ```
 Home Library -> Add Book, Reading, Settings
 Reading -> References, Settings (via sheet)
-Settings -> Cache Manager, Network Logger, Setting Editor
+Settings -> Cache Manager, Setting Editor
 Overlays: Bottom Sheet, Toast, Loading
 ```
 
@@ -21,7 +21,7 @@ Overlays: Bottom Sheet, Toast, Loading
 | **Add Book** | Import book | Header back; remote list; download overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → back |
 | **Reading** | Read and navigate | Header index+title+status; HTML body; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
-| **Settings** | Edit config | Header; grouped list; cards for data/logger | Content | Row → Editor; Data → Cache; Logger → Logger |
+| **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
 

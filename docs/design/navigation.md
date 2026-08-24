@@ -1,6 +1,6 @@
 # Navigation — Novels
 
-> **Scope owner:** This file owns the screen graph and navigation rules. For screen details see [screens.md](./screens.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md).
+> **Scope owner:** This file owns the screen graph and navigation rules. For screen details see [screens.md](./screens.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). iPhone only, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md) and [../decisions/ios-scope.md](../decisions/ios-scope.md).
 
 ## 1. Navigation Map
 
@@ -14,7 +14,6 @@ Home Library --> Settings
 Reading --> References
 Reading --> Settings (via sheet shortcut)
 Settings --> Cache Manager
-Settings --> Network Logger
 Settings --> Setting Editor (settingKey)
 Add Book --back--> Home Library
 References --select--> Reading
@@ -33,7 +32,7 @@ Startup restores session and settings from local store. Show splash while fonts 
 Abstract stack:
 
 - Root: Home Library. Back at root exits app.
-- Push: Add Book, Reading, References, Settings, Cache Manager, Network Logger, Setting Editor.
+- Push: Add Book, Reading, References, Settings, Cache Manager, Setting Editor.
 - Pop: header back or system back goes one level up. Reading back clears `onScreen`.
 - Reading disables swipe-back to avoid loss of position. Others allow it.
 - Bottom sheet is not a route; it is an overlay that expands over Home or Reading.

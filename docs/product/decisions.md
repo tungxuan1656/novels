@@ -1,6 +1,6 @@
 # Business Decisions — Novels
 
-> **Append-only.** Add new entry at bottom. Do not rewrite history. Label reconstructed rationale. Tech ADRs → [../decisions/decisions.md](../decisions/decisions.md); topology → [ARCHITECTURE.md](../../ARCHITECTURE.md).
+> **Append-only.** Add new entry at bottom. Do not rewrite history. Label reconstructed rationale. Tech ADRs → [../decisions/index.md](../decisions/index.md); topology → [ARCHITECTURE.md](../../ARCHITECTURE.md). Business decisions are canonical here.
 
 ## How to use
 

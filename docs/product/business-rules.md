@@ -17,7 +17,7 @@
 | BR-09 | Scroll position is saved per book in the persistent settings store and restored only for the same book. New chapter starts at top. | Reader | If no saved offset, start at top. |
 | BR-10 | Delete removes the whole book folder from the local book repository and removes the entry from the library. | Library | Other books unaffected. Cached AI results for that book become unreachable. |
 | BR-11 | Typography (font, size, line height, spacing) persists in the persistent settings store and applies to every render. | Reader | Missing values use defaults. |
-| BR-12 | Settings sanitize on launch: invalid or missing values fall back to defaults (catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, provider `openai`). Legacy keys migrate. | Persistent settings store | Unknown provider → `openai`. Invalid action list → `translate` + `summary`. |
+| BR-12 | Settings sanitize on launch: invalid or missing values fall back to defaults (catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, provider `openai`). Only current keys exist; unknown/legacy keys are ignored and defaults apply. | Persistent settings store (`UserDefaults` + `@Observable`) | Unknown provider → `openai`. Invalid action list → `translate` + `summary`. |
 
 ## Notes
 

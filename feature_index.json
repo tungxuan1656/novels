@@ -4,5 +4,12 @@
     "version": "1.4.0",
     "generatedAt": "2026-08-24"
   },
-  "features": []
+  "features": [
+    {
+      "id": "feat-001",
+      "title": "Native Persistence Foundation",
+      "status": "todo",
+      "depends_on": []
+    }
+  ]
 }

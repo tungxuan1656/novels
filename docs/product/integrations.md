@@ -44,7 +44,7 @@
 
 ## Contract Separation
 
-Business meaning is above. Technical shapes (URLs, headers, JSON, storage) live in [ai-reading](./functional-specs/ai-reading.md), [book-import](./functional-specs/book-import.md), and [overview.md](./overview.md).
+Business meaning is above. Technical shapes live in [catalog-api](../../docs/contracts/catalog-api.md) and [ai-service](../../docs/contracts/ai-service.md) (and [book-package](../../docs/contracts/book-package.md), [settings-schema](../../docs/contracts/settings-schema.md), [local-data](../../docs/contracts/local-data.md)); specs link to those contracts.
 
 ## Links
 

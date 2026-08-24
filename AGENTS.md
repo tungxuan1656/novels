@@ -2,9 +2,11 @@
 
 Novels — iOS app (offline-first reader). One reader downloads ZIP book packages from a remote catalog once and reads offline. AI translate (natural Vietnamese, keep honorifics) and summary (50–60%, keep plot/dialogue) via configurable OpenAI-compatible service with single ProcessedChapter cache (`bookId+chapterNumber+mode`, BR-07). Prefetch next N=3 sequentially, cancellable. Per-book scroll offset, typography persists, settings sanitize on launch.
 
-Business spec for **Novels**: `docs/product/overview.md` (scope), `docs/product/domain-model.md` (entities/invariants), `docs/product/flows.md` (7 flows), `docs/product/business-rules.md` (BR-01..12), `docs/product/glossary.md`, `docs/product/integrations.md`, specs in `docs/product/functional-specs/`; design in `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
+Product: iPhone only, iOS 26+, Vietnamese UI (project still family 1,2 — see `docs/decisions/ios-scope.md`).
 
-Detected stack: `SwiftUI / Xcode — apps/novels.xcodeproj (scheme: novels, iOS 26.5, Swift 5.0, DEVELOPMENT_TEAM M5U4E4H84J). No SwiftPM/Node, no test target, no SwiftLint/SwiftFormat. Single workspace module: apps/novels.`
+Routes — topology: `ARCHITECTURE.md`; product: `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/flows.md`, `docs/product/business-rules.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/`; design: `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`; contracts: `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`; decisions: `docs/decisions/index.md` (tech incl. `local-persistence.md`, `book-identity.md`) + `docs/product/decisions.md` (business) + `SECURITY.md`; persistence/identity/settings → `docs/decisions/local-persistence.md`, `docs/decisions/book-identity.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`; work state: `feature_index.json`, `features/`, `progress.md`; verify: `init.sh`.
+
+Stack: `SwiftUI / Xcode — apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Single module `apps/novels`. No SwiftPM/Node, no test target yet (first feature will add tests), no SwiftLint/SwiftFormat.
 
 ## Assess the task
 
