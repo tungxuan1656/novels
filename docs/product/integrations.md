@@ -1,4 +1,4 @@
-# Integrations — rn-read-books
+# Integrations — Novels
 
 > **Scope owner:** Owns business view of external integrations. For entities see [domain-model.md](./domain-model.md), rules [business-rules.md](./business-rules.md). Technical payloads live in linked specs.
 
@@ -18,7 +18,7 @@
 
 **Retry:** No auto-retry. User retries from the UI.
 
-**Details:** See [book-import](../specs/book-import.md).
+**Details:** See [book-import](./functional-specs/book-import.md).
 
 ---
 
@@ -38,15 +38,15 @@
 
 **Retry:** Up to 3 attempts per chunk with exponential backoff 2^attempt × 1000 ms. After final failure, cache is not written. Prefetch logs the error and continues.
 
-**Details:** See [ai-reading](../specs/ai-reading.md).
+**Details:** See [ai-reading](./functional-specs/ai-reading.md).
 
 ---
 
 ## Contract Separation
 
-Business meaning is above. Technical shapes (URLs, headers, JSON, storage) live in [ai-reading](../specs/ai-reading.md), [book-import](../specs/book-import.md), and [overview.md](./overview.md).
+Business meaning is above. Technical shapes live in [catalog-api](../../docs/contracts/catalog-api.md) and [ai-service](../../docs/contracts/ai-service.md) (and [book-package](../../docs/contracts/book-package.md), [settings-schema](../../docs/contracts/settings-schema.md), [local-data](../../docs/contracts/local-data.md)); specs link to those contracts.
 
 ## Links
 
 - Model: [domain-model.md](./domain-model.md) · Glossary: [glossary.md](./glossary.md) · Rules: [business-rules.md](./business-rules.md)
-- Specs: [chapter-prefetch](../specs/chapter-prefetch.md) · [settings-management](../specs/settings-management.md)
+- Specs: [chapter-prefetch](./functional-specs/chapter-prefetch.md) · [settings-management](./functional-specs/settings-management.md)

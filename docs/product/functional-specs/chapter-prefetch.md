@@ -44,8 +44,8 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (PrefetchStatus, ProcessedChapter, AI Mode)
+- Domain: [domain-model.md](../domain-model.md) (PrefetchStatus, ProcessedChapter, AI Mode) — `PrefetchStatus.currentBookId` / `ProcessedChapter.bookId` is slug
 - Flows: [flows.md](../flows.md) §6 Prefetch Background
 - Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-07, BR-08
-- Tech counterpart: [docs/specs/chapter-prefetch.md](../../specs/chapter-prefetch.md)
+- Contracts: [ai-service](../../contracts/ai-service.md), [local-data](../../contracts/local-data.md) (SQLite + `Task`/`actor`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)

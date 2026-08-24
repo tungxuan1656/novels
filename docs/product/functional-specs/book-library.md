@@ -44,8 +44,8 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (Book, Reference, Chapter)
+- Domain: [domain-model.md](../domain-model.md) (Book, Reference, Chapter) — local identity is `Book.id` slug (`book.json.id`)
 - Flows: [flows.md](../flows.md) §3 Library Browse and Manage
 - Integrations: [integrations.md](../integrations.md) (no external call)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-10
-- Tech counterpart: [docs/specs/book-library.md](../../specs/book-library.md)
+- Contracts: [local-data](../../contracts/local-data.md), [book-package](../../contracts/book-package.md); Decisions: [book-identity](../../decisions/book-identity.md)

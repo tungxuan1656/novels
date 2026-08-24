@@ -43,8 +43,8 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (ProcessedChapter, AIAction, AI Mode)
+- Domain: [domain-model.md](../domain-model.md) (ProcessedChapter, AIAction, AI Mode) — `ProcessedChapter.bookId` is slug `book.json.id`
 - Flows: [flows.md](../flows.md) §5 AI Mode with Cache
 - Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-03, BR-04, BR-05, BR-06, BR-07
-- Tech counterpart: [docs/specs/ai-reading.md](../../specs/ai-reading.md)
+- Contracts: [ai-service](../../contracts/ai-service.md), [settings-schema](../../contracts/settings-schema.md), [local-data](../../contracts/local-data.md) (SQLite via `libsqlite3`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)

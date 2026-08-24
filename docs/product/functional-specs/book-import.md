@@ -47,4 +47,4 @@
 - Flows: [flows.md](../flows.md) §2 Discover and Import
 - Integrations: [integrations.md](../integrations.md) §1 Remote Book Catalog
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-02
-- Tech counterpart: [docs/specs/book-import.md](../../specs/book-import.md)
+- Contracts: [catalog-api](../../contracts/catalog-api.md), [book-package](../../contracts/book-package.md), [local-data](../../contracts/local-data.md); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)

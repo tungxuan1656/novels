@@ -1,10 +1,12 @@
-# Product Overview — rn-read-books
+# Product Overview — Novels
 
 > Vision, personas, and scope only. Entities → [domain-model.md](./domain-model.md), terms → [glossary.md](./glossary.md), flows → [flows.md](./flows.md), rules → [business-rules.md](./business-rules.md). Topology → [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
+> Target: iPhone only, iOS 26+, Vietnamese UI. Project still declares family 1,2 — see [ios-scope](../../docs/decisions/ios-scope.md).
+
 ## Purpose
 
-rn-read-books lets one reader download books once and read offline. Optional AI — translate to natural Vietnamese and faithful summary — uses a configurable OpenAI-compatible service. Catalog and AI need network; reading needs none.
+Novels lets one reader download books once and read offline. Optional AI — translate to natural Vietnamese and faithful summary — uses a configurable OpenAI-compatible service. Catalog and AI need network; reading needs none.
 
 ## Personas
 

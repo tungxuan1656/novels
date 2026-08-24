@@ -1,6 +1,6 @@
-# Design System — rn-read-books
+# Design System — Novels
 
-> **Scope owner:** This file owns visual and interaction invariants. For screens see [screens.md](./screens.md), navigation see [navigation.md](./navigation.md), overview see [../product/overview.md](../product/overview.md).
+> **Scope owner:** This file owns visual and interaction invariants. For screens see [screens.md](./screens.md), navigation see [navigation.md](./navigation.md), overview see [../product/overview.md](../product/overview.md). UI language is Vietnamese (iPhone only) — see [ARCHITECTURE.md](../../ARCHITECTURE.md) and [../decisions/ios-scope.md](../decisions/ios-scope.md).
 
 ## 1. Token Map
 
@@ -73,4 +73,4 @@ Radius: card 12-16, pill 24, sheet 24 top only. Elevation: flat for lists, raise
 
 ## Links
 
-- Screens: [screens.md](./screens.md) · Navigation: [navigation.md](./navigation.md) · Flows: [../product/flows.md](../product/flows.md) · Overview: [../product/overview.md](../product/overview.md) · Color: [../references/color-guide.md](../references/color-guide.md) · Typography: [../references/typography-guide.md](../references/typography-guide.md)
+- Screens: [screens.md](./screens.md) · Navigation: [navigation.md](./navigation.md) · Flows: [../product/flows.md](../product/flows.md) · Overview: [../product/overview.md](../product/overview.md)

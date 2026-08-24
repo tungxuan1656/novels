@@ -1,4 +1,4 @@
-# UX Flows — rn-read-books
+# UX Flows — Novels
 
 > **Scope owner:** Canonical UX flows. For entities see [domain-model.md](./domain-model.md), terms [glossary.md](./glossary.md), rules [business-rules.md](./business-rules.md), integrations [integrations.md](./integrations.md), navigation `../design/navigation.md`.
 
@@ -92,4 +92,4 @@ Request → User opens Settings → System shows groups: catalog, AI, download, 
 ## Links
 
 - Model: [domain-model.md](./domain-model.md) · Glossary: [glossary.md](./glossary.md) · Rules: [business-rules.md](./business-rules.md) · Integrations: [integrations.md](./integrations.md)
-- Specs: `../specs/book-import.md` · `../specs/book-library.md` · `../specs/book-reader.md` · `../specs/ai-reading.md` · `../specs/chapter-prefetch.md` · `../specs/settings-management.md`
+- Specs: `./functional-specs/book-import.md` · `./functional-specs/book-library.md` · `./functional-specs/book-reader.md` · `./functional-specs/ai-reading.md` · `./functional-specs/chapter-prefetch.md` · `./functional-specs/settings-management.md`
