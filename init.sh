@@ -2,17 +2,17 @@
 set -o pipefail
 
 # Evidence-based verification for Novels (iOS).
-# Repo root: apps/novels.xcodeproj (scheme novels, iOS 26.5). No SwiftPM/Node/test/lint configs.
+# Repo root: apps/novels.xcodeproj (scheme novels, iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
 # Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
 MAX_JOBS="${HARNESS_JOBS:-4}"
 STATUS=0
 
 FORMAT_TASKS=(
-  # "swiftformat --lint apps/novels" # SKIP explicit: swiftformat not installed, no .swiftformat config, no format script in project
+  "swiftformat --lint . --verbose"
 )
 
 LINT_TASKS=(
-  # "swiftlint lint --strict" # SKIP explicit: swiftlint not installed, no .swiftlint.yml, no lint script in project.pbxproj
+  "swiftlint lint --strict"
 )
 
 BUILD_TASKS=(

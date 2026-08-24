@@ -52,6 +52,12 @@
       "title": "Hardening + Release Readiness",
       "status": "todo",
       "depends_on": ["feat-001", "feat-002", "feat-003", "feat-004", "feat-005", "feat-006", "feat-007"]
+    },
+    {
+      "id": "feat-009",
+      "title": "Lint / Format Tooling & Git Hooks",
+      "status": "done",
+      "depends_on": []
     }
   ]
 }
