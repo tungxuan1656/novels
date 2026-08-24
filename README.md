@@ -12,7 +12,7 @@
 ## Overview
 
 Novels is an offline-first reader for iPhone.
-It runs on iOS 26 and later and shows text in Vietnamese.
+It runs on iOS 26 and later (project builds against iOS 26.5) and shows text in Vietnamese.
 You download a book package once and then read the book without a network.
 The app keeps one copy of each book on the device.
 It also keeps typography and scroll position for each book.
@@ -76,7 +76,7 @@ The cache uses `SQLite3` at `Application Support/novels/cache/processed_chapters
 
 Startup restores the session and routes to Library or Reader.
 Catalog fetch uses `POST` without a body and lists exported books with download links.
-AI requests use `URLSession` with `async` and `await` and retry three times with backoff.
+AI requests use `URLSession` with `async` and `await` and retry three times with backoff (1000 ms, 2000 ms).
 When the JSON is valid, the app merges `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` and ignores invalid JSON.
 Full topology is in `ARCHITECTURE.md` and the contracts are in `docs/contracts/`.
 
@@ -100,9 +100,9 @@ The field `id` is the slug that names the local folder and the cache key.
 The field `count` must equal the length of `references`.
 For the full contract, read `docs/contracts/book-package.md`.
 
-The repo includes a local sample at `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip`.
-This sample is untracked and is not a valid fixture.
-Do not stage or commit this file.
+The repo includes a tracked sample at `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip`.
+This sample has an outer folder and `__MACOSX` data and is not a valid fixture.
+Do not use this file as a test fixture.
 
 ## Settings
 
@@ -152,8 +152,8 @@ The repo uses `swiftformat` and `swiftlint` on every commit.
 The pre-commit hook formats changed files and blocks commits that violate lint rules.
 The script `scripts/setup.sh` installs the tools and sets `core.hooksPath` to `.githooks`.
 
-Before you commit, run `swiftformat .` to format the repo.
-If lint reports a problem, run `swiftlint --fix` and review the changes.
+Before you commit, run `swiftformat --lint apps --verbose` to check format.
+If lint reports a problem, run `swiftformat .` or `swiftlint --fix` and review the changes.
 Run `./init.sh` to repeat the same steps that CI runs.
 
 Branch from `main` and keep changes focused on one feature.
@@ -193,7 +193,7 @@ Work state is in `feature_index.json`, `features/`, and `progress.md`.
 │   ├── contracts/         # catalog-api, ai-service, book-package, settings-schema, local-data
 │   ├── decisions/         # ios-scope, local-persistence, book-identity, and more
 │   ├── design/            # navigation, screens, design-system
-│   └── samples/           # local-only ZIP sample, untracked
+│   └── samples/           # tracked sample, not a valid fixture
 ├── scripts/
 │   └── setup.sh           # installs swiftlint, swiftformat, git hooks
 ├── .githooks/
@@ -241,7 +241,7 @@ AI returns no content:
 
 1. Make sure that `OPENAI_API_URL` and `OPENAI_MODEL` are correct in settings.
 2. When the JSON for `AI_CUSTOM_HEADERS` is invalid, the app ignores it and sends no extra headers.
-3. If a chunk fails, the app retries three times with backoff and then shows an error.
+3. If a chunk fails, the app retries three times with backoff (1000 ms, 2000 ms) and then shows an error.
 
 ## Roadmap
 
