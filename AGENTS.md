@@ -64,6 +64,6 @@ A feature is done only when:
 
 ## Verification
 
-- Full: `./init.sh` → format (`swiftformat --lint . --verbose`) → lint (`swiftlint lint --strict`) → build (xcodebuild simulator) → test (SKIP). Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme novels, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). No test target/dir — explicit SKIP in `init.sh`. Lint/format active via `.swiftlint.yml`/`.swiftformat`/`.githooks/pre-commit`, setup via `scripts/setup.sh`.
+- Full: `./init.sh` → format (`swiftformat --lint apps --verbose`) → lint (`swiftlint lint --strict`) → build (xcodebuild simulator) → test (SKIP). Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme novels, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). No test target/dir — explicit SKIP in `init.sh`. Lint/format active via `.swiftlint.yml`/`.swiftformat`/`.githooks/pre-commit`, setup via `scripts/setup.sh`.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->

@@ -24,12 +24,10 @@ echo "$STAGED_SWIFT_FILES" | sed 's/^/  - /'
 
 HAS_ERROR=0
 
-# --- SwiftFormat check ---
+# --- SwiftFormat check (staged files only, verbose output) ---
 if command -v swiftformat >/dev/null 2>&1; then
     echo -e "${BLUE}[pre-commit] Running SwiftFormat --lint ...${NC}"
-    # Use swiftformat --lint on staged files; --quiet suppresses per-file noise, exit code signals violation
-    # Fallback to checking whole staged list; if that fails, instruct to run swiftformat .
-    if ! echo "$STAGED_SWIFT_FILES" | xargs swiftformat --lint --quiet 2>&1; then
+    if ! echo "$STAGED_SWIFT_FILES" | xargs swiftformat --lint 2>&1; then
         echo -e "${RED}[pre-commit] SwiftFormat violations found.${NC}"
         echo -e "${YELLOW}  Run:  swiftformat .${NC}"
         echo -e "${YELLOW}  Or for staged files:  echo \"\$STAGED\" | xargs swiftformat${NC}"
@@ -42,29 +40,16 @@ else
     echo -e "${YELLOW}[pre-commit] swiftformat not found — skipping format check (install: brew install swiftformat).${NC}"
 fi
 
-# --- SwiftLint check ---
+# --- SwiftLint check (full project, single run) ---
 if command -v swiftlint >/dev/null 2>&1; then
     echo -e "${BLUE}[pre-commit] Running SwiftLint lint --strict ...${NC}"
-    # Lint only staged files via --use-alternative-excluding is complex; lint full apps/ and rely on --strict
-    # To scope to staged files, pass them explicitly if supported.
-    # swiftlint lint --strict <paths> works; if no paths, lints included from .swiftlint.yml
-    if ! echo "$STAGED_SWIFT_FILES" | xargs swiftlint lint --strict --quiet 2>&1; then
-        # If xargs failed because no files matched .swiftlint.yml inclusion, fallback to full lint
-        # Try full project lint as secondary
-        if ! swiftlint lint --strict --quiet 2>&1; then
-            echo -e "${RED}[pre-commit] SwiftLint violations found (strict).${NC}"
-            echo -e "${YELLOW}  Run:  swiftlint lint --strict --fix  (auto-fixable)${NC}"
-            echo -e "${YELLOW}  Or:   swiftlint lint --strict${NC}"
-            HAS_ERROR=1
-        fi
+    if ! swiftlint lint --strict 2>&1; then
+        echo -e "${RED}[pre-commit] SwiftLint violations found (strict).${NC}"
+        echo -e "${YELLOW}  Run:  swiftlint lint --strict --fix  (auto-fixable)${NC}"
+        echo -e "${YELLOW}  Or:   swiftlint lint --strict${NC}"
+        HAS_ERROR=1
     else
-        # xargs path succeeded; double-check full lint to catch config-wide issues (excluded files ignored)
-        if ! swiftlint lint --strict --quiet 2>&1; then
-            echo -e "${RED}[pre-commit] SwiftLint violations found (strict).${NC}"
-            HAS_ERROR=1
-        else
-            echo -e "${GREEN}[pre-commit] SwiftLint passed.${NC}"
-        fi
+        echo -e "${GREEN}[pre-commit] SwiftLint passed.${NC}"
     fi
 else
     echo -e "${YELLOW}[pre-commit] swiftlint not found — skipping lint check (install: brew install swiftlint).${NC}"

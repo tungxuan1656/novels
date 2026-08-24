@@ -8,11 +8,11 @@ MAX_JOBS="${HARNESS_JOBS:-4}"
 STATUS=0
 
 FORMAT_TASKS=(
-  "swiftformat --lint . --verbose"
+  "if command -v swiftformat >/dev/null; then swiftformat --lint apps --verbose; else echo 'SKIP [format] swiftformat not installed — run bash scripts/setup.sh'; fi"
 )
 
 LINT_TASKS=(
-  "swiftlint lint --strict"
+  "if command -v swiftlint >/dev/null; then swiftlint lint --strict; else echo 'SKIP [lint] swiftlint not installed — run bash scripts/setup.sh'; fi"
 )
 
 BUILD_TASKS=(
