@@ -19,3 +19,11 @@
 **Evidence**: `features/feat-001.md`, `docs/plans/feat-001.md`, `feature_index.json` (feat-001 todo, depends_on [])
 **Blockers**: none
 **Next**: Awaiting user approval to activate feat-001 and start implementation; do not start without explicit go-ahead
+
+## 2026-08-24 — backlog
+
+**State**: todo
+**Done**: Backlog initialized — feat-002..008 records created per approved 8-feature order and dependencies; no detailed plans created yet
+**Evidence**: `feature_index.json` (feat-001..008 todo, zero active), `features/feat-002.md`, `features/feat-003.md`, `features/feat-004.md`, `features/feat-005.md`, `features/feat-006.md`, `features/feat-007.md`, `features/feat-008.md` — all todo, no active feature per Harness Slim
+**Blockers**: none
+**Next**: Select/approve feat-001 for activation

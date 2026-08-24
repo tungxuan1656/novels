@@ -10,6 +10,48 @@
       "title": "Native Persistence Foundation",
       "status": "todo",
       "depends_on": []
+    },
+    {
+      "id": "feat-002",
+      "title": "App Shell + Home Library",
+      "status": "todo",
+      "depends_on": ["feat-001"]
+    },
+    {
+      "id": "feat-003",
+      "title": "Catalog Import + ZIP Ingestion",
+      "status": "todo",
+      "depends_on": ["feat-001", "feat-002"]
+    },
+    {
+      "id": "feat-004",
+      "title": "Offline Book Reader",
+      "status": "todo",
+      "depends_on": ["feat-001", "feat-002", "feat-003"]
+    },
+    {
+      "id": "feat-005",
+      "title": "Settings + Cache Manager",
+      "status": "todo",
+      "depends_on": ["feat-001", "feat-002"]
+    },
+    {
+      "id": "feat-006",
+      "title": "AI Reading",
+      "status": "todo",
+      "depends_on": ["feat-004", "feat-005"]
+    },
+    {
+      "id": "feat-007",
+      "title": "Chapter Prefetch",
+      "status": "todo",
+      "depends_on": ["feat-006"]
+    },
+    {
+      "id": "feat-008",
+      "title": "Hardening + Release Readiness",
+      "status": "todo",
+      "depends_on": ["feat-001", "feat-002", "feat-003", "feat-004", "feat-005", "feat-006", "feat-007"]
     }
   ]
 }
