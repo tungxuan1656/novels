@@ -1,0 +1,95 @@
+# UX Flows — rn-read-books
+
+> **Scope owner:** Canonical UX flows. For entities see [domain-model.md](./domain-model.md), terms [glossary.md](./glossary.md), rules [business-rules.md](./business-rules.md), integrations [integrations.md](./integrations.md), navigation `../design/navigation.md`.
+
+## Flow
+
+### 1 — Startup and Resume
+
+Request → System restores session and settings from persistent settings store → Checks `onScreen`.
+- `true` → Open Reader for saved `bookId`, restore offset.
+- `false` / no session → Show Library.
+- No network; missing values use defaults.
+
+### 2 — Discover and Import Book
+
+Request → User opens Add Book → System fetches catalog from remote catalog.
+- Success → Show list (name, author, size).
+- Empty → "No books available."
+- Error (no network / server) → "Cannot load catalog, try again" + pull to retry.
+- Request → User picks book → System downloads ZIP to file storage → Extracts to local book repository (`book.json` + `chapters/chapter-N.html`) → Deletes ZIP → Updates Library → Success.
+- Failure → Error, no partial book listed, retry.
+
+### 3 — Library Browse and Manage
+
+Request → User views Library → System lists books from local book repository.
+- Empty → Prompt to add via +.
+- Request → Tap Info → Show sheet with metadata and chapter index.
+- Request → Swipe Delete → Confirm → Remove folder from file storage + entry (cache unreachable). Cancel → No change.
+
+### 4 — Reading and Navigation
+
+Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Renders HTML → Restores offset or top.
+- Request → Next/Previous → Step within bounds; disabled at ends.
+- Scroll → Saves offset per book; new chapter starts at top.
+- Request → Scroll to bottom / open index → Jump to chapter.
+- Overscroll → Auto-advance.
+- Missing file → "Failed to load chapter."
+
+### 5 — AI Mode with Cache
+
+Request → User switches `none` | `translate` | `summary`.
+- `none` → Raw HTML from file storage.
+- `translate`/`summary` → Check processed chapter cache by `bookId + chapterNumber + mode` → Hit → Render cached.
+- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with prompt, up to 3 retries (2^attempt sec) → Join, convert to HTML → Save to cache → Render.
+- Failure / empty → Show error, no cache write.
+
+### 6 — Prefetch Background
+
+Runs only when current chapter ready, book exists, mode != `none`.
+- Request → System takes next N (default 3, 1..10 else 3) → Batch-check cache → Skip cached → Process missing one by one via Flow 5 → Update `isRunning`/`total`/`processed`/`errors`.
+- At end or all cached → No work.
+- Request → Change chapter/mode → Cancel run, start new.
+- Per-chapter error → Log and continue.
+
+### 7 — Settings
+
+Request → User opens Settings → System shows groups: catalog, AI, download, prefetch, typography.
+- Request → Edit → Validate and persist to persistent settings store.
+- On launch → Sanitize; invalid/missing → defaults (catalog URL, AI `gpt-4o`, N=3, chunk 1300, provider `openai`).
+
+## Rules
+
+- Offline after import; catalog and AI need network.
+- ZIP deleted only after success; partial never listed.
+- Translate keeps honorifics/names, natural Vietnamese.
+- Summary keeps plot and key dialogue, 50–60%.
+- Cache key `bookId + chapterNumber + mode` is only AI cache.
+- Prefetch never for `none`, cancels on change.
+- Offset per book, restore only for same book.
+
+## Cases
+
+| Case | Result |
+|---|---|
+| ZIP missing `book.json` / chapters | Fail import |
+| No network on catalog / AI | Show error; AI retries 3x, no cache |
+| Empty AI response | "No response from AI service" |
+| Invalid N / chunk / JSON headers | Default 3 / 1300 / ignore |
+| Book deleted during prefetch | Cancel |
+| Chapter out of bounds | Clamp 1..total |
+
+## Acceptance
+
+- [ ] Launch resumes Reader if `onScreen=true`, else Library.
+- [ ] Catalog loading/empty/error visible; import creates folder and deletes ZIP.
+- [ ] Delete needs confirm and removes folder.
+- [ ] Reader renders HTML, navigation bounded, offset per book.
+- [ ] AI uses cache on hit, service on miss, saves result.
+- [ ] Prefetch skips cached, sequential, cancels on change.
+- [ ] Settings persist; invalid falls back to defaults.
+
+## Links
+
+- Model: [domain-model.md](./domain-model.md) · Glossary: [glossary.md](./glossary.md) · Rules: [business-rules.md](./business-rules.md) · Integrations: [integrations.md](./integrations.md)
+- Specs: `../specs/book-import.md` · `../specs/book-library.md` · `../specs/book-reader.md` · `../specs/ai-reading.md` · `../specs/chapter-prefetch.md` · `../specs/settings-management.md`

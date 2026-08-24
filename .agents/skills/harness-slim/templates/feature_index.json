@@ -1,0 +1,15 @@
+{
+  "_harness": {
+    "skill": "harness-slim",
+    "version": "{{HARNESS_VERSION}}",
+    "generatedAt": "{{GENERATED_AT}}"
+  },
+  "features": [
+    {
+      "id": "feat-001",
+      "title": "First Feature",
+      "status": "todo",
+      "depends_on": []
+    }
+  ]
+}

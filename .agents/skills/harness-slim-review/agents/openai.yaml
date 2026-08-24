@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Slim Review"
+  short_description: "Audit compact coding-agent harnesses"
+  default_prompt: "Use $harness-slim-review to audit this repository harness against Harness Slim criteria without modifying files."

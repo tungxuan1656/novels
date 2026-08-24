@@ -1,0 +1,102 @@
+{
+  "skill_name": "agent-docs-architect",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Compact repository - Resist the full scaffold",
+      "prompt": "Design agent-facing repository documentation for this 4k-line single-service internal utility. It has one maintainer, a clear README, obvious src and test folders, no sensitive data, and no long-running feature work.",
+      "expected_output": "A compact blueprint that reuses the README and proposes only a concise agent entry point plus an architecture overview if inspection finds a real navigation need.",
+      "files": [],
+      "tags": ["trigger-positive", "profile", "minimality"],
+      "expectations": [
+        "Treats project size as a weak signal rather than the sole decision",
+        "Does not create a docs directory or copy the established baseline",
+        "Explains every proposed artifact through a concrete need, risk, or constraint",
+        "Omits indexes, plan archives, quality scores, and cross-cutting guides"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Small but high-risk payment service",
+      "prompt": "Plan the repository knowledge system for a 7k-line payment API. It has one deployable, Stripe webhooks, PII, refund states, database migrations, and an on-call rotation. Two agents work on it concurrently.",
+      "expected_output": "A blueprint that does not classify the repository as documentation-light merely because it is small, and that selects product, integration, data, security, and reliability knowledge where evidence warrants them.",
+      "files": [],
+      "tags": ["trigger-positive", "risk", "stack", "domain"],
+      "expectations": [
+        "Uses payment states, webhooks, PII, migrations, and on-call operation as distinct pressure signals",
+        "Distinguishes a generated database schema from data ownership and retention guidance",
+        "Places webhook behavior in a contract or product source instead of an unowned README section",
+        "Does not invent the refund window or security controls"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Polyglot monorepo - Use local routes",
+      "prompt": "Our monorepo contains a React application, Go API, Python data pipeline, Terraform, Kafka events, generated OpenAPI clients, and three domain teams. We need a documentation architecture before a six-month migration.",
+      "expected_output": "An established or federated blueprint with a thin root route, scoped subsystem guidance, product and design indexes, integration and generated references, active and completed plans, and explicit freshness contracts.",
+      "files": [],
+      "tags": ["trigger-positive", "federated", "stack", "migration"],
+      "expectations": [
+        "Uses topology, stack diversity, events, generated clients, teams, and work horizon as pressure signals",
+        "Keeps root rules shallow and proposes local routes only where invariants differ",
+        "Includes a documented naming and layout convention for new artifacts",
+        "Separates durable truth, active work, historical plans, generated output, and external references"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Greenfield - Surface decisions without inventing them",
+      "prompt": "We are starting a B2B analytics product. The brief says it will have workspaces, role-based access, imports, dashboards, and EU customers. The team has not chosen the deployment model, data retention period, or authorization approach.",
+      "expected_output": "A proposed knowledge system grounded in the accepted brief and credible risks, with explicit open questions for unmade architecture, retention, and authorization decisions.",
+      "files": [],
+      "tags": ["trigger-positive", "greenfield", "decision-gaps"],
+      "expectations": [
+        "Uses accepted product constraints and credible privacy risk as evidence",
+        "Labels unmade choices as Proposed or Uncertain",
+        "Names decision owners or roles rather than supplying answers",
+        "Does not create every category in the federated convention"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Existing documentation - Reuse repository-native artifacts",
+      "prompt": "Audit our current agent documentation structure. We already have CONTRIBUTING.md as the instruction entry point, SYSTEM_OVERVIEW.md, ADRs, a canonical issue tracker, and versioned vendor docs available online. Recommend only structural changes that solve a real problem.",
+      "expected_output": "A blueprint that preserves sufficient existing equivalents and omits parallel artifacts without a demonstrated failure.",
+      "files": [],
+      "tags": ["trigger-positive", "audit", "reuse"],
+      "expectations": [
+        "Reuses repository-native filenames and canonical systems",
+        "Does not create duplicate AGENTS.md, ARCHITECTURE.md, debt trackers, or vendor snapshots by default",
+        "Classifies ownership conflicts before proposing moves or retirement",
+        "Can return an evidence-backed no-op"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Apply accepted architecture - Pair with writer",
+      "prompt": "We accepted the proposed documentation architecture. Create the selected documents now and keep their content concise and evidence-based.",
+      "expected_output": "The architect locks artifact ownership, convention, routes, and open decisions, then uses agent-docs-writer for document content and re-audits the resulting graph.",
+      "files": [],
+      "tags": ["trigger-positive", "handoff", "integration"],
+      "expectations": [
+        "Creates canonical sources before indexes and the root router",
+        "Passes evidence, responsibility, routes, lifecycle, uncertainty, and constraints to agent-docs-writer",
+        "Does not define a competing document-writing style",
+        "Checks the final graph for duplicate truth, unlabelled uncertainty, and broken routes"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "No trigger - Write one known document",
+      "prompt": "Rewrite our existing ARCHITECTURE.md to be shorter and add a clear dependency diagram. Its canonical responsibility and location are already agreed.",
+      "expected_output": "agent-docs-architect should not trigger; agent-docs-writer should handle the document directly.",
+      "files": [],
+      "tags": ["trigger-negative"],
+      "expectations": [
+        "Does not reassess repository scale",
+        "Does not redesign the documentation tree",
+        "Routes the task to agent-docs-writer"
+      ]
+    }
+  ]
+}

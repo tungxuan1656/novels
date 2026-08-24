@@ -1,0 +1,6 @@
+interface:
+  display_name: "Harness Task"
+  short_description: "Classify Harness tasks before execution"
+  default_prompt: "Use $harness-task to assess this repository request and choose the lightest safe feature and plan artifacts."
+policy:
+  allow_implicit_invocation: true

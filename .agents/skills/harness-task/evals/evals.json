@@ -1,0 +1,108 @@
+{
+  "skill_name": "harness-task",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Question and review avoid work artifacts",
+      "prompt": "Explain how this service validates sessions, then review the current implementation for bugs. Do not change code.",
+      "expected_output": "A one-sentence no-feature assessment followed by read-only investigation, with no feature, plan, or progress mutation.",
+      "files": [],
+      "tags": ["read-only", "minimality"],
+      "expectations": [
+        "Selects no feature",
+        "Creates no plan or progress record",
+        "Does not run broad verification merely to classify the request"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Small monorepo edit stays lightweight",
+      "prompt": "In this large multi-team monorepo, correct one broken link in a subsystem README and verify that the target exists.",
+      "expected_output": "A no-feature assessment because the requested change is local, clear, reversible, and safe despite repository scale.",
+      "files": [],
+      "tags": ["project-scale", "docs", "minimality"],
+      "expectations": [
+        "Does not escalate solely because the repository is large",
+        "Creates no feature, separate plan, or progress record",
+        "Uses only proportional verification"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Bounded tracked work keeps an inline plan",
+      "prompt": "Add the approved CSV export backlog item. Its scope and acceptance must remain in repository-local feature state, and implementation is one bounded session with no dependencies.",
+      "expected_output": "A feature with a concise inline plan, reusing existing feature state and avoiding a separate plan document.",
+      "files": [],
+      "tags": ["feature", "inline-plan"],
+      "expectations": [
+        "Selects feature tracking because the backlog is durable project memory",
+        "Keeps the plan inline",
+        "Does not create an external plan merely because implementation has several steps"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Cross-system migration gets a separate plan",
+      "prompt": "Migrate authentication sessions across the web app, API, worker, and database over several releases with rollback support and two agents working in parallel.",
+      "expected_output": "A feature linked to a separate durable plan covering phases, dependencies, ownership, verification, recovery, and handoff.",
+      "files": [],
+      "tags": ["migration", "multi-agent", "external-plan"],
+      "expectations": [
+        "Uses complexity, coordination, impact, and rollback as evidence",
+        "Selects a separate linked plan",
+        "Keeps feature scope and plan execution details in their canonical artifacts"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Small high-impact task is not automatically lightweight",
+      "prompt": "Change one authorization condition that controls access to customer billing records. The diff should be only a few lines.",
+      "expected_output": "An assessment that escalates based on authorization and data impact, then chooses inline or separate planning according to discovered recovery and coordination needs rather than diff size.",
+      "files": [],
+      "tags": ["security", "impact"],
+      "expectations": [
+        "Does not classify by line count",
+        "Inspects relevant scope and safeguards before selecting the artifact level",
+        "Does not require a separate plan without durable sequencing or recovery evidence"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Non-code work follows the same thresholds",
+      "prompt": "Reorganize and redirect a large documentation set across three teams over multiple sessions while preserving inbound links.",
+      "expected_output": "A feature with a separate linked plan because coordination, phases, link migration, and recovery matter even though no application code changes.",
+      "files": [],
+      "tags": ["documentation", "multi-session", "external-plan"],
+      "expectations": [
+        "Does not classify work by whether it changes code",
+        "Selects durable feature and plan artifacts",
+        "Updates progress only when execution state materially changes"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "External tracker remains canonical",
+      "prompt": "Implement the assigned issue. The accessible tracker already contains scope, acceptance, dependencies, status, and handoff, and the repository has no local feature for it.",
+      "expected_output": "Reuse the external tracker and avoid duplicating it in feature_index.json, a feature file, or progress.md.",
+      "files": [],
+      "tags": ["external-tracker", "reuse"],
+      "expectations": [
+        "Reuses the canonical tracker",
+        "Creates no duplicate local feature state",
+        "Still assesses whether execution needs a separate canonical plan"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "No trigger outside Harness Slim",
+      "prompt": "Classify this task in a repository that has no Harness Slim instructions or feature artifacts.",
+      "expected_output": "harness-task should not trigger because the repository does not use Harness Slim.",
+      "files": [],
+      "tags": ["trigger-negative"],
+      "expectations": [
+        "Does not impose Harness feature or plan artifacts",
+        "Leaves repository-native workflow selection to applicable instructions"
+      ]
+    }
+  ]
+}
