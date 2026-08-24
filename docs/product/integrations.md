@@ -28,7 +28,7 @@
 
 **Business request:** App sends the active prompt and one chunk of chapter text. Long chapters are split into chunks; each chunk is one request.
 
-**Business response:** Service returns processed text for that chunk. App joins chunks, cleans output, converts to HTML, and saves to the processed chapter cache.
+**Business response:** Service returns processed text for that chunk. App joins chunks, cleans output, and saves as text for SwiftUI.Text to the processed chapter cache.
 
 **Auth:** Configured in the persistent settings store. Extra headers/body merge into the request when present. No secret is hard-coded in business rules.
 
@@ -36,7 +36,7 @@
 
 **Failure mapping:** No content → "no response from AI service." Network/server error → show provider error or "AI processing failed." Invalid header/body settings are ignored.
 
-**Retry:** Up to 3 attempts per chunk with exponential backoff 2^attempt × 1000 ms. After final failure, cache is not written. Prefetch logs the error and continues.
+**Retry:** Retry 3× (1000 ms / 2000 ms) per ai-service.md. After final failure, cache is not written. Prefetch logs the error and continues.
 
 **Details:** See [ai-reading](./functional-specs/ai-reading.md).
 

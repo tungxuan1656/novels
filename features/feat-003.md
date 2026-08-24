@@ -15,7 +15,7 @@ Enable discovery and offline import of book ZIP packages from the remote catalog
 
 ## Non-goals
 
-- No `WKWebView` reader UI, no AI processing/prefetch, no settings editor UI beyond reading `BOOKS_API_URL`.
+- No Text reader UI (HTML→SwiftUI.Text), no AI processing/prefetch, no settings editor UI beyond reading `BOOKS_API_URL`.
 
 ## Acceptance
 

@@ -1,10 +1,10 @@
 # Book Reader
 
-> Renders chapter HTML from file storage, handles navigation, and restores position and typography.
+> Parses chapter HTML from file storage to text spans, renders with SwiftUI.Text, handles navigation, and restores position and typography.
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, reads `chapters/chapter-N.html` from file storage, renders with typography from persistent settings store, restores offset for same book (top if none; new chapters start at top).
+1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, reads `chapters/chapter-N.html` from file storage, parses HTML to text spans (`div`/`h*`/`p`/`br`/`b`/`strong`/`i`/`em`/`span`), renders with `SwiftUI.Text` using typography from persistent settings store, restores offset for same book (top if none; new chapters start at top).
 2. Actor navigates: Next/Previous step one within 1..total (disabled at ends); scroll near bottom auto-advances, scroll far above top goes back; index jumps directly. Short lock prevents rapid jumps.
 3. System saves offset per book while scrolling.
 4. Actor closes reader. System marks not on-screen but keeps offset for resume.
@@ -36,7 +36,7 @@
 
 ## Acceptance
 
-- [ ] Reader loads HTML from file storage and renders with current typography.
+- [ ] Reader parses HTML to text spans and renders with SwiftUI.Text using current typography.
 - [ ] Next/Previous move one chapter within bounds; disabled at ends; index jump works.
 - [ ] Offset is saved per book and restored for same book; new chapter starts at top.
 - [ ] Closing preserves position; opening another book does not reuse wrong offset.
@@ -48,4 +48,4 @@
 - Flows: [flows.md](../flows.md) §1 Startup and Resume, §4 Reading and Navigation
 - Integrations: [integrations.md](../integrations.md) (none for raw reading)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-09, BR-11
-- Contracts: [local-data](../../contracts/local-data.md) (WKWebView + `Application Support`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)
+- Contracts: [local-data](../../contracts/local-data.md) (SwiftUI.Text pipeline + `Application Support`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)

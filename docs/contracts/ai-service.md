@@ -39,8 +39,8 @@ Read the result from `choices[0].message.content`. An absent or empty value is a
 
 ## Retry and Failure
 
-- **Retry:** up to 3 attempts per chunk; no retry after attempt 3. Delays: ~1000 ms after failure of attempt 1 and ~2000 ms after failure of attempt 2 (index 0→1000 ms, 1→2000 ms in supplied implementation). [Supplied implementation; business docs state "up to 3 attempts" without fixing the backoff indexing in detail]
-- **Success:** join chunk outputs in source order, clean, convert to HTML, save to ProcessedChapter cache, render.
+- **Retry:** Retry 3× (1000 ms after attempt 1, 2000 ms after attempt 2) — canonical definition (product docs link here). No retry after attempt 3.
+- **Success:** join chunk outputs in source order, clean, save to ProcessedChapter cache as text, render with SwiftUI.Text.
 - **Failure mapping:**
   - No content → "no response from AI service." [Observed — `flows.md` Cases]
   - Network/server error after retries → show provider error or "AI processing failed." [Observed — `integrations.md` §2]

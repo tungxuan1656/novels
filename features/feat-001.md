@@ -16,7 +16,7 @@ Establish the native Swift persistence foundation (Application Support books, SQ
 
 - No UI screen implementation or navigation.
 - No catalog networking or ZIP download flow beyond repository interfaces/fixtures.
-- No AI client, HTML/`WKWebView` reader, prefetch runner, `ATS`/Xcode configuration, or production migration from the old React Native app.
+- No AI client, HTML→Text reader (SwiftUI.Text parser), prefetch runner, `ATS`/Xcode configuration, or production migration from the old React Native app.
 - No change to `TARGETED_DEVICE_FAMILY`, deployment target, or current project source in this planning-only task.
 
 ## Acceptance

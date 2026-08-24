@@ -23,7 +23,7 @@ Novels lets one reader download books once and read offline. Optional AI — tra
 
 - **Import** — fetch catalog → ZIP → extract → delete ZIP. [book-import](./functional-specs/book-import.md)
 - **Library** — list local books, swipe Info/Delete. [book-library](./functional-specs/book-library.md)
-- **Reader** — render HTML, Previous/Next, offset per book. [book-reader](./functional-specs/book-reader.md)
+- **Reader** — parses HTML → text spans and renders with SwiftUI.Text, Previous/Next, offset per book. [book-reader](./functional-specs/book-reader.md)
 - **AI Reading** — `none` is original; `translate`/`summary` check cache first. [ai-reading](./functional-specs/ai-reading.md)
 - **Prefetch** — next N=3 sequential, cancellable. [chapter-prefetch](./functional-specs/chapter-prefetch.md)
 - **Settings** — catalog, AI, prefetch, typography; sanitize on launch. [settings-management](./functional-specs/settings-management.md)
@@ -35,7 +35,7 @@ Full flows → [flows.md](./flows.md); graph → [navigation.md](../design/navig
 1. Startup restores session; `onScreen` → Reader else Library.
 2. Add Book → fetch catalog → pick → download/extract/delete ZIP.
 3. Library → info sheet or Delete.
-4. Reader → HTML → navigate → offset saved.
+4. Reader → parses HTML → text spans and renders with SwiftUI.Text → navigate → offset saved.
 5. AI switch → hit renders; miss processes then caches.
 6. Prefetch when ready and mode != `none` → batch-check → sequential.
 7. Settings → edit → validate → persist.
