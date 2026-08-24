@@ -6,9 +6,9 @@ Harden the app to iPhone-only release readiness with accessibility and regressio
 
 ## Scope
 
-- iPhone-only target/assets verification (`TARGETED_DEVICE_FAMILY`, icons, launch).
+- Change + verify `TARGETED_DEVICE_FAMILY` = iPhone only (1) per `docs/decisions/ios-scope.md`, iOS 26+, assets/icons/launch verified.
 - Accessibility: contrast, labels, 44pt targets per `docs/design/design-system.md`.
-- Key UI/regression and edge-case sweep (offline, invalid ZIP, missing chapter, invalid settings JSON, cache clear, prefetch cancel, kill-on-Reading resume).
+- Key UI/regression and edge-case sweep (offline, invalid ZIP, missing chapter, invalid JSON headers/body, cache clear, prefetch cancel, kill-on-Reading resume).
 - Final `./init.sh` evidence collection; no new product scope.
 
 ## Non-goals
@@ -17,9 +17,9 @@ Harden the app to iPhone-only release readiness with accessibility and regressio
 
 ## Acceptance
 
-- [ ] `TARGETED_DEVICE_FAMILY` iPhone-only, deployment iOS 26+, assets pass.
-- [ ] Accessibility checks pass for labeled controls and 44pt targets.
-- [ ] Regression/edge sweep executed with recorded evidence.
+- [ ] `TARGETED_DEVICE_FAMILY` = iPhone only (1) per `docs/decisions/ios-scope.md`, iOS 26+, assets/icons/launch verified.
+- [ ] Accessibility checks pass: contrast 4.5:1 text / 3:1 icons, 44pt targets per `docs/design/design-system.md:58-64`.
+- [ ] Regression/edge sweep executed with recorded evidence: offline, invalid ZIP, missing chapter, invalid JSON headers/body, cache clear, prefetch cancel, kill-on-Reading resume.
 - [ ] `./init.sh` passes; release checklist complete.
 
 ## Relevant docs
@@ -31,7 +31,10 @@ Harden the app to iPhone-only release readiness with accessibility and regressio
 
 ## Plan
 
-Detailed planning deferred until activation; inline plan only if bounded. No new product scope.
+External plan required at activation (≥4 files expected) — create docs/plans/feat-008.md per feat-001 template
+
+- Link: `docs/plans/feat-008.md` (to be created at activation)
+- Ownership: `Project config, a11y audit, regression matrix, release checklist`
 
 ## Verify
 

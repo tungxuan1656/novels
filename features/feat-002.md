@@ -8,9 +8,9 @@ Establish NavigationStack startup routing and offline Home Library shell with sh
 
 - Startup restore of session/settings (no network) and routing `onScreen ? Reading(bookId: slug) : Library` per `docs/design/navigation.md`.
 - `NavigationStack` with routes Library (root), Reading, References — shell only, no reader content.
-- Shared primitives: loading overlay, toast, bottom sheet.
+- Shared primitives: loading overlay, toast, bottom sheet (reusable `LoadingView`/`ToastView`/`BottomSheetView` primitives for all features).
 - Offline Library: scan `Application Support/novels/books/<slug>/`, list rows from `book.json`, empty state when none.
-- Info/details + chapter index bottom sheet from selected book.
+- Library info sheet only (book details + chapter index from selected book) — NOT Reading sheet. Reading sheet ownership belongs to feat-004/006.
 - Swipe-to-delete with confirmation; deletes slug folder via repository boundary from feat-001.
 - Vietnamese UI strings; iPhone-only shell.
 
@@ -25,6 +25,7 @@ Establish NavigationStack startup routing and offline Home Library shell with sh
 - [ ] Info sheet shows `name`/`author`/`count`/`references`; delete confirms then removes folder and refreshes list.
 - [ ] Loading/toast/bottom-sheet primitives work on Library; Vietnamese copy present.
 - [ ] Back at root does not crash; Reading back clears `onScreen`.
+- [ ] Reading shell sets/clears `onScreen` per `docs/design/navigation.md:49-50` (Home tap row → `onScreen=true`, Reading back → `onScreen=false`).
 
 ## Relevant docs
 
@@ -35,7 +36,14 @@ Establish NavigationStack startup routing and offline Home Library shell with sh
 
 ## Plan
 
-Detailed planning deferred until activation; inline plan only if bounded (<4 files, <200 lines).
+External plan required at activation (≥4 files expected) — create `docs/plans/feat-002.md` per `feat-001` template (`features/feat-001.md:47-51` and `docs/plans/feat-001.md`).
+
+- Link: `docs/plans/feat-002.md` (to be created at activation)
+
+## Ownership
+
+- Owns: `AppRoot.swift`, `Router.swift`, `LibraryView.swift`, Overlays (`LoadingView`/`ToastView`/`BottomSheetView`), `DeleteConfirm`, strings vi
+- Shared: `LibraryView` refresh hook consumed by feat-003 (no ownership conflict)
 
 ## Verify
 

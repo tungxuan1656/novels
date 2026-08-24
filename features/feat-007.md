@@ -8,7 +8,8 @@ Prefetch next N chapters' AI content sequentially and cancellably after a chapte
 
 - Eligibility: mode != `none` and current chapter ready; N = `PREFETCH_COUNT` (default 3, 1..10 else 3).
 - Batch cache check for next N via `processed_chapters.sqlite`; process only misses sequentially via feat-006 AI path.
-- `Task` cancellation on chapter/mode change; runtime-only `PrefetchStatus` and read-only progress UI.
+- `Task` cancellation on chapter/mode change; runtime-only `PrefetchStatus` (isRunning/total/processed/message/errors[]) read-only UI, not persisted per `docs/product/domain-model.md:66`.
+- Per-chapter error → log to `PrefetchStatus.errors` & continue next chapter per `docs/product/functional-specs/chapter-prefetch.md:11`; book deleted mid-run → cancel remaining per `docs/product/flows.md:79`/`chapter-prefetch.md:35`.
 - Reuse feat-006 chunk/retry/merge/de-dup/cache path unchanged.
 
 ## Non-goals
@@ -19,7 +20,9 @@ Prefetch next N chapters' AI content sequentially and cancellably after a chapte
 
 - [ ] Prefetch runs only when eligible; batch check skips cached chapters.
 - [ ] Sequential processing of misses in order; cancellation stops remaining work.
-- [ ] `PrefetchStatus` remains runtime-only (not persisted); progress UI is read-only.
+- [ ] `PrefetchStatus` runtime-only (isRunning/total/processed/message/errors[]) read-only UI, not persisted per `docs/product/domain-model.md:66`.
+- [ ] Single chapter failure does not abort batch; errors collected in `PrefetchStatus.errors`.
+- [ ] Book folder deleted during prefetch cancels pending tasks.
 - [ ] Invalid `PREFETCH_COUNT` coerced to 3.
 
 ## Relevant docs
@@ -30,7 +33,10 @@ Prefetch next N chapters' AI content sequentially and cancellably after a chapte
 
 ## Plan
 
-Detailed planning deferred until activation; substantial scope — external/separate plan may be used when activated. No plan created now.
+External plan required at activation (≥4 files expected) — create docs/plans/feat-007.md per feat-001 template
+
+- Link: `docs/plans/feat-007.md` (to be created at activation)
+- Ownership: `PrefetchManager (Task), PrefetchStatus (runtime), batch cache check via feat-006 path`
 
 ## Verify
 
