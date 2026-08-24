@@ -47,4 +47,4 @@
 - Flows: [flows.md](../flows.md) §2 Discover and Import
 - Integrations: [integrations.md](../integrations.md) §1 Remote Book Catalog
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-02
-- Tech counterpart: [docs/specs/book-import.md](../../specs/book-import.md)
+- Tech counterpart: [book-import.md](./book-import.md) — tech shapes colocated in this functional spec

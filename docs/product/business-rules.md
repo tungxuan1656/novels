@@ -27,4 +27,4 @@
 ## Links
 
 - Model: [domain-model.md](./domain-model.md) · Terms: [glossary.md](./glossary.md) · Overview: [overview.md](./overview.md)
-- Specs: [book-import](../specs/book-import.md) · [book-library](../specs/book-library.md) · [book-reader](../specs/book-reader.md) · [ai-reading](../specs/ai-reading.md) · [chapter-prefetch](../specs/chapter-prefetch.md) · [settings-management](../specs/settings-management.md)
+- Specs: [book-import](./functional-specs/book-import.md) · [book-library](./functional-specs/book-library.md) · [book-reader](./functional-specs/book-reader.md) · [ai-reading](./functional-specs/ai-reading.md) · [chapter-prefetch](./functional-specs/chapter-prefetch.md) · [settings-management](./functional-specs/settings-management.md)

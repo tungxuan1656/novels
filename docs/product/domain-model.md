@@ -82,4 +82,4 @@ idle ──► checking cache ──► processing sequentially ──► done
 - Terms: [glossary.md](./glossary.md)
 - Rules: [business-rules.md](./business-rules.md)
 - Behavior: [overview.md](./overview.md)
-- Specs: [functional-specs](./functional-specs/) (`book-import`, `book-library`, `book-reader`, `ai-reading`, `chapter-prefetch`, `settings-management`) — tech shapes in `../specs/*`
+- Specs: [functional-specs](./functional-specs/) (`book-import`, `book-library`, `book-reader`, `ai-reading`, `chapter-prefetch`, `settings-management`) — tech shapes in `./functional-specs/*`

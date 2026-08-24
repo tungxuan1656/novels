@@ -48,4 +48,4 @@
 - Flows: [flows.md](../flows.md) §6 Prefetch Background
 - Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-07, BR-08
-- Tech counterpart: [docs/specs/chapter-prefetch.md](../../specs/chapter-prefetch.md)
+- Tech counterpart: [chapter-prefetch.md](./chapter-prefetch.md) — tech shapes colocated in this functional spec

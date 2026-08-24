@@ -48,4 +48,4 @@
 - Flows: [flows.md](../flows.md) §3 Library Browse and Manage
 - Integrations: [integrations.md](../integrations.md) (no external call)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-10
-- Tech counterpart: [docs/specs/book-library.md](../../specs/book-library.md)
+- Tech counterpart: [book-library.md](./book-library.md) — tech shapes colocated in this functional spec

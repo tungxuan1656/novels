@@ -47,4 +47,4 @@
 - Flows: [flows.md](../flows.md) §5 AI Mode with Cache
 - Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-03, BR-04, BR-05, BR-06, BR-07
-- Tech counterpart: [docs/specs/ai-reading.md](../../specs/ai-reading.md)
+- Tech counterpart: [ai-reading.md](./ai-reading.md) — tech shapes colocated in this functional spec

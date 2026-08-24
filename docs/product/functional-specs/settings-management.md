@@ -47,4 +47,4 @@
 - Flows: [flows.md](../flows.md) §7 Settings
 - Integrations: [integrations.md](../integrations.md) §1 Remote Book Catalog, §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-08, BR-11, BR-12
-- Tech counterpart: [docs/specs/settings-management.md](../../specs/settings-management.md)
+- Tech counterpart: [settings-management.md](./settings-management.md) — tech shapes colocated in this functional spec
