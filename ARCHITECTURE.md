@@ -67,4 +67,4 @@ Settings → sanitize on launch (missing/invalid → defaults; unknown/legacy �
 ## 6. Notes on Facts
 
 - Labels: **Observed** = seen in repo; **Intended** = not yet in code but accepted; **Open** = genuinely undecided operational detail (e.g. backup exclusion for Application Support if not covered by default, and test target shape).
-- Do not edit Swift, Xcode project, `feature_index.json`, `features/`, `progress.md`, `init.sh`, or stage/delete `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` in docs-only tasks. That ZIP is local-only, untracked, with outer folder + `__MACOSX`; see `docs/contracts/book-package.md`.
+- Do not edit Swift, Xcode project, feature_index.json, features/, progress.md, init.sh, or delete docs/samples/van-gioi-chi-rut-thuong-he-thong.zip in docs-only tasks. That ZIP is tracked, has an outer folder and __MACOSX data, and is not a valid fixture; see docs/contracts/book-package.md.

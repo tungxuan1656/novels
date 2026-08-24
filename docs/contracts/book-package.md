@@ -42,9 +42,9 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 ## Reference Sample — Non-Canonical
 
-- **File:** `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` — **local-only, untracked, not a fixture**. [Observed]
+- **File:** docs/samples/van-gioi-chi-rut-thuong-he-thong.zip — **tracked, not a fixture**.
 - **Why non-canonical:** ZIP wraps payload in an outer folder `van-gioi-chi-rut-thuong-he-thong/` and includes `__MACOSX/` resource forks; it does **not** have `book.json` at archive root and is therefore rejected by the exact-root rule above.
-- Do not stage/commit this ZIP, do not treat it as a valid test fixture, and do not change import behavior or the ZIP to accommodate wrappers. Keep it local-only reference; do not delete it in docs tasks.
+- Do not treat this ZIP as a valid test fixture and do not change import behavior or the ZIP to accommodate wrappers. Keep it as a reference; do not delete it in docs tasks.
 
 ## Cases
 
