@@ -23,7 +23,7 @@ Provide offline `WKWebView` reader for raw `chapter-N.html` with bounded navigat
 - [ ] Scroll beyond threshold auto-advances chapter with short lock prevents rapid jumps; prev/next disabled at bounds; References select returns; to-bottom button; swipe-back disabled per `docs/design/navigation.md:37` (`docs/product/flows.md:36`, `docs/product/functional-specs/book-reader.md:8`).
 - [ ] Scroll offset saved per slug and restored on resume/re-entry; `onScreen` set/cleared correctly.
 - [ ] Typography controls in Reading sheet (font picker + size/lineHeight/letterSpacing steppers) persist via feat-001 `SettingsStore.typography` and apply to `WKWebView` content immediately.
-- [ ] Missing `chapter-N.html` toasts 'Không tìm thấy chương' no crash; rapid nav no corrupt; offset saved per slug restored on resume.
+- [ ] Missing `chapter-N.html` toasts 'Không tìm thấy chương' ("Chapter not found") without crash; rapid navigation does not corrupt state; offset saved per slug is restored on resume.
 - [ ] Rapid navigation does not corrupt offset.
 
 ## Relevant docs

@@ -22,7 +22,7 @@ Deliver cache-first translate/summary rendering for the current chapter via an O
 - [ ] Reprocess overwrites cache; mode switch shows cached content or triggers processing.
 - [ ] `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON headers/body ignored at merge per `docs/contracts/ai-service.md:17`, localhost ATS `http://localhost:8317` only.
 - [ ] `mode == "none"` never cached.
-- [ ] Unit test asserts prompts contain BR-03/04 constraints (giữ honorifics ta/ngươi/huynh..., natural Vietnamese 100%) và BR-05/06 (summary 50-60% keep plot/dialogue, no hallucination).
+- [ ] Unit test asserts prompts contain BR-03/04 constraints (keep honorifics ta/ngươi/huynh..., natural Vietnamese 100%) and BR-05/06 (summary 50-60% keep plot/dialogue, no hallucination).
 
 ## Relevant docs
 
