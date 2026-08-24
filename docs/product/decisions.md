@@ -1,4 +1,4 @@
-# Business Decisions — rn-read-books
+# Business Decisions — Novels
 
 > **Append-only.** Add new entry at bottom. Do not rewrite history. Label reconstructed rationale. Tech ADRs → [../decisions/decisions.md](../decisions/decisions.md); topology → [ARCHITECTURE.md](../../ARCHITECTURE.md).
 

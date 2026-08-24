@@ -1,4 +1,4 @@
-# Navigation — rn-read-books
+# Navigation — Novels
 
 > **Scope owner:** This file owns the screen graph and navigation rules. For screen details see [screens.md](./screens.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md).
 

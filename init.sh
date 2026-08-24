@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -o pipefail
 
-# Evidence-based verification for rn-read-books (iOS novels).
+# Evidence-based verification for Novels (iOS).
 # Repo root: apps/novels.xcodeproj (scheme novels, iOS 26.5). No SwiftPM/Node/test/lint configs.
 # Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
 MAX_JOBS="${HARNESS_JOBS:-4}"

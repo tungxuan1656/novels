@@ -1,4 +1,4 @@
-# Business Rules — rn-read-books
+# Business Rules — Novels
 
 > **Scope owner:** Owns durable business rules. For entities see [domain-model.md](./domain-model.md), terms [glossary.md](./glossary.md), behavior [overview.md](./overview.md).
 

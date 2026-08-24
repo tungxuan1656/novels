@@ -1,4 +1,4 @@
-# Glossary — rn-read-books
+# Glossary — Novels
 
 > **Scope owner:** This file owns term definitions. For entities and invariants see [domain-model.md](./domain-model.md). For behavior see [overview.md](./overview.md). For rules see [business-rules.md](./business-rules.md).
 

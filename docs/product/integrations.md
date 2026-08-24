@@ -1,4 +1,4 @@
-# Integrations — rn-read-books
+# Integrations — Novels
 
 > **Scope owner:** Owns business view of external integrations. For entities see [domain-model.md](./domain-model.md), rules [business-rules.md](./business-rules.md). Technical payloads live in linked specs.
 

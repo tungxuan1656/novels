@@ -1,4 +1,4 @@
-# Screens — rn-read-books
+# Screens — Novels
 
 > **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md).
 

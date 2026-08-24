@@ -1,4 +1,4 @@
-# Design System — rn-read-books
+# Design System — Novels
 
 > **Scope owner:** This file owns visual and interaction invariants. For screens see [screens.md](./screens.md), navigation see [navigation.md](./navigation.md), overview see [../product/overview.md](../product/overview.md).
 

@@ -1,8 +1,8 @@
 # AGENTS.md
 
-rn-read-books (iOS novels) — offline-first reader. One reader downloads ZIP book packages from a remote catalog once and reads offline. AI translate (natural Vietnamese, keep honorifics) and summary (50–60%, keep plot/dialogue) via configurable OpenAI-compatible service with single ProcessedChapter cache (`bookId+chapterNumber+mode`, BR-07). Prefetch next N=3 sequentially, cancellable. Per-book scroll offset, typography persists, settings sanitize on launch.
+Novels — iOS app (offline-first reader). One reader downloads ZIP book packages from a remote catalog once and reads offline. AI translate (natural Vietnamese, keep honorifics) and summary (50–60%, keep plot/dialogue) via configurable OpenAI-compatible service with single ProcessedChapter cache (`bookId+chapterNumber+mode`, BR-07). Prefetch next N=3 sequentially, cancellable. Per-book scroll offset, typography persists, settings sanitize on launch.
 
-Canonical product: `docs/product/overview.md` (scope), `docs/product/domain-model.md` (entities/invariants), `docs/product/flows.md` (7 flows), `docs/product/business-rules.md` (BR-01..12), `docs/product/glossary.md`, `docs/product/integrations.md`, specs in `docs/product/functional-specs/`; design in `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
+Business spec for **Novels**: `docs/product/overview.md` (scope), `docs/product/domain-model.md` (entities/invariants), `docs/product/flows.md` (7 flows), `docs/product/business-rules.md` (BR-01..12), `docs/product/glossary.md`, `docs/product/integrations.md`, specs in `docs/product/functional-specs/`; design in `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
 
 Detected stack: `SwiftUI / Xcode — apps/novels.xcodeproj (scheme: novels, iOS 26.5, Swift 5.0, DEVELOPMENT_TEAM M5U4E4H84J). No SwiftPM/Node, no test target, no SwiftLint/SwiftFormat. Single workspace module: apps/novels.`
 

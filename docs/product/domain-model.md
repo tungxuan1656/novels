@@ -1,4 +1,4 @@
-# Domain Model — rn-read-books
+# Domain Model — Novels
 
 > **Scope owner:** This file owns entities, relationships, invariants, and state machines. For product behavior see [overview.md](./overview.md). For business rules see [business-rules.md](./business-rules.md). For term definitions see [glossary.md](./glossary.md).
 

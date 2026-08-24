@@ -1,4 +1,4 @@
-# UX Flows — rn-read-books
+# UX Flows — Novels
 
 > **Scope owner:** Canonical UX flows. For entities see [domain-model.md](./domain-model.md), terms [glossary.md](./glossary.md), rules [business-rules.md](./business-rules.md), integrations [integrations.md](./integrations.md), navigation `../design/navigation.md`.
 
