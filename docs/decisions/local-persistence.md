@@ -2,7 +2,7 @@
 
 - **Date:** 2026-08-24
 - **Status:** Accepted
-- **Supersedes:** open physical-technology items in `docs/contracts/local-data.md`, `SECURITY.md`, and `ARCHITECTURE.md` §1/§6; no longer open
+- **Supersedes:** open physical-technology items in `../contracts/local-data.md`, `SECURITY.md`, and `../../ARCHITECTURE.md` §1/§6; no longer open
 
 ## Context
 
@@ -10,18 +10,18 @@ Physical persistence was open (`SwiftData` / `UserDefaults` / `FileManager` / `C
 
 ## Decision
 
-Use the native Swift stack — Foundation + system frameworks only. No React Native data to read or migrate; RN findings are historical reference only.
+Use the native Swift stack — Foundation + system frameworks only. No React Native data to read or migrate. Canonical paths and DDL live in `../contracts/local-data.md`.
 
-| Logical boundary | Physical store | Native API | Location / detail | Status |
-|---|---|---|---|---|
-| Local Book Repository | File system — Codable + FileManager | `Foundation.FileManager` + `Codable` | `books/<book.json.id>/` in `Application Support/novels/` (see `docs/contracts/local-data.md` for canonical path) with `book.json` + `chapters/chapter-N.html` | Accepted |
-| ProcessedChapter cache (single AI cache) | SQLite via system `libsqlite3` | `SQLite3` (system `libsqlite3.dylib`, no Swift package) — gated behind protocol so it can be swapped | `processed_chapters.sqlite` in `Application Support/novels/cache/` (see `docs/contracts/local-data.md` for canonical path) — table `processed_chapters` | Accepted |
-| Settings / Session / Typography | UserDefaults via `@Observable` wrapper | `Foundation.UserDefaults` + `Observation.@Observable` | Current keys only (`BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `PREFETCH_COUNT`, `AI_PROVIDER`, `AI_PROCESS_ACTIONS`, `AI_MIN_CHUNK_SIZE`, typography/session); `AI_CUSTOM_HEADERS` stored as normal settings JSON with no Keychain | Accepted |
-| ZIP extraction | System unzip | `Foundation.FileManager.unzipItem(at:to:)` | Strict archive-root validation (`book.json` at root); rejects wrapper sample | Accepted |
-| Chapter rendering | Native text | `Foundation` HTML → `SwiftUI.Text` pipeline (lightweight parse) | Parses `chapters/chapter-N.html` (`div`/`h*`/`p`/`br`/`b`/`strong`/`i`/`em`/`span`) → `SwiftUI.Text` in `VStack` | Accepted |
-| Network | URLSession concurrency | `Foundation.URLSession` `async/await` + `Task` cancellation + `actor` de-duplication | Catalog POST + AI Chat Completions per `docs/contracts/catalog-api.md` / `ai-service.md`; `localhost` ATS exception for `http://localhost:8317` | Accepted |
+- **Local Book Repository:** `Foundation.FileManager` + `Codable`.
+- **ProcessedChapter cache (single cache, `UNIQUE(bookId,chapterNumber,mode)`):** system `libsqlite3` (no Swift package) behind a protocol.
+- **Settings / Session / Typography:** `Foundation.UserDefaults` + `Observation.@Observable` (no `Keychain`).
+- **ZIP extraction:** `Foundation.FileManager.unzipItem(at:to:)` with strict archive-root validation.
+- **Chapter rendering:** `Foundation` parses `div`, `h*`, `p`, `br`, `b`, `strong`, `i`, `em`, `span` into spans for `SwiftUI.Text` (no WebKit).
+- **Network:** `Foundation.URLSession` with `async/await`, `actor` de-duplication, and `Task` cancellation.
+- **Security:** `NSAppTransportSecurity` allows `http://localhost:8317` only.
 
-Exact official references:
+Official references:
+
 - FileManager / Application Support / unzipItem: https://developer.apple.com/documentation/foundation/filemanager
 - Codable: https://developer.apple.com/documentation/swift/codable
 - UserDefaults: https://developer.apple.com/documentation/foundation/userdefaults
@@ -29,22 +29,25 @@ Exact official references:
 - SwiftUI Text: https://developer.apple.com/documentation/swiftui/text
 - URLSession: https://developer.apple.com/documentation/foundation/urlsession
 - App Sandbox / File System / ATS: https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.security.app-sandbox and https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity
-- SQLite is a system library, not a Swift package; accessed via `libsqlite3` (`import SQLite3` when present) behind an internal protocol.
+
+## Alternatives
+
+| Option | Reason not chosen |
+|---|---|
+| `SwiftData` for books or cache | Requires model container and migration; overkill for file + single table |
+| `Core Data` for cache | Heavy stack for one table with `UNIQUE(bookId,chapterNumber,mode)` |
+| `Keychain` for `AI_CUSTOM_HEADERS` | Adds access policy and sync complexity; user-entered JSON stays in `UserDefaults` per scope |
+| `BGTaskScheduler` for prefetch | Prefetch is foreground and task-scoped; background scheduling not required |
+| React Native package or SQLite wrapper package | No React Native and no extra Swift package; use system `libsqlite3` |
 
 ## Consequences
 
-- App writes only to Application Support and UserDefaults; no Documents sync. Bundle is read-only.
-- Single cache table keyed by `book_id + chapter_number + mode` (`UNIQUE(book_id, chapter_number, mode)`); covers upsert, batch-check, index, clear, delete-on-book-remove.
-- Settings sanitize on launch for current keys only; unknown keys ignored, defaults apply; no migration.
-- `AI_CUSTOM_HEADERS` stays as normal settings; no Keychain, encryption, or redaction log.
+- App writes only to `Application Support` and `UserDefaults`; bundle is read-only.
+- Single cache keyed by `bookId + chapterNumber + mode`; canonical DDL and queries live in `../contracts/local-data.md`.
+- Settings sanitize on launch for current keys only; unknown keys are ignored and defaults apply.
+- `AI_CUSTOM_HEADERS` stays as normal settings; no `Keychain`, encryption, or redaction log.
 - No extra capabilities beyond `localhost` ATS exception.
-
-## Non-Decisions
-
-- No React Native dependency or migration.
-- No `SwiftData`/`Core Data`/Swift package; no `Keychain`.
-- No `BGTaskScheduler` for prefetch (foreground/task-scoped); no custom backup exclusion.
 
 ## Links
 
-- `ARCHITECTURE.md` (topology, logical→physical map) · `docs/contracts/local-data.md` · `docs/contracts/settings-schema.md` · `docs/contracts/book-package.md` · `docs/contracts/ai-service.md` · `SECURITY.md` · `docs/decisions/book-identity.md`
+- Canonical: `../contracts/local-data.md` · `../contracts/settings-schema.md` · `../contracts/book-package.md` · `../contracts/ai-service.md` · `../../SECURITY.md` · `../../ARCHITECTURE.md` · `book-identity.md`

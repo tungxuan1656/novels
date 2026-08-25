@@ -5,18 +5,28 @@
 
 ## Context
 
-Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but producer contract was not anchored. The local sample `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` has an outer folder plus `__MACOSX` and is not at root, causing ambiguity for fixtures.
+Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but producer contract was not anchored. The local sample `../../docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` has an outer folder plus `__MACOSX` and is not at root. This caused ambiguity for fixtures.
 
 ## Decision
 
-- **Producer must emit at archive root:** `book.json` and `chapters/chapter-N.html` for `N=1..count` (1-based). Do not nest inside an outer folder.
-- **Sample note:** docs/samples/van-gioi-chi-rut-thuong-he-thong.zip is **tracked, not a fixture** — reference/non-canonical — it wraps payload in van-gioi-chi-rut-thuong-he-thong/ + __MACOSX. Document it as such in docs/contracts/book-package.md; do not treat it as a valid fixture.
+- **Producer emits at archive root:** `book.json` and `chapters/chapter-N.html` for `N=1..count` (1-based). Do not nest inside an outer folder.
+- **Canonical shape lives in `../contracts/book-package.md`.** This ADR keeps only rationale and sample note.
+- **Sample note:** `../../docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` is **tracked, not a fixture** — reference/non-canonical — it wraps payload in `van-gioi-chi-rut-thuong-he-thong/` + `__MACOSX`. Do not treat it as a valid fixture.
 
-## Consequence
+## Alternatives
 
-- Import accepts only the exact archive-root layout (`book.json` + `chapters/` at root) and rejects the current sample shape; the producer must fix the ZIP. Tests must use root-layout fixtures when they land. The app does not flatten, strip, or ignore outer wrappers/`__MACOSX`.
-- Keep the sample ZIP untouched in docs-only tasks; do not delete it and do not change import behavior to accommodate wrappers.
+| Option | Reason not chosen |
+|---|---|
+| Accept outer-folder wrapper | Adds branch for `__MACOSX` and nested root; producer fixes ZIP instead |
+| Flatten wrapper on import | Hides producer error; exact-root rule is stricter and testable |
+| Allow `chapter-0.html` | Breaks 1-based `N=1..count` invariant |
+
+## Consequences
+
+- Import accepts only the exact archive-root layout (`book.json` + `chapters/` at root) and rejects the current sample shape. The producer must fix the ZIP.
+- Tests use root-layout fixtures when they land. The app does not flatten or ignore outer wrappers.
+- Keep the sample ZIP untouched in docs-only tasks.
 
 ## Links
 
-- `docs/contracts/book-package.md` · `docs/contracts/local-data.md` · `docs/product/domain-model.md` Invariants · `docs/product/functional-specs/book-import.md`
+- Canonical: `../contracts/book-package.md` · `../contracts/local-data.md` · `../../docs/product/domain-model.md` Invariants · `../../docs/product/functional-specs/book-import.md`

@@ -5,17 +5,17 @@
 ## Flow (ordered steps actor / system)
 
 1. Actor opens Library. System scans the local book repository in file storage, reads each `book.json`, and builds the list. Invalid folders are skipped.
-2. System renders: with books → rows with name, author, chapter count, cover; empty → prompt to add via Add action.
+2. System renders. If books exist, show rows with name, author, chapter count, and cover. If empty, show prompt to add via Add action.
 3. Actor taps a row. System opens a details sheet with metadata (name, author, synopsis, status, last updated) and the ordered chapter index.
-4. Actor swipes a row to delete: system shows confirm dialog; confirm → system removes the whole book folder from file storage and the library entry; success feedback shown; cancel → no change.
+4. Actor swipes a row to delete. System shows confirm dialog. If confirmed, system removes the whole book folder from file storage and the library entry, then shows success feedback. If cancelled, no change occurs.
 5. Delete failure → show "Cannot delete book", keep entry. No network needed.
 
 ## Rules (business rules, link to business-rules.md)
 
 - Library works offline after import ([business-rules.md](../business-rules.md) BR-01).
-- Delete removes the entire book folder; other books are unaffected ([business-rules.md](../business-rules.md) BR-10).
+- Delete removes the entire book folder. Other books stay unaffected ([business-rules.md](../business-rules.md) BR-10).
 - After delete, processed results for that book become unreachable ([business-rules.md](../business-rules.md) BR-10).
-- Chapter count equals number of references; indexing is 1-based ([domain-model.md](../domain-model.md) Invariants).
+- Indexing follows [domain-model.md](../domain-model.md) Invariants and [business-rules.md](../business-rules.md) Notes.
 
 ## States
 

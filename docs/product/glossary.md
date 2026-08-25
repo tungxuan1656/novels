@@ -20,8 +20,8 @@
 | **Prefetch Status** | Runtime progress of background prefetch: running flag, totals, processed count, and errors. |
 | **Persistent Settings Store** | The key-value store for settings, sessions, and typography. It restores state on launch. |
 | **Library** | The home view that lists all books from the local book repository. |
-| **Reader** | The view that parses HTML → text spans and renders with SwiftUI.Text, handles navigation, and saves scroll offset. |
-| **Import** | The flow: fetch catalog → download ZIP → extract → delete ZIP → list in library. |
+| **Reader** | The view that shows chapters and handles navigation. Flow → [flows.md](./flows.md) §4. |
+| **Import** | The operation that adds a book from the catalog to the local repository. Flow → [flows.md](./flows.md) §2. |
 
 ## Links
 

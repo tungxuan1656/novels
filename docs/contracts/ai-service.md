@@ -1,22 +1,20 @@
 # Contract — AI Processing Service (OpenAI-Compatible)
 
-> Canonical wire contract for AI translate/summary. Business view: `docs/product/integrations.md` §2. Consumers: `docs/product/functional-specs/ai-reading.md`, `docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `ARCHITECTURE.md`.
+> Canonical wire contract for AI translate/summary. Business view: `../../docs/product/integrations.md` §2. Consumers: `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `../../ARCHITECTURE.md`.
 
 ## Endpoint
 
-- **Single endpoint:** one OpenAI-compatible `POST` to chat completions. No second provider endpoint. [Intended]
-- **Default URL:** `http://localhost:8317/v1/chat/completions` [Intended]
-- **Default model:** `gpt-4o` [Intended — `OPENAI_MODEL`; BR-12 fallback]
-- **Provider flag:** `AI_PROVIDER='openai'` only supported today; unknown → `openai` on sanitize. [Intended — `settings-schema.md`]
+- **Single endpoint:** one OpenAI-compatible `POST` to chat completions. No second provider endpoint.
+- **Defaults:** defaults live in `settings-schema.md`. This file owns chunk, retry, and cache behavior only.
 
 ## Request Construction
 
 For each chunk of chapter text (see Chunking):
 
-1. Base body includes `model` and `messages`. Each message has `role` (`system`, `user`, or `assistant`) and `content` string. The active `AIAction.prompt` is the system content, and the chunk text is the user content.
-2. Merge `AI_EXTRA_BODY` when it is valid JSON object — shallow merge into the request body. If invalid JSON, ignore it and proceed (no failure). [Intended — per scope: invalid JSON ignored]
-3. Merge `AI_CUSTOM_HEADERS` when it is valid JSON object — add as HTTP headers. API key is **not** a separate setting; when the user wants auth they put it inside `AI_CUSTOM_HEADERS` JSON (e.g. `{"Authorization":"Bearer ..."}`). If invalid JSON, ignore. [Intended]
-4. `AI_EXTRA_BODY` / `AI_CUSTOM_HEADERS` are user-entered JSON objects stored verbatim with normal settings (`UserDefaults` via `@Observable` — see `docs/decisions/local-persistence.md`); no secret is hard-coded and no real secret appears in docs/examples per `SECURITY.md`.
+1. Base body includes `model` and `messages`. Each message has `role` (`system`, `user`, or `assistant`) and `content` string. The active `AIAction.prompt` is the system content. The chunk text is the user content.
+2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body. If the JSON is invalid, ignore it and continue. The request does not fail.
+3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). If the JSON is invalid, ignore it.
+4. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
 
 ### Request and Response Shape
 
@@ -34,27 +32,49 @@ Read the result from `choices[0].message.content`. An absent or empty value is a
 
 ## Chunking
 
-- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. Short chapters → single chunk. Long chapters → split into chunks, each chunk is one service call; chunk outputs retain source order when joined. Per-chunk concurrency is unspecified by product docs. [Intended — BR-12, `flows.md` §5]
-- Prefetch chapters are processed sequentially by product rule (BR-08, `chapter-prefetch.md`); chunk-level sequencing is as above.
+- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. The app uses one chunk for short chapters. For long chapters the app splits text into chunks. Each chunk triggers one service call. The app joins chunk outputs in source order.
+- Per-chunk concurrency is unspecified by product docs.
+- Prefetch processes chapters sequentially (BR-08, `chapter-prefetch.md`). Chunk-level sequencing follows the rule above.
 
 ## Retry and Failure
 
-- **Retry:** Retry 3× (1000 ms after attempt 1, 2000 ms after attempt 2) — canonical definition (product docs link here). No retry after attempt 3.
-- **Success:** join chunk outputs in source order, clean, save to ProcessedChapter cache as text, render with SwiftUI.Text.
+- **Retry:** retry 3× (`1000 ms` after attempt 1, `2000 ms` after attempt 2). The app makes no retry after attempt 3.
+- **Success:** join chunk outputs in source order, clean, save to ProcessedChapter cache as text, render with `SwiftUI.Text`.
 - **Failure mapping:**
-  - No content → "no response from AI service." [Observed — `flows.md` Cases]
-  - Network/server error after retries → show provider error or "AI processing failed." [Observed — `integrations.md` §2]
-  - Invalid headers/body JSON → ignored, not a failure. [Intended]
-  - After final failure: no cache write. Concurrent same-key requests de-duplicate (single call, shared result). [Observed — BR-07]
+  - No content → "no response from AI service."
+  - Network/server error after retries → show provider error or "AI processing failed."
+  - Invalid headers/body JSON → the app ignores the value; this is not a failure.
+  - After final failure: the app writes no cache entry. Concurrent requests for the same key de-duplicate (single call, shared result).
 
 ## Cache
 
-- Single ProcessedChapter cache keyed by `bookId + chapterNumber + mode` (mode = `AIAction.key` = `translate`/`summary`). Mode `none` bypasses cache/service. Check before calling; save on success (upsert). No second cache. See `local-data.md` and `business-rules.md` BR-07. Prefetch batch-checks then skips cached.
+- Single ProcessedChapter cache keyed by `bookId + chapterNumber + mode` (mode = `AIAction.key` = `translate`/`summary`). Mode `none` bypasses cache and service. The app checks the cache before calling. The app saves on success (upsert). No second cache exists. See `local-data.md` and `../../docs/product/business-rules.md` BR-07. Prefetch batch-checks then skips cached entries.
 
 ## Defaults and Sanitization
 
-Defaults and sanitize rules live in `settings-schema.md` (catalog/AI/prefetch/typography, chunk 1300, provider `openai`, `AI_PROCESS_ACTIONS` defaults). Prefetch `N=3` is separate.
+Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch, typography, chunk `1300`, provider `openai`, `AI_PROCESS_ACTIONS` defaults). Prefetch `N=3` is separate.
+
+## Rules
+
+- Use one `POST` to chat completions per chunk.
+- Merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` only when valid JSON object; otherwise ignore.
+- Retry 3× with fixed delays; then stop.
+- Check cache before call; save on success.
+
+## Avoid
+
+- Do not redefine defaults here; see `settings-schema.md`.
+- Do not store secrets; use `AI_CUSTOM_HEADERS` JSON.
+- Do not add a second AI cache.
+
+## Examples
+
+- Canonical: `POST` `http://localhost:8317/v1/chat/completions` with merged headers and body.
+
+## Verification
+
+- Run `../../init.sh` (format → lint → build).
 
 ## Notes
 
-- `AI_CUSTOM_HEADERS` persists with normal settings (no Keychain); no Network Logger or credential/redaction log feature is in scope — see `SECURITY.md` and `docs/decisions/local-persistence.md`. Keep docs/examples free of real secrets. ATS exception is `localhost`-only for `http://localhost:8317`.
+- `AI_CUSTOM_HEADERS` persists with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS exception is `localhost`-only for `http://localhost:8317`.

@@ -5,7 +5,7 @@
 ## Flow (ordered steps actor / system)
 
 1. Actor opens Add Book. System reads catalog address from persistent settings store and requests the exported list from the remote book catalog.
-2. System shows: items → list with name, author, size, synopsis; empty → "No books available"; failure → "Cannot load catalog, try again" with pull to retry.
+2. System shows the catalog state. If items exist, show list with name, author, size, and synopsis. If empty, show "No books available". If failure, show "Cannot load catalog, try again" and allow pull to retry.
 3. Actor selects a book. System ensures repository and temp folders exist in file storage, downloads ZIP to temp, extracts to local book repository, deletes ZIP, refreshes library.
 4. Valid package has `book.json` at root and `chapters/chapter-N.html` for N = 1..count.
 5. Any failure → show error, no partial entry, allow retry.
@@ -13,9 +13,9 @@
 ## Rules (business rules, link to business-rules.md)
 
 - No authentication for listing or download ([business-rules.md](../business-rules.md) BR-01, [integrations.md](../integrations.md) §1).
-- ZIP deleted only after full success; failed imports never create a valid book ([business-rules.md](../business-rules.md) BR-02).
+- ZIP is deleted only after full success. Failed imports never create a valid book ([business-rules.md](../business-rules.md) BR-02).
 - Package structure and 1-based indexing are fixed ([domain-model.md](../domain-model.md) Invariants).
-- Listing is safe to retry; re-import overwrites the same folder ([integrations.md](../integrations.md) §1).
+- Listing is safe to retry. Re-import overwrites the same folder ([integrations.md](../integrations.md) §1).
 
 ## States
 

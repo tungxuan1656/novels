@@ -6,23 +6,23 @@
 
 | Rule ID | Rule | Applies to | Exception |
 |---|---|---|---|
-| BR-01 | Reading works offline after import. No network needed to open or navigate chapters. | Reader, Library | Import needs network; offline does not refresh catalog. |
-| BR-02 | On successful import the ZIP package is deleted. ZIP never remains after success. | Import | If any step fails, do not treat a partial book as valid. |
-| BR-03 | Translate keeps all honorifics unchanged (ta, nguoi, han, nang, huynh, de, etc.). Never map ta→em/anh or nguoi→ban. | AI `translate` | None — always enforce. |
-| BR-04 | Translate replaces Sino-Vietnamese syntax with natural Vietnamese. Keep 100% meaning, names, places, terms. Do not add or cut content. | AI `translate` | None. |
-| BR-05 | Summary cuts length to 50–60% by removing only long scenery, repeated emotion, and non-plot background. | AI `summary` | If chapter is very short, return shortest faithful summary. |
-| BR-06 | Summary keeps plot order, key events, twists, and key dialogue (may shorten but keep intent). Never invent content. | AI `summary` | None. |
-| BR-07 | Processed chapter cache is the only AI cache. Check it before calling the AI processing service; save by `bookId + chapterNumber + mode`. | AI reading, Prefetch | Mode `none` bypasses cache. |
-| BR-08 | Prefetch next N chapters in background. Default N=3, allowed 1..10. Runs only when mode != `none` and current chapter is ready. | Prefetch | If N missing or out of range, use 3. Skip cached chapters. Cancel on chapter or mode change. |
-| BR-09 | Scroll position is saved per book in the persistent settings store and restored only for the same book. New chapter starts at top. | Reader | If no saved offset, start at top. |
-| BR-10 | Delete removes the whole book folder from the local book repository and removes the entry from the library. | Library | Other books unaffected. Cached AI results for that book become unreachable. |
-| BR-11 | Typography (font, size, line height, spacing) persists in the persistent settings store and applies to every render. | Reader | Missing values use defaults. |
-| BR-12 | Settings sanitize on launch: invalid or missing values fall back to defaults (catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, provider `openai`). Only current keys exist; unknown/legacy keys are ignored and defaults apply. | Persistent settings store (`UserDefaults` + `@Observable`) | Unknown provider → `openai`. Invalid action list → `translate` + `summary`. |
+| BR-01 | Reading works offline after import. Opening and navigating chapters needs no network. | Reader, Library | Import needs network. Offline does not refresh catalog. |
+| BR-02 | If import succeeds, delete the ZIP package. Never keep the ZIP after success. | Import | If any step fails, do not list a partial book. |
+| BR-03 | Translate keeps every honorific unchanged. Keep ta, nguoi, han, nang, huynh, de, and more unchanged. Never map ta to em or anh, or nguoi to ban. | AI `translate` | None. Always enforce this rule. |
+| BR-04 | Translate replaces Sino-Vietnamese syntax with natural Vietnamese. Keep 100% meaning, names, places, and terms. Do not add or remove content. | AI `translate` | None. |
+| BR-05 | Summary reduces length to 50–60%. Remove only long scenery, repeated emotion, and non-plot background. | AI `summary` | If the chapter is very short, return the shortest faithful summary. |
+| BR-06 | Summary keeps plot order, key events, twists, and key dialogue. Shorten dialogue but keep intent. Never invent content. | AI `summary` | None. |
+| BR-07 | Use the processed chapter cache as the only AI cache. Before you call the AI service, check the cache. Save results by `bookId + chapterNumber + mode`. | AI reading, Prefetch | Mode `none` bypasses the cache. |
+| BR-08 | Prefetch the next N chapters in background. Use N=3 by default. Allow N=1..10. Run only when mode is not `none` and current chapter is ready. Skip cached chapters. Cancel on chapter or mode change. If N is missing or out of range, use 3. | Prefetch | None. |
+| BR-09 | Save scroll position per book in the persistent settings store. Restore position only for the same book. Start a new chapter at top. If no saved offset exists, start at top. | Reader | None. |
+| BR-10 | Delete removes the entire book folder from the local book repository. Delete also removes the library entry. | Library | Other books stay unchanged. Cached AI results for the deleted book become unreachable. |
+| BR-11 | Persist typography in the persistent settings store. Apply typography to every render. | Reader | If values are missing, use defaults. |
+| BR-12 | On launch, sanitize settings. If a value is invalid or missing, fall back to defaults. Defaults are catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, and provider `openai`. Ignore unknown and legacy keys. Keep only current keys. | Persistent settings store (`UserDefaults` + `@Observable`) | If provider is unknown, use `openai`. If action list is invalid, use `translate` and `summary`. |
 
 ## Notes
 
-- Chapters are 1-based. Valid package: `book.json` at root and `chapters/chapter-N.html`.
-- Chunk hint is 1300 characters; short content is sent as one unit.
+- Chapters use 1-based indexing. A valid package contains `book.json` at root and `chapters/chapter-N.html`.
+- Chunk hint is 1300 characters. Short content uses one unit.
 
 ## Links
 

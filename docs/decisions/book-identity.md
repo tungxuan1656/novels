@@ -5,22 +5,26 @@
 
 ## Context
 
-Remote catalog returns numeric `ExportedBook.id` and `ExportedBook.bookId`; local packages carry `book.json.id` as a string slug (e.g. `van-gioi-chi-rut-thuong-he-thong`). Identity mapping was open, risking numeric↔string coercion or cache-key mismatch.
+Remote catalog returns numeric `ExportedBook.id` and `ExportedBook.bookId`. Local packages carry `book.json.id` as a string slug (for example `van-gioi-chi-rut-thuong-he-thong`). Identity mapping was open. Coercion between numeric and string risks cache-key mismatch.
 
 ## Decision
 
-- **Local identity:** `book.json.id` (string slug) is the sole local identity for a book. It determines the repository folder name, the Reader route `bookId` param, `ReadingSession.bookId`, `Typography` association, and the SQLite `processed_chapters.book_id`.
-- **Remote ids are metadata only:** `ExportedBook.id` and `ExportedBook.bookId` (both `number` per `docs/contracts/catalog-api.md`) are displayed/stored as metadata; they are not coerced to or from the slug and never used as the local folder or cache key.
-- **Client behavior:** on import, the client passes `ExportedBook.exportUrl` to download; it does not construct URLs from ids and does not coerce ids to strings. After extraction it reads `book.json.id` and uses that slug for all local operations.
-- **Cache key normalization:** `ProcessedChapter` cache key is `book_id(slug) + chapter_number + mode` per `docs/contracts/local-data.md`; remote numeric ids do not appear in the key.
+Use `book.json.id` (string slug) as the sole local identity. Remote numeric ids remain metadata only. The client passes `ExportedBook.exportUrl` as-is and does not coerce numeric ids to strings. Canonical folder and cache key live in `../contracts/local-data.md`.
+
+## Alternatives
+
+| Option | Reason not chosen |
+|---|---|
+| Numeric `ExportedBook.bookId` as folder | Numeric id can change per export; slug stays stable across imports |
+| Numeric `ExportedBook.id` as cache key | Same instability; mismatch with `book.json.id` breaks cache lookup |
+| Generate UUID on import | Requires extra mapping and breaks re-import determinism |
 
 ## Consequences
 
-- Folder path: `Application Support/novels/books/<slug>/` where `<slug> == book.json.id`.
-- Deleting a book removes `.../books/<slug>/` and makes its `book_id == <slug>` cache entries unreachable; re-import overwrites the same slug folder.
-- Navigation `Reading(bookId: string)` carries the slug; restoring offset and prefetch both filter by slug.
-- No migration or fallback between numeric catalog ids and local slugs.
+- Re-import overwrites the same slug folder; no migration between numeric ids and slugs.
+- Navigation `Reading(bookId: string)` and prefetch filter by slug.
+- Remote ids display as metadata only.
 
 ## Links
 
-- `docs/contracts/catalog-api.md` (remote numeric types) · `docs/contracts/book-package.md` (`book.json.id` slug) · `docs/contracts/local-data.md` (folder + SQLite `book_id`) · `docs/decisions/local-persistence.md` · `docs/product/domain-model.md`
+- Identity canonical: `../contracts/local-data.md` · Remote types: `../contracts/catalog-api.md` · Package: `../contracts/book-package.md` · Persistence: `local-persistence.md` · Domain: `../../docs/product/domain-model.md`

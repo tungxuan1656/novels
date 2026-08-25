@@ -67,15 +67,13 @@ idle ──► checking cache ──► processing sequentially ──► done
 
 ## 4. Invariants
 
-- Use 1-based chapter indexing. First chapter is `1`. Never use `0`.
-- A valid ZIP contains `book.json` at root and `chapters/chapter-N.html` for `N = 1 .. count`.
-- Delete ZIP after successful import.
-- Enforce unique `bookId + chapterNumber + mode`. Upsert on conflict.
-- Prefetch N follows BR-08: default 3, allowed 1..10; ignore invalid values. See [business-rules.md](./business-rules.md) BR-08.
-- Prefetch never runs when mode is `none`.
+- Chapter indexing and package structure follow [business-rules.md](./business-rules.md) Notes.
+- ZIP lifecycle follows [business-rules.md](./business-rules.md) BR-02.
+- Cache key follows [business-rules.md](./business-rules.md) BR-07.
+- Prefetch N and trigger follow [business-rules.md](./business-rules.md) BR-08.
 - Treat `AIAction.key` as `ProcessedChapter.mode`.
-- Store offset per session; restore only for same `bookId`.
-- Keep AI cache separate from files and settings.
+- Offset storage follows [business-rules.md](./business-rules.md) BR-09.
+- Keep AI cache separate from files and settings. See [business-rules.md](./business-rules.md) BR-07.
 
 ## Links
 

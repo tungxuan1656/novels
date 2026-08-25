@@ -6,20 +6,20 @@
 
 1. Trigger: after current chapter renders, system checks: book exists, chapter ready, mode not `none`. If any fails, do nothing.
 2. System reads N from persistent settings store (default 3, 1..10 else 3), computes range next to `min(current + N, total)`. Empty → done.
-3. System batch-checks processed chapter cache for range and mode; skips cached.
+3. System batch-checks processed chapter cache for range and mode. System skips cached items.
 4. System processes each missing chapter in order via AI reading path (read raw → call AI service → save). Update progress after each.
-5. Per-chapter error → log and continue. If all cached, finish with no work; at end mark not running.
+5. Per-chapter error → log and continue. If all cached, finish with no work. At end, mark not running.
 
 ## Rules (business rules, link to business-rules.md)
 
 - Runs only when mode not `none` and chapter is ready ([business-rules.md](../business-rules.md) BR-08).
-- Default N=3; only 1..10 valid, else 3; cached items skipped ([business-rules.md](../business-rules.md) BR-08).
+- Default N is 3. Only 1..10 is valid, else use 3. Skip cached items ([business-rules.md](../business-rules.md) BR-08).
 - Cancel on chapter or mode change ([business-rules.md](../business-rules.md) BR-08, [flows.md](../flows.md) §6).
 - Cache key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07).
 
 ## States
 
-- **Prefetch Status:** idle → checking cache → processing sequentially → done; any stage → cancelled on chapter or mode change ([domain-model.md](../domain-model.md) Prefetch Status)
+- **Prefetch Status:** idle → checking cache → processing sequentially → done. Any stage → cancelled on chapter or mode change ([domain-model.md](../domain-model.md) Prefetch Status)
 - Progress: isRunning, currentBookId, totalChapters, processedChapters, message, errors.
 
 ## Cases

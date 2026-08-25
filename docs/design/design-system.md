@@ -16,15 +16,19 @@ Elevation: flat / raised / overlay
 
 ## 2. Color Semantics
 
-- **Background:** warm paper for Reading, white for Library/Settings, light gray for grouped sections.
-- **Surface:** white for cards and sheets.
-- **Text:** primary near-black for titles, secondary gray for meta, muted for hints.
-- **Accent:** blue for active and info.
-- **Success:** green for confirm and enabled.
-- **Warning/Error:** orange for warning, red for delete and error.
-- **Border:** light neutral 1px for dividers.
+Tokens map to values and uses.
 
-Icons follow same palette: gray idle, white on color. Contrast 4.5:1 for text, 3:1 for icons.
+- **background** — #FDFCF8 paper for Reading, #FFFFFF white for Library and Settings, #F5F5F5 light gray for grouped sections
+- **surface** — #FFFFFF for cards and sheets
+- **text** — #111111 near-black for titles
+- **muted** — #6B7280 for meta and hints
+- **accent** — #2563EB blue for active states and info
+- **success** — #16A34A green for confirm and enabled
+- **warning** — #EA580C orange for warnings
+- **error** — #DC2626 red for delete and errors
+- **border** — #E5E7EB light neutral, 1px for dividers
+
+Icons use muted for idle and surface for on-color. Contrast is 4.5:1 for text and 3:1 for icons.
 
 ## 3. Typography Scale
 
