@@ -26,12 +26,8 @@ final class Router {
     }
 
     func restoreInitialRoute() {
-        let pending = settingsStore.session
         settingsStore.load()
         settingsStore.sanitize()
-        if settingsStore.session == nil, let pending, pending.onScreen {
-            settingsStore.session = pending
-        }
         guard let session = settingsStore.session, session.onScreen else { return }
         guard (try? repository.book(slug: session.bookId)) != nil else {
             toast.show("Không tìm thấy sách", type: .error)

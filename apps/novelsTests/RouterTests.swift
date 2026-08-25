@@ -14,8 +14,11 @@ final class RouterTests: XCTestCase {
 
     func testInvalidBookIdToastsAndStaysOnLibrary() throws {
         let ud = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let session = ReadingSession(bookId: "missing-slug", onScreen: true, offset: 0, chapterNumber: 1)
+        if let data = try? JSONEncoder().encode(session) {
+            ud.set(data, forKey: DefaultsKeys.readingSession)
+        }
         let store = SettingsStore(userDefaults: ud)
-        store.session = ReadingSession(bookId: "missing-slug", onScreen: true, offset: 0, chapterNumber: 1)
         let router = Router(settingsStore: store, repository: FakeRepository(books: []))
         router.restoreInitialRoute()
         XCTAssertEqual(router.path.count, 0)
@@ -25,8 +28,11 @@ final class RouterTests: XCTestCase {
     func testValidBookIdPushesReading() throws {
         let book = Book(id: "valid-slug", name: "V", author: "A", count: 1, references: ["C1"])
         let ud = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let session = ReadingSession(bookId: "valid-slug", onScreen: true, offset: 0, chapterNumber: 1)
+        if let data = try? JSONEncoder().encode(session) {
+            ud.set(data, forKey: DefaultsKeys.readingSession)
+        }
         let store = SettingsStore(userDefaults: ud)
-        store.session = ReadingSession(bookId: "valid-slug", onScreen: true, offset: 0, chapterNumber: 1)
         let router = Router(settingsStore: store, repository: FakeRepository(books: [book]))
         router.restoreInitialRoute()
         XCTAssertEqual(router.path.count, 1)

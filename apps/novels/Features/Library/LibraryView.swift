@@ -104,9 +104,6 @@ struct LibraryView: View {
         .task {
             viewModel.load()
         }
-        .onAppear {
-            viewModel.load()
-        }
     }
 }
 

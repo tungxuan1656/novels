@@ -9,8 +9,6 @@ import SwiftUI
 
 @main
 struct NovelsApp: App {
-    @State private var settings = SettingsStore.shared
-
     var body: some Scene {
         WindowGroup {
             AppRoot()
