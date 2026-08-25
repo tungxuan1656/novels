@@ -6,7 +6,7 @@ struct LibraryView: View {
 
     init(router: Router, viewModel: LibraryViewModel? = nil) {
         self.router = router
-        _viewModel = State(wrappedValue: viewModel ?? LibraryViewModel())
+        _viewModel = State(wrappedValue: viewModel ?? LibraryViewModel(toastCenter: router.toast))
     }
 
     var body: some View {
@@ -84,7 +84,6 @@ struct LibraryView: View {
             }
         }
         .loadingOverlay(isLoading: viewModel.isLoading)
-        .toast(center: viewModel.toast)
         .sheet(isPresented: $viewModel.showInfo) {
             if let book = viewModel.selected {
                 BookInfoSheet(book: book)
