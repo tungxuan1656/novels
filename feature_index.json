@@ -8,7 +8,7 @@
     {
       "id": "feat-001",
       "title": "Native Persistence Foundation",
-      "status": "todo",
+      "status": "done",
       "depends_on": []
     },
     {

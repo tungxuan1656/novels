@@ -21,13 +21,13 @@ Establish the native Swift persistence foundation (Application Support books, SQ
 
 ## Acceptance
 
-- [ ] `Book`, `Chapter`, `Reference`, `ProcessedChapter`, `ReadingSession`, `TypographySetting`, and settings models are Codable/pure Swift, use slug `id` and numeric `count`, and pass Codable round-trip tests.
-- [ ] Repository paths resolve under `Application Support/novels/books/<slug>/` and `Application Support/novels/cache/processed_chapters.sqlite`; scan lists only folders with valid `book.json`; `chapters/chapter-N.html` 1-based validated; atomic write replaces file without partial state; `deleteBook(slug)` removes whole folder only.
-- [ ] Repository rejects ZIPs not matching exact archive-root layout (`book.json` at root, `chapters/chapter-N.html` `1..count`); wrapper sample with outer folder/`__MACOSX` is treated as invalid in fixture test.
-- [ ] `processed_chapters` SQLite schema matches `docs/contracts/local-data.md` (PRIMARY KEY/UNIQUE, index, no `none`, upsert, versioned via `user_version`); cache hit by `(book_id, chapter_number, mode)` works; batch status for prefetch range works; upsert overwrites; `clearAll()` and `clear(bookId:)` delete correctly; `mode == "none"` is never written.
-- [ ] Settings `@Observable` store exposes current keys only with defaults `gpt-4o`, prefetch `3`, chunk `1300`, `openai`, catalog/AI URLs; sanitize on load enforces BR-12; invalid `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` JSON is ignored; unknown/legacy keys are ignored.
-- [ ] Unit tests in `novelsTests` at `apps/novelsTests/` cover Codable, repository isolation (temp Application Support), cache semantics/identity, and settings sanitize; UI tests in `novelsUITests` at `apps/novelsUITests/` exist with a launch smoke test (`LaunchSmokeTests.testAppLaunches`) and both targets pass `xcodebuild test`.
-- [ ] `./init.sh` passes after `xcodebuild build` and `xcodebuild test` for the new test target.
+- [x] `Book`, `Chapter`, `Reference`, `ProcessedChapter`, `ReadingSession`, `TypographySetting`, and settings models are Codable/pure Swift, use slug `id` and numeric `count`, and pass Codable round-trip tests.
+- [x] Repository paths resolve under `Application Support/novels/books/<slug>/` and `Application Support/novels/cache/processed_chapters.sqlite`; scan lists only folders with valid `book.json`; `chapters/chapter-N.html` 1-based validated; atomic write replaces file without partial state; `deleteBook(slug)` removes whole folder only.
+- [x] Repository rejects ZIPs not matching exact archive-root layout (`book.json` at root, `chapters/chapter-N.html` `1..count`); wrapper sample with outer folder/`__MACOSX` is treated as invalid in fixture test.
+- [x] `processed_chapters` SQLite schema matches `docs/contracts/local-data.md` (PRIMARY KEY/UNIQUE, index, no `none`, upsert, versioned via `user_version`); cache hit by `(book_id, chapter_number, mode)` works; batch status for prefetch range works; upsert overwrites; `clearAll()` and `clear(bookId:)` delete correctly; `mode == "none"` is never written.
+- [x] Settings `@Observable` store exposes current keys only with defaults `gpt-4o`, prefetch `3`, chunk `1300`, `openai`, catalog/AI URLs; sanitize on load enforces BR-12; invalid `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` JSON is ignored; unknown/legacy keys are ignored.
+- [x] Unit tests in `novelsTests` at `apps/novelsTests/` cover Codable, repository isolation (temp Application Support), cache semantics/identity, and settings sanitize; UI tests in `novelsUITests` at `apps/novelsUITests/` exist with a launch smoke test (`LaunchSmokeTests.testAppLaunches`) and both targets pass `xcodebuild test`.
+- [x] `./init.sh` passes after `xcodebuild build` and `xcodebuild test` for the new test target.
 
 ## Relevant docs
 
@@ -59,9 +59,9 @@ External plan required — substantial work (≥4 files, SQLite schema, test tar
 
 ## Handoff
 
-- State: todo
-- Evidence: `features/feat-001.md`, `docs/plans/feat-001.md` — plan created against canonical contracts listed above; no Swift/Xcode code modified
+- State: done
+- Evidence: `apps/novels/Domain/Book.swift, Reference.swift, Chapter.swift, AIMode.swift, ProcessedChapter.swift, ReadingSession.swift, TypographySetting.swift, SettingsModels.swift, SHA256.swift`; `apps/novels/Persistence/Paths.swift, BookRepository.swift, ZipValidator.swift, ProcessedChapterCache.swift, SQLiteSupport.swift, SettingsStore.swift, DefaultsKeys.swift`; `apps/novelsTests/DomainCodableTests.swift, BookRepositoryTests.swift, ProcessedChapterCacheTests.swift, SettingsStoreTests.swift, FixtureTests.swift, Fixtures/book.json, Fixtures/chapters/*`; `apps/novelsUITests/LaunchSmokeTests.swift`; `apps/novels.xcodeproj/project.pbxproj` (3 targets novels/novelsTests/novelsUITests, synchronized groups + exceptionSets); `apps/novelsTests/Info.plist`, `apps/novelsUITests/Info.plist`; `init.sh` TEST_TASKS enabled; `xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'` PASS (40 tests: DomainCodableTests 13, BookRepositoryTests 13, ProcessedChapterCacheTests 6, SettingsStoreTests 6, FixtureTests 1, LaunchSmokeTests 1), `xcodebuild build ...` PASS, `./init.sh` PASS (format 0/24, lint 0 violations, build PASS, test PASS), `CryptoKit` in `SHA256.swift`, isolation `temporaryDirectory`/` :memory:`/`suiteName` (grep 0 hits for real Application Support, 0 hits for SwiftData/Core Data/Keychain/BGTask)
 - Blockers: none
-- Next: Awaiting user approval to activate feat-001 and start implementation (do not start without explicit go-ahead)
+- Next: feat-002 App Shell + Home Library ready (depends_on feat-001 done)
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->

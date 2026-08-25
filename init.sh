@@ -20,7 +20,7 @@ BUILD_TASKS=(
 )
 
 TEST_TASKS=(
-  # "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'" # SKIP explicit: no test target in project.pbxproj, no Tests directory, no test scheme from xcodebuild -list
+  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'"
 )
 
 if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
