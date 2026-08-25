@@ -7,7 +7,7 @@
 | Boundary | Store | Root / file | API |
 |---|---|---|---|
 | Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<book.json.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (strict archive-root validation) |
-| ProcessedChapter cache (single) | SQLite via system `libsqlite3` (no Swift package) | `Application Support/novels/cache/processed_chapters.sqlite` | `SQLite3` behind internal protocol; `WKWebView` is separate for rendering |
+| ProcessedChapter cache (single) | SQLite via system `libsqlite3` (no Swift package) | `Application Support/novels/cache/processed_chapters.sqlite` | `SQLite3` behind internal protocol; rendering is native `SwiftUI.Text` (no WebKit) |
 | Settings / Session / Typography | `UserDefaults` wrapped by `@Observable` | Current keys only; `AI_CUSTOM_HEADERS` stored as normal JSON string (no Keychain) | `Foundation.UserDefaults` + `Observation.@Observable` |
 | Runtime-only | In-memory | `PrefetchStatus` `{ isRunning, currentBookId, totalChapters, processedChapters, message, errors[]}` | — |
 
@@ -17,7 +17,7 @@ React Native findings are historical reference only — no RN package and no RN 
 
 - **Identity:** folder name is the string slug `book.json.id` (see `docs/decisions/book-identity.md`). Remote numeric `ExportedBook.id` / `bookId` are metadata only and never used as folder or cache key.
 - **Contents:** per book folder with `book.json` at root and `chapters/chapter-N.html` (1-based, `N=1..count`). See `book-package.md`.
-- **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` for `WKWebView`; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
+- **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to text spans for `SwiftUI.Text`; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
 - **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` → validate exact root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
 - **Reference:** https://developer.apple.com/documentation/foundation/filemanager
 
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS processed_chapters (
   book_id       TEXT    NOT NULL, -- slug == book.json.id
   chapter_number INTEGER NOT NULL,
   mode          TEXT    NOT NULL, -- 'translate' | 'summary'
-  content       TEXT    NOT NULL, -- HTML
+  content       TEXT    NOT NULL, -- text (parsed HTML → SwiftUI.Text spans, not raw HTML)
   content_hash  TEXT    NOT NULL,
   created_at    TEXT    NOT NULL,
   updated_at    TEXT    NOT NULL,
@@ -57,7 +57,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 
 ```
 Library ──scan/Codable──► Local Book Repository (Application Support/books/<slug>)
-Reader  ──WKWebView──► Local Book Repository ──► Typography (UserDefaults @Observable)
+Reader  ──SwiftUI.Text (HTML→spans)──► Local Book Repository ──► Typography (UserDefaults @Observable)
 Reader/AI ──SQLite check/save──► ProcessedChapter Cache ──► AI Service (on miss, URLSession)
 Prefetch ──SQLite batch-check/save──► ProcessedChapter Cache
 Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography

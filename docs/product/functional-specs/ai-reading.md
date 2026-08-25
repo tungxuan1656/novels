@@ -4,9 +4,9 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a chapter. System checks AI mode: `none` → raw HTML from file storage; `translate`/`summary` → check processed chapter cache for `bookId + chapterNumber + mode`.
-2. Cache hit → render cached HTML, no service call.
-3. Cache miss → read raw text, get prompt from AI actions in persistent settings store, send to AI processing service, clean and convert to HTML, save to cache, render.
+1. Actor opens a chapter. System checks AI mode: `none` → raw text parsed from HTML in file storage and rendered with SwiftUI.Text; `translate`/`summary` → check processed chapter cache for `bookId + chapterNumber + mode`.
+2. Cache hit → render cached text with SwiftUI.Text, no service call.
+3. Cache miss → read raw text, get prompt from AI actions in persistent settings store, send to AI processing service, clean, save to cache as text, render with SwiftUI.Text.
 4. Actor switches mode → reload same chapter via cache-first path.
 5. Failure or empty response → show error, no cache write. Concurrent same-key requests are de-duplicated.
 
@@ -26,7 +26,7 @@
 
 | Case | Result |
 |------|--------|
-| Mode `none` | Render raw HTML, no cache |
+| Mode `none` | Render raw text (parsed from HTML) with SwiftUI.Text, no cache |
 | Cache hit | Render instantly |
 | Cache miss, success | Save to cache and render |
 | Empty response | Show "no response", no cache |
@@ -37,7 +37,7 @@
 
 - [ ] Switching none/translate/summary reloads same chapter with correct source.
 - [ ] Cached chapter renders without calling the service.
-- [ ] Uncached chapter calls service, saves HTML to cache, then renders.
+- [ ] Uncached chapter calls service, saves text to cache, then renders with SwiftUI.Text.
 - [ ] Empty or failed response shows error and creates no entry.
 - [ ] Translate and summary follow honorific and faithful-summary rules.
 

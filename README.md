@@ -19,12 +19,12 @@ It also keeps typography and scroll position for each book.
 
 The app has seven screens that share one navigation flow.
 Library lists local books and shows `Info` and `Delete` by swipe.
-Reader shows HTML chapters in a web view and saves the offset per book.
+Reader shows chapters (parsed HTML → native Text) and saves the offset per book.
 Add Book fetches the remote catalog and imports the selected ZIP package.
 Settings edits all persistent keys and restores them on launch.
 
 Optional AI modes transform the current chapter before you read it.
-Mode `none` shows the original HTML without a network request.
+Mode `none` shows the original text (parsed from HTML) without a network request.
 Mode `translate` produces natural Vietnamese and keeps honorifics unchanged.
 Mode `summary` reduces length to 50 to 60 percent and keeps plot and dialogue.
 The app caches each result by `bookId`, `chapterNumber`, and `mode`.
@@ -36,7 +36,7 @@ The app provides these features:
 
 - **Import** — Import downloads a ZIP package from the catalog and extracts `book.json` and `chapters/chapter-N.html` to the local repository.
 - **Library** — Library scans the local repository and shows each book with name, author, and chapter count.
-- **Reader** — Reader shows chapter HTML, provides Previous and Next, and restores scroll offset per book.
+- **Reader** — Reader parses chapter HTML to text spans and shows with SwiftUI.Text, provides Previous and Next, and restores scroll offset per book.
 - **AI Reading** — AI Reading runs translate or summary on chunks of about 1300 characters and caches the result.
 - **Prefetch** — When eligible, prefetch queries the cache and then processes the next three chapters in sequence.
 - **Settings** — When the value is missing or invalid, settings sanitizes the value and restores the default in `UserDefaults`.
@@ -51,7 +51,7 @@ The app has seven screens and three overlays.
 |---|---|---|
 | **Home Library** | Browse books | Header with add and settings, row with name, author, and count |
 | **Add Book** | Import book | Header back, remote list, download overlay |
-| **Reading** | Read and navigate | Header index and title, HTML body, Previous and Next, scroll save |
+| **Reading** | Read and navigate | Header index and title, native Text body (parsed from HTML), Previous and Next, scroll save |
 | **References** | Jump chapter | Header back, title list, current item in bold |
 | **Settings** | Edit settings | Header, grouped list, data card for cache |
 | **Cache Manager** | Clear AI cache | Header, count card, clear button, note |
@@ -110,6 +110,8 @@ The app stores settings in `UserDefaults` and wraps them with an `@Observable` s
 When a value is missing or invalid, the app restores the default on the next launch.
 Unknown keys are ignored and do not change stored values.
 The app sanitizes all keys on launch and applies defaults where needed.
+
+Full canonical: docs/contracts/settings-schema.md
 
 | Key | Type | Default | Notes |
 |---|---|---|---|
@@ -245,16 +247,7 @@ AI returns no content:
 
 ## Roadmap
 
-The backlog has eight features that are ordered by dependency.
-Feature 009 for lint and format is done, while 001 to 008 are todo.
-Each feature file in `features/` owns scope and acceptance criteria.
-Progress is in `progress.md` and the active feature is at most one at a time.
-
-Next is feature 001 Native Persistence Foundation.
-It adds the local repository, the cache, and the settings store.
-Later features add Library, Import, Reader, Settings, AI, and Prefetch.
-
-For the plan, read `feature_index.json` and `features/feat-001.md`.
+Backlog & status: see feature_index.json and progress.md. Next: select next todo per feature_index.json (at most one active).
 
 ## Repository Details
 
@@ -264,7 +257,7 @@ For the plan, read `feature_index.json` and `features/feat-001.md`.
 
 **License:** MIT — see `LICENSE`.
 
-**Stack:** SwiftUI, Xcode 16, iOS 26.5, Swift 5, `FileManager`, `SQLite3`, `WKWebView`, `URLSession`
+**Stack:** SwiftUI, Xcode 16, iOS 26.5, Swift 5, `FileManager`, `SQLite3`, `SwiftUI.Text` (HTML→text), `URLSession`
 
 **Language:** Vietnamese UI, English docs.
 

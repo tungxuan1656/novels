@@ -29,7 +29,7 @@ Request → User views Library → System lists books from local book repository
 
 ### 4 — Reading and Navigation
 
-Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Renders HTML → Restores offset or top.
+Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to text spans per local-persistence.md → Renders with SwiftUI.Text → Restores offset or top.
 - Request → Next/Previous → Step within bounds; disabled at ends.
 - Scroll → Saves offset per book; new chapter starts at top.
 - Request → Scroll to bottom / open index → Jump to chapter.
@@ -39,9 +39,9 @@ Request → User opens book → System marks `onScreen=true` → Loads current c
 ### 5 — AI Mode with Cache
 
 Request → User switches `none` | `translate` | `summary`.
-- `none` → Raw HTML from file storage.
-- `translate`/`summary` → Check processed chapter cache by `bookId + chapterNumber + mode` → Hit → Render cached.
-- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with prompt, up to 3 retries (2^attempt sec) → Join, convert to HTML → Save to cache → Render.
+- `none` → Raw text parsed from HTML in file storage → Render with SwiftUI.Text.
+- `translate`/`summary` → Check processed chapter cache by `bookId + chapterNumber + mode` → Hit → Render cached text with SwiftUI.Text.
+- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with prompt, Retry 3× (1000 ms / 2000 ms) per ai-service.md → Join, clean, save to cache as text → Render with SwiftUI.Text.
 - Failure / empty → Show error, no cache write.
 
 ### 6 — Prefetch Background
@@ -84,7 +84,7 @@ Request → User opens Settings → System shows groups: catalog, AI, download, 
 - [ ] Launch resumes Reader if `onScreen=true`, else Library.
 - [ ] Catalog loading/empty/error visible; import creates folder and deletes ZIP.
 - [ ] Delete needs confirm and removes folder.
-- [ ] Reader renders HTML, navigation bounded, offset per book.
+- [ ] Reader parses HTML to text and renders with SwiftUI.Text, navigation bounded, offset per book.
 - [ ] AI uses cache on hit, service on miss, saves result.
 - [ ] Prefetch skips cached, sequential, cancels on change.
 - [ ] Settings persist; invalid falls back to defaults.

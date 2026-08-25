@@ -16,7 +16,7 @@ Establish NavigationStack startup routing and offline Home Library shell with sh
 
 ## Non-goals
 
-- No catalog import/ZIP download, no `WKWebView` reader, no settings UI, no AI/prefetch.
+- No catalog import/ZIP download, no Text reader (HTML→SwiftUI.Text), no settings UI, no AI/prefetch.
 
 ## Acceptance
 

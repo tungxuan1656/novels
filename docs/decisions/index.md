@@ -10,7 +10,7 @@
 | [network-logger-removed.md](./network-logger-removed.md) | Remove Network Logger from product/design scope | Accepted | `docs/design/navigation.md`, `docs/design/screens.md`, `SECURITY.md` |
 | [ai-service-defaults.md](./ai-service-defaults.md) | Single OpenAI-compatible endpoint and settings defaults | Accepted | `docs/contracts/ai-service.md`, `docs/contracts/settings-schema.md`, `docs/contracts/catalog-api.md` |
 | [book-package-shape.md](./book-package-shape.md) | ZIP producer shape at archive root; sample ZIP non-canonical | Accepted | `docs/contracts/book-package.md`, `docs/contracts/local-data.md` |
-| [local-persistence.md](./local-persistence.md) | Native Swift persistence (FileManager+Codable, Application Support, SQLite cache, UserDefaults@Observable, unzipItem, WKWebView, URLSession, localhost ATS) | Accepted | `ARCHITECTURE.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`, `docs/contracts/book-package.md`, `docs/contracts/ai-service.md`, `SECURITY.md` |
+| [local-persistence.md](./local-persistence.md) | Native Swift persistence (FileManager+Codable, Application Support, SQLite cache, UserDefaults@Observable, unzipItem, SwiftUI.Text pipeline, URLSession, localhost ATS) | Accepted | `ARCHITECTURE.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`, `docs/contracts/book-package.md`, `docs/contracts/ai-service.md`, `SECURITY.md` |
 | [book-identity.md](./book-identity.md) | Local slug identity (`book.json.id`) vs remote numeric catalog ids | Accepted | `docs/contracts/catalog-api.md`, `docs/contracts/book-package.md`, `docs/contracts/local-data.md` |
 
 ## Open
