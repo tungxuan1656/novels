@@ -71,8 +71,8 @@ The app uses SwiftUI and a single Xcode project at `apps/novels.xcodeproj`.
 The scheme is `novels` and the target is iOS 26.5.
 Presentation depends on domain, and domain depends on contract protocols.
 Data and integrations implement contracts and do not import SwiftUI.
-The local repository uses `FileManager` at `Application Support/novels/books/<slug>/`.
-The cache uses `SQLite3` at `Application Support/novels/cache/processed_chapters.sqlite`.
+The local repository uses `FileManager` (canonical path in `docs/contracts/local-data.md`).
+The cache uses `SQLite3` (canonical path in `docs/contracts/local-data.md`).
 
 Startup restores the session and routes to Library or Reader.
 Catalog fetch uses `POST` without a body and lists exported books with download links.

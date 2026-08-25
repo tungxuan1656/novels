@@ -24,10 +24,7 @@ Harden the app to iPhone-only release readiness with accessibility and regressio
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/design/design-system.md`, `docs/design/screens.md`, `docs/design/navigation.md`
-- `docs/product/flows.md`, `docs/product/business-rules.md`
-- `SECURITY.md`, `docs/decisions/ios-scope.md`, `docs/contracts/*`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

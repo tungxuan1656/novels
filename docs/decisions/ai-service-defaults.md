@@ -13,7 +13,7 @@ Settings exposed multiple AI-related keys and a provider flag, but wire behavior
 - **Catalog endpoint:** `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books` via `POST` `Content-Type: application/json` returning `{success, data: ExportedBook[], message?}` with numeric ids and preserved nullable fields.
 - **Model/provider/chunk/prefetch:** `OPENAI_MODEL=gpt-4o`, `AI_PROVIDER='openai'` (unknown → `openai`), `AI_MIN_CHUNK_SIZE=1300`, `PREFETCH_COUNT=3` (1..10 else 3).
 - **Headers/body:** `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects merged into each AI request; API key lives inside `AI_CUSTOM_HEADERS` when needed; invalid JSON is ignored (existing spec behavior).
-- **Behavior alignment:** chunk ~1300 per request, retry up to 3 with `2^attempt × 1000 ms`, single `ProcessedChapter` cache `bookId+chapterNumber+mode`, de-duplication, prefetch N=3 sequential cancellable. Do not invent credential storage or log retention (see `SECURITY.md`).
+- **Behavior alignment:** chunk ~1300 per request, retry 3× (1000 ms after attempt 1, 2000 ms after attempt 2), single `ProcessedChapter` cache `bookId+chapterNumber+mode`, de-duplication, prefetch N=3 sequential cancellable. Do not invent credential storage or log retention (see `SECURITY.md`).
 - **Legacy mapping (superseded 2026-08-24 by `local-persistence.md` + `settings-schema.md` current-only):** then open; now only current keys exist, unknown/legacy keys are ignored and defaults apply — no migration map.
 
 ## Consequence

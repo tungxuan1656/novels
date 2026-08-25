@@ -27,9 +27,7 @@ Prefetch next N chapters' AI content sequentially and cancellably after a chapte
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/contracts/ai-service.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`
-- `docs/product/functional-specs/chapter-prefetch.md`, `docs/product/functional-specs/ai-reading.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

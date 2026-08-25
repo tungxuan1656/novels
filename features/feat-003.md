@@ -29,10 +29,7 @@ Enable discovery and offline import of book ZIP packages from the remote catalog
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/contracts/catalog-api.md`, `docs/contracts/book-package.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md` (`BOOKS_API_URL`)
-- `docs/decisions/book-identity.md`, `docs/decisions/local-persistence.md`
-- `docs/product/functional-specs/book-import.md`, `docs/product/functional-specs/book-library.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

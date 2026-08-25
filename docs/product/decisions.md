@@ -35,14 +35,6 @@
 - **Decision:** One persistent processed chapter cache keyed by `bookId + chapterNumber + mode` is the only AI cache. Check before calling AI; on miss read raw text, call service per chunk, join, convert to HTML, save (superseded by D6 for rendering). Mode `none` bypasses. See [business-rules.md](./business-rules.md) BR-07 and [flows.md](./flows.md) Flow 5.
 - **Consequence:** Repeat reads in same mode are instant; duplicate requests de-duplicate; no second cache; deleted books' entries become unreachable; clear lives in Settings.
 
-### D6 — Supersedes D3 Rendering Detail
-
-- **Date:** 2026-08-25
-- **Status:** Accepted
-- **Context:** D3 described join/convert to HTML/save; app renders with SwiftUI.Text from text spans per local-persistence.md.
-- **Decision:** Supersedes D3 rendering detail: join/clean/save as text → render SwiftUI.Text (no HTML). Cache content is text spans, not HTML.
-- **Consequence:** Reader parses HTML source to text spans and renders with SwiftUI.Text; processed cache stores text.
-
 ### D4 — N=3 Prefetch, Sequential and Cancellable
 
 - **Date:** 2026-02-18 — *Reconstructed from BR-08 and Flow 6*
@@ -58,3 +50,11 @@
 - **Context:** Vietnamese readers expect honorifics and names unchanged and a short but faithful summary. Earlier prompts mapped honorifics and lost dialogue.
 - **Decision:** `translate` keeps all honorifics unchanged (ta, nguoi, han...), replaces Sino-Vietnamese syntax with natural Vietnamese, keeps 100% meaning and names. `summary` keeps plot order, key events and key dialogue, cuts only scenery and repeated emotion to 50–60% (short chapters → shortest faithful); never invents. See [business-rules.md](./business-rules.md) BR-03–06.
 - **Consequence:** Output is predictable and reviewable; prompts are configurable actions `translate`/`summary` in settings, so edits need no release.
+
+### D6 — Supersedes D3 Rendering Detail
+
+- **Date:** 2026-08-25
+- **Status:** Accepted
+- **Context:** D3 described join/convert to HTML/save; app renders with SwiftUI.Text from text spans per local-persistence.md.
+- **Decision:** Supersedes D3 rendering detail: join/clean/save as text → render SwiftUI.Text (no HTML). Cache content is text spans, not HTML.
+- **Consequence:** Reader parses HTML source to text spans and renders with SwiftUI.Text; processed cache stores text.
