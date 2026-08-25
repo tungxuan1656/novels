@@ -35,7 +35,8 @@ See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownersh
 
 External plan required at activation (≥4 files expected) — create `docs/plans/feat-002.md` per `feat-001` template (`features/feat-001.md:47-51` and `docs/plans/feat-001.md`).
 
-- Link: `docs/plans/feat-002.md` (to be created at activation)
+- Link: `docs/plans/feat-002.md` — created on branch `feat/002-app-shell-home-library` per brainstorming approved design (2026-08-25)
+- Design: Minimal shell — `AppRoot` + `@Observable Router` (NavigationPath + Route enum), `LibraryViewModel` scanning `FileBookRepository(AppPaths.booksRoot())`, shared `LoadingView`/`ToastView`/`BottomSheetView` with design-system tokens, `BookInfoSheet` + swipe-delete confirm, `ReadingShellView` placeholder with `onScreen` toggles per `navigation.md:49-50`; Vietnamese copy “Thư viện / Chưa có sách / Thông tin sách / Xóa sách? / Hủy / Xóa / Không tìm thấy sách”; `TARGETED_DEVICE_FAMILY=1` already aligned
 
 ## Ownership
 
@@ -50,6 +51,6 @@ External plan required at activation (≥4 files expected) — create `docs/plan
 ## Handoff
 
 - State: todo
-- Evidence: —
+- Evidence: `docs/plans/feat-002.md` created (6 tasks: primitives → Router/AppRoot → Library list → Info/delete → Reading shell → verification), brainstorming approved 2026-08-25 with approaches Minimal vs Coordinator vs Environment (Minimal recommended), Vietnamese copy approved “Thư viện/Chưa có sách/Thông tin sách/Xóa” + `TARGETED_DEVICE_FAMILY=1` keep
 - Blockers: none
-- Next: Select/approve feat-001 for activation; feat-002 starts after feat-001 done
+- Next: Review `docs/plans/feat-002.md` then approve for implementation; activate feat-002 (`feature_index.json` todo→active) and execute via `subagent-driven-development` or inline per plan header
