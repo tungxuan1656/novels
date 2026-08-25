@@ -12,7 +12,7 @@ Offline native Text reader for `chapter-N.html` with bounded nav, saved offset, 
 - 1-based prev/next and References index; bounds block under/overflow.
 - Per-book offset save/restore via feat-001 session store; `onScreen` on enter/back.
 - Bottom sheet: font picker + size/lineHeight/letterSpacing + gear to Settings; persist via `SettingsStore.typography`.
-- Overscroll auto-advances with short lock; prev/next disabled at bounds; to-bottom button; swipe-back disabled per `docs/design/navigation.md §Back/Swipe`.
+- Overscroll auto-advances with short lock; prev/next disabled at bounds; to-bottom button; swipe-back disabled per `docs/design/navigation.md §3 Stack Structure`.
 - Missing `chapter-N.html` toast; fully offline, no network.
 
 ## Non-goals
@@ -22,7 +22,7 @@ Offline native Text reader for `chapter-N.html` with bounded nav, saved offset, 
 ## Acceptance
 
 - [ ] Parses HTML to spans and renders with `SwiftUI.Text` for `1 <= N <= count`; prev/next disabled at bounds; References selects and returns.
-- [ ] Overscroll auto-advances with short lock; to-bottom button; swipe-back disabled per `docs/design/navigation.md §Back/Swipe` (`docs/product/flows.md §4 Reading`).
+- [ ] Overscroll auto-advances with short lock; to-bottom button; swipe-back disabled per `docs/design/navigation.md §3 Stack Structure` (`docs/product/flows.md §4 Reading`).
 - [ ] Offset saved per slug and restored on resume/re-entry; `onScreen` correct.
 - [ ] Bottom sheet controls (font + size/lineHeight/letterSpacing) persist via `SettingsStore.typography` and apply instantly.
 - [ ] Missing `chapter-N.html` toasts 'Không tìm thấy chương' without crash; rapid nav does not corrupt offset.
