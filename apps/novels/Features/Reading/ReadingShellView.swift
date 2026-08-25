@@ -3,7 +3,6 @@ import SwiftUI
 struct ReadingShellView: View {
     let bookId: String
     @Bindable var router: Router
-    @State private var settings = SettingsStore.shared
 
     var body: some View {
         ScrollView {
@@ -32,8 +31,7 @@ struct ReadingShellView: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button {
-                    router.didPopFromReading()
-                    router.pop()
+                    router.popReading()
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
@@ -43,10 +41,6 @@ struct ReadingShellView: View {
                 .accessibilityLabel("Quay lại Thư viện")
             }
         }
-        .interactiveDismissDisabled(false)
-        .onAppear {
-            settings.session?.onScreen = true
-            settings.save()
-        }
+        .interactiveDismissDisabled(true)
     }
 }

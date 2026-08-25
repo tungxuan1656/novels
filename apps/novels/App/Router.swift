@@ -31,6 +31,8 @@ final class Router {
         guard let session = settingsStore.session, session.onScreen else { return }
         guard (try? repository.book(slug: session.bookId)) != nil else {
             toast.show("Không tìm thấy sách", type: .error)
+            settingsStore.session = nil
+            settingsStore.save()
             return
         }
         push(.reading(bookId: session.bookId))
@@ -41,8 +43,9 @@ final class Router {
         isPushing = true
         path.append(route)
         if case let .reading(bookId) = route {
-            let offset = settingsStore.session?.offset ?? 0
-            let chapter = settingsStore.session?.chapterNumber ?? 1
+            let isSameBook = settingsStore.session?.bookId == bookId
+            let offset = isSameBook ? (settingsStore.session?.offset ?? 0) : 0
+            let chapter = isSameBook ? (settingsStore.session?.chapterNumber ?? 1) : 1
             settingsStore.session = ReadingSession(
                 bookId: bookId,
                 onScreen: true,
@@ -61,6 +64,12 @@ final class Router {
         if !path.isEmpty {
             path.removeLast()
         }
+        isPushing = false
+    }
+
+    func popReading() {
+        didPopFromReading()
+        pop()
     }
 
     func didPopFromReading() {

@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Used by feat-004 Reading sheet, reserved — keep as primitive for future sheets.
 struct BottomSheetView<Content: View>: View {
     @ViewBuilder let content: Content
 
@@ -14,7 +15,7 @@ struct BottomSheetView<Content: View>: View {
                 .padding(.horizontal, DesignTokens.spacing16)
                 .padding(.bottom, DesignTokens.spacing16)
         }
-        .background(Color.white)
+        .background(DesignTokens.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusSheet, style: .continuous))
     }
 }

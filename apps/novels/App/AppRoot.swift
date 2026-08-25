@@ -2,7 +2,6 @@ import SwiftUI
 
 struct AppRoot: View {
     @State private var router = Router()
-    @State private var settings = SettingsStore.shared
 
     var body: some View {
         NavigationStack(path: $router.path) {

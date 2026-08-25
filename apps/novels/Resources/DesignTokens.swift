@@ -17,7 +17,7 @@ enum DesignTokens {
     static let backgroundPaper = Color(hex: 0xFDFCF8)
     static let backgroundWhite = Color(hex: 0xFFFFFF)
     static let backgroundGrouped = Color(hex: 0xF5F5F5)
-    static let surface = Color(hex: 0xFFFFFF)
+    static let surface = backgroundWhite
     static let text = Color(hex: 0x111111)
     static let muted = Color(hex: 0x6B7280)
     static let accent = Color(hex: 0x2563EB)

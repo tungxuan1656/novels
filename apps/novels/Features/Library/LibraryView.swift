@@ -85,7 +85,6 @@ struct LibraryView: View {
         }
         .loadingOverlay(isLoading: viewModel.isLoading)
         .toast(center: viewModel.toast)
-        .toast(center: router.toast)
         .sheet(isPresented: $viewModel.showInfo) {
             if let book = viewModel.selected {
                 BookInfoSheet(book: book)

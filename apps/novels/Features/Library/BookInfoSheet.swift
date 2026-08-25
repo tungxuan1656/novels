@@ -43,7 +43,7 @@ struct BookInfoSheet: View {
                 .foregroundStyle(DesignTokens.muted)
         }
         .padding(DesignTokens.spacing16)
-        .background(Color.white)
+        .background(DesignTokens.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusLarge))
         .overlay(
             RoundedRectangle(cornerRadius: DesignTokens.radiusLarge)
@@ -78,7 +78,7 @@ struct BookInfoSheet: View {
             }
         }
         .padding(DesignTokens.spacing16)
-        .background(Color.white)
+        .background(DesignTokens.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusLarge))
         .overlay(
             RoundedRectangle(cornerRadius: DesignTokens.radiusLarge)
