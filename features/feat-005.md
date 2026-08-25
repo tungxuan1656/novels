@@ -25,10 +25,7 @@ Expose editable settings and cache controls persisted via the `UserDefaults` + `
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/contracts/settings-schema.md`, `docs/contracts/local-data.md`, `docs/contracts/ai-service.md`
-- `docs/decisions/local-persistence.md`, `SECURITY.md`
-- `docs/product/functional-specs/settings-management.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

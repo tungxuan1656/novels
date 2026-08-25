@@ -26,9 +26,7 @@ Deliver cache-first translate/summary rendering for the current chapter via an O
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/contracts/ai-service.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`, `SECURITY.md`
-- `docs/product/functional-specs/ai-reading.md`, `docs/product/business-rules.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

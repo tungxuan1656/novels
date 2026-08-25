@@ -29,10 +29,7 @@ Establish NavigationStack startup routing and offline Home Library shell with sh
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`
-- `docs/contracts/local-data.md`, `docs/contracts/book-package.md`
-- `docs/product/functional-specs/book-library.md`, `docs/product/flows.md`, `docs/product/domain-model.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 

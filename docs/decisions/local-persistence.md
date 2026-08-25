@@ -14,8 +14,8 @@ Use the native Swift stack — Foundation + system frameworks only. No React Nat
 
 | Logical boundary | Physical store | Native API | Location / detail | Status |
 |---|---|---|---|---|
-| Local Book Repository | File system — Codable + FileManager | `Foundation.FileManager` + `Codable` | `Application Support/novels/books/<book.json.id>/` with `book.json` + `chapters/chapter-N.html` | Accepted |
-| ProcessedChapter cache (single AI cache) | SQLite via system `libsqlite3` | `SQLite3` (system `libsqlite3.dylib`, no Swift package) — gated behind protocol so it can be swapped | `Application Support/novels/cache/processed_chapters.sqlite` — table `processed_chapters` | Accepted |
+| Local Book Repository | File system — Codable + FileManager | `Foundation.FileManager` + `Codable` | `books/<book.json.id>/` in `Application Support/novels/` (see `docs/contracts/local-data.md` for canonical path) with `book.json` + `chapters/chapter-N.html` | Accepted |
+| ProcessedChapter cache (single AI cache) | SQLite via system `libsqlite3` | `SQLite3` (system `libsqlite3.dylib`, no Swift package) — gated behind protocol so it can be swapped | `processed_chapters.sqlite` in `Application Support/novels/cache/` (see `docs/contracts/local-data.md` for canonical path) — table `processed_chapters` | Accepted |
 | Settings / Session / Typography | UserDefaults via `@Observable` wrapper | `Foundation.UserDefaults` + `Observation.@Observable` | Current keys only (`BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `PREFETCH_COUNT`, `AI_PROVIDER`, `AI_PROCESS_ACTIONS`, `AI_MIN_CHUNK_SIZE`, typography/session); `AI_CUSTOM_HEADERS` stored as normal settings JSON with no Keychain | Accepted |
 | ZIP extraction | System unzip | `Foundation.FileManager.unzipItem(at:to:)` | Strict archive-root validation (`book.json` at root); rejects wrapper sample | Accepted |
 | Chapter rendering | Native text | `Foundation` HTML → `SwiftUI.Text` pipeline (lightweight parse) | Parses `chapters/chapter-N.html` (`div`/`h*`/`p`/`br`/`b`/`strong`/`i`/`em`/`span`) → `SwiftUI.Text` in `VStack` | Accepted |

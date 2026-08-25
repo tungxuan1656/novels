@@ -29,10 +29,7 @@ Offline native Text reader for `chapter-N.html` with bounded nav, saved offset, 
 
 ## Relevant docs
 
-- `ARCHITECTURE.md`
-- `docs/contracts/local-data.md`, `docs/contracts/book-package.md`, `docs/contracts/settings-schema.md`
-- `docs/product/functional-specs/book-reader.md`, `docs/product/flows.md`
-- `docs/design/screens.md`, `docs/design/navigation.md`, `docs/design/design-system.md`
+See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownership; additional links only if feature-specific beyond routes.
 
 ## Plan
 
