@@ -4,7 +4,7 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a chapter. System checks AI mode: `none` → raw text parsed from HTML in file storage and rendered with SwiftUI.Text; `translate`/`summary` → check processed chapter cache for `bookId + chapterNumber + mode`.
+1. Actor opens a chapter. System checks AI mode. If mode is `none`, show raw text parsed from HTML in file storage and render with SwiftUI.Text. If mode is `translate` or `summary`, check processed chapter cache for `bookId + chapterNumber + mode`.
 2. Cache hit → render cached text with SwiftUI.Text, no service call.
 3. Cache miss → read raw text, get prompt from AI actions in persistent settings store, send to AI processing service, clean, save to cache as text, render with SwiftUI.Text.
 4. Actor switches mode → reload same chapter via cache-first path.
@@ -12,10 +12,10 @@
 
 ## Rules (business rules, link to business-rules.md)
 
-- Cache is the only AI cache; checked before any call, keyed by `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07).
+- Cache is the only AI cache. Check cache before any call. Key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07).
 - Translate keeps honorifics, natural Vietnamese, names/places/terms, 100% meaning ([business-rules.md](../business-rules.md) BR-03, BR-04).
 - Summary 50–60%, keeps plot order, key events, twists, key dialogue, removes only scenery and repeated emotion, never invents ([business-rules.md](../business-rules.md) BR-05, BR-06).
-- Mode `none` bypasses cache/service. Up to 3 retries; no cache on final failure ([integrations.md](../integrations.md) §2).
+- Mode `none` bypasses cache and service. Up to three retries. No cache on final failure ([integrations.md](../integrations.md) §2).
 
 ## States
 

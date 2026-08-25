@@ -1,14 +1,14 @@
 # Contract — Remote Book Catalog
 
-> Canonical wire contract for the catalog. Business view: `docs/product/integrations.md` §1. Consumer: `docs/product/functional-specs/book-import.md`.
+> Canonical wire contract for the catalog. Business view: `../../docs/product/integrations.md` §1. Consumer: `../../docs/product/functional-specs/book-import.md`.
 
 ## Endpoint
 
-- **Default URL:** `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books` [Intended — from task scope; configurable via `BOOKS_API_URL` in `settings-schema.md`]
+- **Default URL:** `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books` [Intended — configurable via `BOOKS_API_URL` in `settings-schema.md`]
 - **Method:** `POST` [Intended — supplied TypeScript contract]
-- **Request headers:** `Content-Type: application/json` [Intended — supplied implementation]
-- **Request body:** none — supplied implementation sends no body; do not add user data. [Intended — supplied contract has no body]
-- **Auth:** None. [Observed — `docs/product/integrations.md` §1]
+- **Request headers:** `Content-Type: application/json` [Intended]
+- **Request body:** none — supplied implementation sends no body; do not add user data.
+- **Auth:** None. [Observed]
 
 ## Response
 
@@ -20,8 +20,8 @@
 }
 ```
 
-- **Shape:** `{ success: boolean, data: ExportedBook[], message?: string }` [Intended — supplied contract]
-- **On `success: false`:** show `message` if present else generic load failure. See `docs/product/integrations.md` §1 failure mapping.
+- **Shape:** `{ success: boolean, data: ExportedBook[], message?: string }` [Intended]
+- **On `success: false`:** show `message` if present else generic load failure. See `../../docs/product/integrations.md` §1 failure mapping.
 - **Transport failures:** network/server error → "cannot load catalog, try again" with retry from UI. No auto-retry.
 
 ## Entities
@@ -56,11 +56,31 @@ Exactly the supplied interface. Only the four fields marked nullable are nullabl
 | `synopsis` | `string \| null` | |
 | `lastUpdated` | `string \| null` | |
 
-Domain mapping: `ExportedBook 1—1 BookMeta` in `docs/product/domain-model.md`. Import overwrites the same folder on re-import. Local identity is the string slug `book.json.id`; remote `bookId`/`id` are metadata only — see `../decisions/book-identity.md` and `local-data.md`.
+Domain mapping: `ExportedBook 1—1 BookMeta` in `../../docs/product/domain-model.md`. Identity → `../decisions/book-identity.md`. Storage → `local-data.md`.
 
 ## Download
 
-- `exportUrl` is the only client-used field from `ExportedBook` for download; the client passes the URL as-is, does not reconstruct it from ids, and does not coerce numeric ids to strings. See `book-package.md` for required producer shape. Download via `URLSession` → temp → `FileManager.unzipItem` → delete ZIP on success (BR-02). Re-import is idempotent (slug determins folder).
+- `exportUrl` is the only client-used field for download. The client passes the URL as-is. The client does not reconstruct the URL from ids. The client does not coerce numeric ids to strings. See `book-package.md` for producer shape. Download via `URLSession` → temp → `FileManager.unzipItem` → delete ZIP on success (BR-02).
+
+## Rules
+
+- Use `POST` with no body; do not add user data.
+- Use `exportUrl` as-is for download.
+- Read `BookMeta` exactly as defined; only four nullable fields CAN be null.
+
+## Avoid
+
+- Do not map slug or folder logic here; see `../decisions/book-identity.md` and `local-data.md`.
+- Do not reconstruct download URLs from ids.
+- Do not add request body without updating this contract.
+
+## Examples
+
+- Canonical: `POST` `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books` with `Content-Type: application/json` and no body.
+
+## Verification
+
+- Run `../../init.sh` (format → lint → build). Test is SKIP (no test target yet).
 
 ## Maintenance
 

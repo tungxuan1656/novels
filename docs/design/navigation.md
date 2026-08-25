@@ -35,7 +35,7 @@ Abstract stack:
 - Push: Add Book, Reading, References, Settings, Cache Manager, Setting Editor.
 - Pop: header back or system back goes one level up. Reading back clears `onScreen`.
 - Reading disables swipe-back to avoid loss of position. Others allow it.
-- Bottom sheet is not a route; it is an overlay that expands over Home or Reading.
+- Bottom sheet is not a route. It is an overlay that expands over Home or Reading.
 
 ## 4. Route Params
 
@@ -48,7 +48,7 @@ Abstract stack:
 
 - Home tap row → Reading, sets `onScreen=true` and saves `bookId`.
 - Reading back → Home, sets `onScreen=false` and saves offset.
-- Chapter change stays in Reading; scroll resets to top; new chapter uses its own offset.
+- Chapter change stays in Reading. Scroll resets to top. New chapter uses its own offset.
 - References tap → update current chapter for that `bookId` → pop to Reading.
 - Add Book success → pop to Home and refresh list.
 - Settings edit → persist at once. Invalid input blocks save and shows error.

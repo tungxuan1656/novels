@@ -8,7 +8,7 @@
 
 **Business request:** App asks for the current list of available books. No user data is sent.
 
-**Business response:** Catalog returns a success flag, a list of exported books (id, source book id, download link, file size, format, export time, and metadata: name, author, chapter count, status, synopsis), and an optional message.
+**Business response:** Catalog returns a success flag, a list of exported books, and an optional message. Technical shape → [catalog-api.md](../contracts/catalog-api.md).
 
 **Auth:** None.
 
@@ -44,7 +44,7 @@
 
 ## Contract Separation
 
-Business meaning is above. Technical shapes live in [catalog-api](../../docs/contracts/catalog-api.md) and [ai-service](../../docs/contracts/ai-service.md) (and [book-package](../../docs/contracts/book-package.md), [settings-schema](../../docs/contracts/settings-schema.md), [local-data](../../docs/contracts/local-data.md)); specs link to those contracts.
+Business meaning is above. Technical shapes live in [catalog-api](../contracts/catalog-api.md) and [ai-service](../contracts/ai-service.md) (and [book-package](../contracts/book-package.md), [settings-schema](../contracts/settings-schema.md), [local-data](../contracts/local-data.md)); specs link to those contracts.
 
 ## Links
 

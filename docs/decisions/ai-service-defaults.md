@@ -1,26 +1,30 @@
 # ADR — Single OpenAI-Compatible Endpoint and Defaults
 
 - **Date:** 2026-08-24
-- **Status:** Accepted
+- **Status:** Superseded by `../contracts/settings-schema.md` (current keys) and `local-persistence.md`
 
 ## Context
 
-Settings exposed multiple AI-related keys and a provider flag, but wire behavior and defaults were not anchored in a contract. Catalog and AI URLs need canonical defaults; header/body handling and retry/chunk/cache must align with existing product docs without inventing storage or logging policy.
+Settings exposed multiple AI-related keys and a provider flag. Wire behavior and defaults were not anchored in a contract. Catalog and AI URLs need canonical defaults. Header and body handling and retry, chunk, and cache must align with product docs.
 
 ## Decision
 
-- **One AI endpoint:** single OpenAI-compatible `POST` to `http://localhost:8317/v1/chat/completions`. No second service.
-- **Catalog endpoint:** `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books` via `POST` `Content-Type: application/json` returning `{success, data: ExportedBook[], message?}` with numeric ids and preserved nullable fields.
-- **Model/provider/chunk/prefetch:** `OPENAI_MODEL=gpt-4o`, `AI_PROVIDER='openai'` (unknown → `openai`), `AI_MIN_CHUNK_SIZE=1300`, `PREFETCH_COUNT=3` (1..10 else 3).
-- **Headers/body:** `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects merged into each AI request; API key lives inside `AI_CUSTOM_HEADERS` when needed; invalid JSON is ignored (existing spec behavior).
-- **Behavior alignment:** chunk ~1300 per request, retry 3× (1000 ms after attempt 1, 2000 ms after attempt 2), single `ProcessedChapter` cache `bookId+chapterNumber+mode`, de-duplication, prefetch N=3 sequential cancellable. Do not invent credential storage or log retention (see `SECURITY.md`).
-- **Legacy mapping (superseded 2026-08-24 by `local-persistence.md` + `settings-schema.md` current-only):** then open; now only current keys exist, unknown/legacy keys are ignored and defaults apply — no migration map.
+- **One AI endpoint:** single OpenAI-compatible `POST` to chat completions. No second service.
+- **Canonical defaults live in `../contracts/settings-schema.md`.** This ADR keeps only behavior alignment: chunk ~1300 per request, retry 3× (`1000 ms` after attempt 1, `2000 ms` after attempt 2), single `ProcessedChapter` cache, de-duplication, prefetch `N=3` sequential cancellable.
 
-## Consequence
+## Alternatives
 
-- Contracts `docs/contracts/catalog-api.md`, `docs/contracts/ai-service.md`, `docs/contracts/settings-schema.md` are canonical; `docs/product/integrations.md` links to them without duplicating wire details.
-- Specs `docs/product/functional-specs/ai-reading.md`, `chapter-prefetch.md`, `settings-management.md` link to these contracts.
+| Option | Reason not chosen |
+|---|---|
+| Two AI endpoints or provider switch | Adds branching and key management; product uses one OpenAI-compatible endpoint |
+| `Keychain` for API key | Scope keeps `AI_CUSTOM_HEADERS` in `UserDefaults`; no `Keychain` |
+| Custom migration map for legacy keys | Current keys are canonical; unknown and legacy keys are ignored |
+
+## Consequences
+
+- Contracts `../contracts/catalog-api.md`, `../contracts/ai-service.md`, `../contracts/settings-schema.md` are canonical. Product specs link to them.
+- Historical detail about open vs current keys no longer drives behavior. Before 2026-08-24 keys were open; now only current keys exist and unknown keys are ignored. No migration map exists.
 
 ## Links
 
-- `docs/contracts/catalog-api.md` · `docs/contracts/ai-service.md` · `docs/contracts/settings-schema.md` · `SECURITY.md` · `ARCHITECTURE.md` §1
+- `../contracts/catalog-api.md` · `../contracts/ai-service.md` · `../contracts/settings-schema.md` · `../../SECURITY.md` · `../../ARCHITECTURE.md` §1

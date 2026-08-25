@@ -4,18 +4,18 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, reads `chapters/chapter-N.html` from file storage, parses HTML to text spans (`div`/`h*`/`p`/`br`/`b`/`strong`/`i`/`em`/`span`), renders with `SwiftUI.Text` using typography from persistent settings store, restores offset for same book (top if none; new chapters start at top).
-2. Actor navigates: Next/Previous step one within 1..total (disabled at ends); scroll near bottom auto-advances, scroll far above top goes back; index jumps directly. Short lock prevents rapid jumps.
+1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, and reads `chapters/chapter-N.html` from file storage. System parses HTML to text spans and renders with `SwiftUI.Text` using typography from the persistent settings store. System restores offset for same book. If no offset exists, start at top. New chapters start at top. Pipeline → [local-data.md](../../contracts/local-data.md) and [ARCHITECTURE.md](../../../ARCHITECTURE.md) §1.
+2. Actor navigates. Next and Previous step one chapter within 1..total. Buttons are disabled at ends. Index jump moves directly to the selected chapter.
 3. System saves offset per book while scrolling.
 4. Actor closes reader. System marks not on-screen but keeps offset for resume.
 5. Missing file → "Failed to load chapter."
 
 ## Rules (business rules, link to business-rules.md)
 
-- Reading is offline after import; no network ([business-rules.md](../business-rules.md) BR-01).
+- Reading is offline after import. No network is needed ([business-rules.md](../business-rules.md) BR-01).
 - Chapters are 1-based and clamped to 1..total ([domain-model.md](../domain-model.md) Invariants).
 - Offset is saved per book and restored only for the same book ([business-rules.md](../business-rules.md) BR-09).
-- Typography persists and applies to every render; missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
+- Typography persists and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 
 ## States
 
@@ -37,8 +37,8 @@
 ## Acceptance
 
 - [ ] Reader parses HTML to text spans and renders with SwiftUI.Text using current typography.
-- [ ] Next/Previous move one chapter within bounds; disabled at ends; index jump works.
-- [ ] Offset is saved per book and restored for same book; new chapter starts at top.
+- [ ] Next and Previous move one chapter within bounds. Buttons are disabled at ends. Index jump works.
+- [ ] Offset is saved per book and restored for same book. New chapter starts at top.
 - [ ] Closing preserves position; opening another book does not reuse wrong offset.
 - [ ] Missing content shows error without crash.
 

@@ -2,7 +2,7 @@
 
 > Vision, personas, and scope only. Entities → [domain-model.md](./domain-model.md), terms → [glossary.md](./glossary.md), flows → [flows.md](./flows.md), rules → [business-rules.md](./business-rules.md). Topology → [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
-> Target: iPhone only, iOS 26+, Vietnamese UI. Project still declares family 1,2 — see [ios-scope](../../docs/decisions/ios-scope.md).
+> Target: iPhone only, iOS 26+, Vietnamese UI. Project still declares family 1,2 — see [ios-scope](../decisions/ios-scope.md).
 
 ## Purpose
 
@@ -30,19 +30,11 @@ Novels lets one reader download books once and read offline. Optional AI — tra
 
 ## Flows
 
-Full flows → [flows.md](./flows.md); graph → [navigation.md](../design/navigation.md):
-
-1. Startup restores session; `onScreen` → Reader else Library.
-2. Add Book → fetch catalog → pick → download/extract/delete ZIP.
-3. Library → info sheet or Delete.
-4. Reader → parses HTML → text spans and renders with SwiftUI.Text → navigate → offset saved.
-5. AI switch → hit renders; miss processes then caches.
-6. Prefetch when ready and mode != `none` → batch-check → sequential.
-7. Settings → edit → validate → persist.
+Flows → [flows.md](./flows.md). Graph → [navigation.md](../design/navigation.md).
 
 ## Rules
 
-See [business-rules.md](./business-rules.md): offline after import (BR-01), ZIP delete on success (BR-02), translate keeps honorifics (BR-03/04), summary 50–60% (BR-05/06), one cache (BR-07), prefetch N=3 (BR-08), offset per book (BR-09), delete removes folder (BR-10), typography persists (BR-11), sanitize defaults (BR-12).
+Rules → [business-rules.md](./business-rules.md) (BR-01..12).
 
 ## Glossary
 

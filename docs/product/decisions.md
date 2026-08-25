@@ -27,12 +27,12 @@
 - **Decision:** Remote catalog returns exported entries with a download link to a ZIP package. Import is fixed: ensure folders → download ZIP to temp → extract to local repository → delete ZIP → refresh library. Valid ZIP has `book.json` and `chapters/chapter-N.html`. See [integrations.md](./integrations.md) §1.
 - **Consequence:** Listing is read-only and safe to retry; re-import overwrites same folder; errors show message and create no entry; catalog address is configurable.
 
-### D3 — Processed Chapter Cache as Only AI Cache
+### D3 — Processed Chapter Cache as Only AI Cache — Superseded by D6 — Legacy, do not copy
 
 - **Date:** 2025-12-10 — *Reconstructed from BR-07 and Flow 5*
-- **Status:** Accepted
+- **Status:** Superseded by D6 — Legacy, do not copy
 - **Context:** AI is costly and repeated across sessions and prefetch. Cache must be simple and not duplicated.
-- **Decision:** One persistent processed chapter cache keyed by `bookId + chapterNumber + mode` is the only AI cache. Check before calling AI; on miss read raw text, call service per chunk, join, convert to HTML, save (superseded by D6 for rendering). Mode `none` bypasses. See [business-rules.md](./business-rules.md) BR-07 and [flows.md](./flows.md) Flow 5.
+- **Decision:** One persistent processed chapter cache keyed by `bookId + chapterNumber + mode` is the only AI cache. Check before calling AI; on miss read raw text, call service per chunk, join, clean, and save as text. Mode `none` bypasses. See [business-rules.md](./business-rules.md) BR-07 and [flows.md](./flows.md) Flow 5.
 - **Consequence:** Repeat reads in same mode are instant; duplicate requests de-duplicate; no second cache; deleted books' entries become unreachable; clear lives in Settings.
 
 ### D4 — N=3 Prefetch, Sequential and Cancellable

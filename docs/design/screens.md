@@ -4,14 +4,7 @@
 
 ## 1. Screen Map
 
-Seven screens plus overlays. Shared container with safe area, header, divider, content. Footer only on Setting Editor.
-
-```
-Home Library -> Add Book, Reading, Settings
-Reading -> References, Settings (via sheet)
-Settings -> Cache Manager, Setting Editor
-Overlays: Bottom Sheet, Toast, Loading
-```
+Map → [navigation.md](./navigation.md) §1. Shared container with safe area, header, divider, and content. Footer only on Setting Editor.
 
 ## 2. Screen Inventory
 
@@ -27,11 +20,21 @@ Overlays: Bottom Sheet, Toast, Loading
 
 ## 3. Shared Patterns
 
-**Bottom Sheet.** Overlay on Home and Reading. Slides up, backdrop dims, drag down or tap backdrop to close. Reading sheet has font picker, mode switch (none/translate/summary), reprocess (disabled if none), and steppers for size, line height, letter spacing. Gear opens Settings.
+**Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
+- Font picker
+- Mode switch (none, translate, summary)
+- Reprocess (disabled if mode is none)
+- Steppers for size, line height, and letter spacing
+Gear opens Settings.
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 
-**Toast.** Top, global. Success green, error red, info blue, warning orange. Duration 3s (<60 chars), 4s (<150), 5s (long). Tap to dismiss. For import, delete, validation, network errors.
+**Toast.** Top and global. Colors:
+- Success uses green
+- Error uses red
+- Info uses blue
+- Warning uses orange
+Duration is 3s for <60 chars, 4s for <150 chars, and 5s for long text. Tap to dismiss. Toast shows import, delete, validation, and network errors.
 
 **Loading.** Inline spinner for lists; blocking overlay for download, AI, and clear.
 
