@@ -4,6 +4,7 @@ enum BookRepositoryError: Error, Equatable {
     case bookNotFound(slug: String)
     case invalidChapterNumber(number: Int, count: Int)
     case missingChapterFile(slug: String, number: Int)
+    case invalidValidatedRoot
 }
 
 protocol BookRepository {
@@ -65,16 +66,36 @@ struct FileBookRepository: BookRepository {
     }
 
     func save(validatedRoot: URL, slug: String) throws {
-        assert(
-            ZipValidator.isValidRoot(at: validatedRoot, fileManager: fileManager),
-            "validatedRoot must be exact archive root with book.json + chapters/chapter-N.html"
-        )
+        guard ZipValidator.isValidRoot(at: validatedRoot, fileManager: fileManager) else {
+            throw BookRepositoryError.invalidValidatedRoot
+        }
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)
         let destination = root.appendingPathComponent(slug, isDirectory: true)
-        if fileManager.fileExists(atPath: destination.path) {
-            try fileManager.removeItem(at: destination)
+        let tmp = root.appendingPathComponent(".tmp-\(slug)-\(UUID().uuidString)", isDirectory: true)
+        if fileManager.fileExists(atPath: tmp.path) {
+            try? fileManager.removeItem(at: tmp)
         }
-        try fileManager.copyItem(at: validatedRoot, to: destination)
+        do {
+            try fileManager.copyItem(at: validatedRoot, to: tmp)
+        } catch {
+            try? fileManager.removeItem(at: tmp)
+            throw error
+        }
+        do {
+            if fileManager.fileExists(atPath: destination.path) {
+                try fileManager.removeItem(at: destination)
+            }
+            try fileManager.moveItem(at: tmp, to: destination)
+        } catch {
+            // Cross-volume fallback: copy then clean tmp
+            do {
+                try fileManager.copyItem(at: tmp, to: destination)
+                try? fileManager.removeItem(at: tmp)
+            } catch {
+                try? fileManager.removeItem(at: tmp)
+                throw error
+            }
+        }
     }
 
     func deleteBook(slug: String) throws {

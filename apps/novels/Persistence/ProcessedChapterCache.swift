@@ -6,6 +6,31 @@ import SQLite3
 private let SQLITE_TRANSIENT = -1
 // swiftlint:enable identifier_name
 
+enum SQLiteError: Error, LocalizedError {
+    case open(message: String)
+    case exec(message: String)
+    case prepare(message: String)
+    case step(message: String)
+    case bind(message: String)
+
+    var errorDescription: String? {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case let .open(message):
+                "SQLite open failed: \(message)"
+            case let .exec(message):
+                "SQLite exec failed: \(message)"
+            case let .prepare(message):
+                "SQLite prepare failed: \(message)"
+            case let .step(message):
+                "SQLite step failed: \(message)"
+            case let .bind(message):
+                "SQLite bind failed: \(message)"
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+}
+
 protocol ProcessedChapterCaching {
     func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter?
     func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int>

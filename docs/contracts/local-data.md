@@ -23,24 +23,26 @@ React Native findings are historical reference only — no RN package and no RN 
 
 ## 2. ProcessedChapter Cache (Single AI Cache)
 
-SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`.
+SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`. Schema uses `WITHOUT ROWID` with `PRAGMA user_version=1` (see `ProcessedChapterCache.swift:75-82`).
 
 ```sql
 CREATE TABLE IF NOT EXISTS processed_chapters (
-  bookId TEXT NOT NULL,
-  chapterNumber INTEGER NOT NULL,
+  book_id TEXT NOT NULL,
+  chapter_number INTEGER NOT NULL,
   mode TEXT NOT NULL,
   content TEXT NOT NULL,
-  contentHash TEXT NOT NULL,
-  PRIMARY KEY(bookId,chapterNumber,mode)
-);
--- Enforced via PRIMARY KEY; equivalently UNIQUE(bookId,chapterNumber,mode)
-CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(bookId);
+  content_hash TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  PRIMARY KEY (book_id, chapter_number, mode)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(book_id);
 ```
 
-- **Key:** `UNIQUE(bookId,chapterNumber,mode)` where `bookId` is the slug, `mode` is `AIAction.key`. Upsert via `INSERT OR REPLACE` (or `ON CONFLICT DO UPDATE`). `mode = 'none'` never written.
-- **Queries:** `SELECT content FROM processed_chapters WHERE bookId=? AND chapterNumber=? AND mode=?`; batch-check for prefetch range `WHERE bookId=? AND mode=? AND chapterNumber IN (...)`; `SELECT count(*) WHERE bookId=?` for Cache Manager count.
-- **Clear:** `DELETE FROM processed_chapters` (all) or `DELETE WHERE bookId=?` on book delete leaves rows unreachable; no UserDefaults use for cache.
+- **Key:** `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) where `book_id` is the slug (`ProcessedChapter.bookId` / `book.json.id` in Swift), `mode` is `AIMode.rawValue`. Upsert via `INSERT OR REPLACE` (or `ON CONFLICT DO UPDATE`). `mode = 'none'` never written.
+- **Columns `created_at`/`updated_at`:** `TEXT NOT NULL` storing ISO8601 with fractional seconds (`.withInternetDateTime` + `.withFractionalSeconds`; fallback without fractional seconds on read).
+- **Queries:** `SELECT content FROM processed_chapters WHERE book_id=? AND chapter_number=? AND mode=?`; batch-check for prefetch range `WHERE book_id=? AND mode=? AND chapter_number IN (...)`; `SELECT count(*) WHERE book_id=?` for Cache Manager count.
+- **Clear:** `DELETE FROM processed_chapters` (all) or `DELETE WHERE book_id=?` on book delete leaves rows unreachable; no UserDefaults use for cache.
 - **De-duplication:** `actor`-gated single flight per `(bookId,chapterNumber,mode)`; prefetch batch skips cached. See `ai-service.md` BR-07.
 - **Scope:** persistent across sessions; cleared via Cache Manager. Keep cache separate from files and settings.
 
@@ -62,8 +64,8 @@ Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography
 
 ## Rules
 
-- Use slug `book.json.id` for folder and `bookId` column; do not coerce numeric catalog ids.
-- Keep single cache `UNIQUE(bookId,chapterNumber,mode)` with `contentHash`.
+- Use slug `book.json.id` for folder and `book_id` column (`ProcessedChapter.bookId` in Swift); do not coerce numeric catalog ids.
+- Keep single cache `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) with `content_hash, created_at, updated_at` (`contentHash` etc. in Swift).
 - Store only under `Application Support/novels/`; no Documents sync.
 
 ## Avoid

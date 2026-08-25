@@ -20,10 +20,10 @@ enum AppPaths {
     }
 
     static func booksRoot(base: URL) -> URL {
-        base.appendingPathComponent("novels/books", isDirectory: true)
+        booksRoot(baseURL: base)
     }
 
     static func cacheRoot(base: URL) -> URL {
-        base.appendingPathComponent("novels/cache", isDirectory: true)
+        cacheRoot(baseURL: base)
     }
 }

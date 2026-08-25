@@ -20,14 +20,6 @@
 **Blockers**: none
 **Next**: Awaiting user approval to activate feat-001 and start implementation; do not start without explicit go-ahead
 
-## 2026-08-25 — feat-001
-
-**State**: active
-**Done**: Activated feat-001 for implementation (user approved subagent-driven, 2026-08-25)
-**Evidence**: `feature_index.json` feat-001 active, `docs/plans/feat-001.md` 6 tasks, `ARCHITECTURE.md` scheme novels iOS 26.5
-**Blockers**: none
-**Next**: Task 1 — create novelsTests/novelsUITests targets + fixtures
-
 ## 2026-08-24 — backlog
 
 **State**: todo

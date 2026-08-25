@@ -152,6 +152,7 @@ import Observation
     }
 
     func save() {
+        sanitize()
         userDefaults.set(booksAPIURL, forKey: DefaultsKeys.booksAPIURL)
         userDefaults.set(openaiAPIURL, forKey: DefaultsKeys.openaiAPIURL)
         userDefaults.set(openaiModel, forKey: DefaultsKeys.openaiModel)
@@ -185,10 +186,9 @@ import Observation
         }
         var result: [String: String] = [:]
         for (key, value) in dict {
-            guard let str = value as? String else {
-                return [:]
+            if let str = value as? String {
+                result[key] = str
             }
-            result[key] = str
         }
         return result
     }
