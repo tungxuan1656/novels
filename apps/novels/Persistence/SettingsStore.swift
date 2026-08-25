@@ -149,6 +149,18 @@ import Observation
         if !(0 ... 1.0).contains(typography.letterSpacing) {
             typography.letterSpacing = TypographySetting.default.letterSpacing
         }
+        if let session, !isValidSlug(session.bookId) {
+            self.session = nil
+        }
+    }
+
+    private func isValidSlug(_ slug: String) -> Bool {
+        if slug.isEmpty { return false }
+        if slug == "." || slug == ".." { return false }
+        if slug.hasPrefix("/") { return false }
+        if slug.contains("/") || slug.contains("\\") { return false }
+        if slug.contains("..") { return false }
+        return true
     }
 
     func save() {

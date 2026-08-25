@@ -35,7 +35,8 @@ See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownersh
 
 External plan required at activation (≥4 files expected) — create `docs/plans/feat-002.md` per `feat-001` template (`features/feat-001.md:47-51` and `docs/plans/feat-001.md`).
 
-- Link: `docs/plans/feat-002.md` (to be created at activation)
+- Link: `docs/plans/feat-002.md` — created on branch `feat/002-app-shell-home-library` per brainstorming approved design (2026-08-25)
+- Design: Minimal shell — `AppRoot` + `@Observable Router` (NavigationPath + Route enum), `LibraryViewModel` scanning `FileBookRepository(AppPaths.booksRoot())`, shared `LoadingView`/`ToastView`/`BottomSheetView` with design-system tokens, `BookInfoSheet` + swipe-delete confirm, `ReadingShellView` placeholder with `onScreen` toggles per `navigation.md:49-50`; Vietnamese copy “Thư viện / Chưa có sách / Thông tin sách / Xóa sách? / Hủy / Xóa / Không tìm thấy sách”; `TARGETED_DEVICE_FAMILY=1` already aligned
 
 ## Ownership
 
@@ -49,7 +50,7 @@ External plan required at activation (≥4 files expected) — create `docs/plan
 
 ## Handoff
 
-- State: todo
-- Evidence: —
+- State: done
+- Evidence: Tasks 1-5 implemented + Task 6 verification PASS — `apps/novels/App/AppRoot.swift`, `apps/novels/App/Router.swift`, `apps/novels/SharedUI/LoadingView.swift`, `apps/novels/SharedUI/ToastView.swift`, `apps/novels/SharedUI/BottomSheetView.swift`, `apps/novels/Resources/DesignTokens.swift`, `apps/novels/Features/Library/LibraryView.swift`, `apps/novels/Features/Library/LibraryViewModel.swift`, `apps/novels/Features/Library/BookInfoSheet.swift`, `apps/novels/Features/Reading/ReadingShellView.swift`, `apps/novels/NovelsApp.swift`, tests `apps/novelsTests/ToastCenterTests.swift` (2), `apps/novelsTests/RouterTests.swift` (4), `apps/novelsTests/LibraryViewModelTests.swift` (5), `apps/novelsTests/ReadingShellTests.swift` (3), `apps/novelsTests/DomainCodableTests.swift` (13), `apps/novelsTests/BookRepositoryTests.swift` (13), `apps/novelsTests/ProcessedChapterCacheTests.swift` (6), `apps/novelsTests/SettingsStoreTests.swift` (6), `apps/novelsTests/FixtureTests.swift` (1), `apps/novelsUITests/LaunchSmokeTests.swift` (2) — `xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'` PASS 40+ tests, `./init.sh` PASS (format 0/lint 0/build PASS/test PASS), `grep TARGETED_DEVICE_FAMILY` = "1" (6 hits), Vietnamese hits “Thư viện/Chưa có sách/Thông tin sách/Xóa sách?/Không tìm thấy sách” in LibraryView/BookInfoSheet/Router, no SwiftData/Core Data/Keychain/BGTask/WebKit (grep 1), no catalog-ai/Prefetch/ProcessedChapter in App/Features (grep 1), no hard-coded Application Support/novels in tests (grep 1 via AppPaths injection), `TARGETED_DEVICE_FAMILY=1` iPhone-only, `SWIFT_VERSION=5.0` iOS 26.5, synchronized groups auto-include
 - Blockers: none
-- Next: Select/approve feat-001 for activation; feat-002 starts after feat-001 done
+- Next: feat-003 Catalog Import + ZIP Ingestion ready to activate (depends_on feat-001, feat-002 done)
