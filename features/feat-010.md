@@ -21,14 +21,14 @@ Sửa lỗi "Gói sách không hợp lệ" với ZIP tải về hợp lệ dạn
 
 ## Acceptance
 
-- [ ] ZIP DEFLATE với flag `0x08` (Finder/macOS/Python zipfile) giải nén thành công và pass CRC/size
-- [ ] ZIP có `__MACOSX/._*` và `.DS_Store` ở root/chapters được bỏ qua, không tạo `__MACOSX/` trong đích, valid content vẫn import
-- [ ] ZIP bọc single outer-folder `wrapper/book.json` + `wrapper/chapters/` được flatten và import thành công (cả khi kèm `__MACOSX`)
-- [ ] Sample thực `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` (outer-folder + __MACOSX + flag 0x08, 743 chapters) import được qua `ImportViewModel` và hiện đủ 743 chapters trong Library
-- [ ] Validator vẫn ignore hygiene nhưng vẫn reject: missing `book.json`, missing chapter, extra file thực sự ngoài hygiene, `count != references.length`
-- [ ] Bảo mật: zip-slip (`../evil`), bomb >100MB, CRC mismatch, method !=0/8 vẫn báo `invalidPackage`, không tạo folder
-- [ ] `book.json` thiếu `id` vẫn decode với id derived slug từ `name` và save thành công
-- [ ] `./init.sh` PASS (format 0, lint 0, build PASS, test PASS với cases mới)
+- [x] ZIP DEFLATE với flag `0x08` (Finder/macOS/Python zipfile) giải nén thành công và pass CRC/size
+- [x] ZIP có `__MACOSX/._*` và `.DS_Store` ở root/chapters được bỏ qua, không tạo `__MACOSX/` trong đích, valid content vẫn import
+- [x] ZIP bọc single outer-folder `wrapper/book.json` + `wrapper/chapters/` được flatten và import thành công (cả khi kèm `__MACOSX`)
+- [x] Sample thực `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` (outer-folder + __MACOSX + flag 0x08, 743 chapters) import được qua `ImportViewModel` và hiện đủ 743 chapters trong Library
+- [x] Validator vẫn ignore hygiene nhưng vẫn reject: missing `book.json`, missing chapter, extra file thực sự ngoài hygiene, `count != references.length`
+- [x] Bảo mật: zip-slip (`../evil`), bomb >100MB, CRC mismatch, method !=0/8 vẫn báo `invalidPackage`, không tạo folder
+- [x] `book.json` thiếu `id` vẫn decode với id derived slug từ `name` và save thành công
+- [x] `./init.sh` PASS (format 0, lint 0, build PASS, test PASS với cases mới)
 
 ## Relevant docs
 
@@ -51,7 +51,7 @@ Substantial: >=4 files, cần phases — external plan `docs/plans/feat-010.md` 
 
 ## Handoff
 
-- State: todo
-- Evidence: docs/plans/feat-010.md (6 tasks) + explorer evidence ses_fc27a0978ffe7cqfUUyGVzqYQX + ses_fc2793f38ffe3k2lGcE6rIJdRl — sample unzip -l 1492 files, flag 0x08 trên mọi DEFLATE, outer-folder `van-gioi-.../` + 746 __MACOSX
+- State: done
+- Evidence: branch feat/010-tolerant-zip 10 commits c711c31..2749857 — 315c0a5 chore(plan), a2ef1b9 flag08+hygiene, 003b682 lint clean, a4cd8aa wrapper flatten, 9ef31f7 dedupe hygiene, 917d6c3 validator hygiene, 98ed7b4 Book id fallback, 8d7e806 fallback tests, d1c372d docs tolerant, 2749857 tolerant tests+fixtures; SDD ledger .agent-work/sdd/feat-010/progress.md 6 tasks + final review clean; Task reviews ora-1..ora-10 all Approved (fix rounds 1/5 where needed); swiftformat 0/63, swiftlint --strict 0, xcodebuild test 127 PASS (ImportViewModel 20/20 incl. synthetic wrapper+__MACOSX+flag08, real sample 743 chapters, zip-slip/bomb/CRC/missing-chapter still reject), docs/samples/van-gioi-chi-rut-thuong-he-thong.zip 1.9M preserved; ARCHITECTURE.md:14, book-package.md 16-19, local-data.md, book-package-shape.md Amendment 2026-08-26 updated
 - Blockers: none
-- Next: Review `docs/plans/feat-010.md` → activate feat-010 → execute tasks via @fixer lanes
+- Next: Merge feat/010-tolerant-zip → main (or PR) — `git checkout main && git merge --no-ff feat/010-tolerant-zip && git push` — sample now importable tolerant via flatten

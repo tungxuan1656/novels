@@ -62,7 +62,7 @@
     {
       "id": "feat-010",
       "title": "Tolerant ZIP Ingestion Hotfix",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-003"]
     }
   ]
