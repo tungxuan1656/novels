@@ -25,6 +25,7 @@ struct Book: Codable, Equatable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Decode name first to allow slug fallback for missing id
         let decodedName = try container.decode(String.self, forKey: .name)
         if let id = try container.decodeIfPresent(String.self, forKey: .id), !id.isEmpty {
             self.id = id
@@ -47,7 +48,8 @@ struct Book: Codable, Equatable {
     }
 
     static func slugify(_ string: String) -> String {
-        let folded = string.folding(options: .diacriticInsensitive, locale: .current).lowercased()
+        // Pinned to vi_VN for predictable Vietnamese diacritic folding across device locales
+        let folded = string.folding(options: .diacriticInsensitive, locale: Locale(identifier: "vi_VN")).lowercased()
         var result = ""
         var needDash = false
         for char in folded {
@@ -59,6 +61,8 @@ struct Book: Codable, Equatable {
                 needDash = true
             }
         }
-        return result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        // Fallback for names that slugify to empty (e.g., "___" or "   ")
+        let trimmed = result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return trimmed.isEmpty ? "book" : trimmed
     }
 }

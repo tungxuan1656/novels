@@ -89,6 +89,13 @@ private func makeMockRepository() -> FileBookRepository {
     return FileBookRepository(root: tmp, fileManager: .default)
 }
 
+private func realSampleURL() -> URL {
+    // #filePath is .../apps/novelsTests/ImportViewModelTests.swift
+    let thisFile = URL(fileURLWithPath: #filePath)
+    return thisFile.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        .appendingPathComponent("docs/samples/van-gioi-chi-rut-thuong-he-thong.zip")
+}
+
 private func makeValidZip(at base: URL, slug: String, count: Int = 2, content: String? = nil) -> URL {
     let src = base.appendingPathComponent("src-\(UUID().uuidString)", isDirectory: true)
     try? FileManager.default.createDirectory(at: src, withIntermediateDirectories: true)
@@ -490,17 +497,8 @@ final class ImportViewModelTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        // Use real sample ZIP if available — derive relative path from #file, fallback to absolute for local dev
-        let absoluteFallback = URL(
-            fileURLWithPath: "/Users/tungdoan/Projects/iOS/novels/docs/samples/van-gioi-chi-rut-thuong-he-thong.zip"
-        )
-        let relativeCandidate = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("docs/samples/van-gioi-chi-rut-thuong-he-thong.zip")
-        let samplePath = FileManager.default.fileExists(atPath: absoluteFallback.path)
-            ? absoluteFallback
-            : relativeCandidate
-        guard FileManager.default.fileExists(atPath: samplePath.path) else {
+        let sampleURL = realSampleURL()
+        guard FileManager.default.fileExists(atPath: sampleURL.path) else {
             // Fallback synthetic mirror: wrapper with __MACOSX injection
             let src = tmp.appendingPathComponent("src-\(UUID().uuidString)", isDirectory: true)
             let outer = src.appendingPathComponent("sample-book", isDirectory: true)
@@ -534,7 +532,7 @@ final class ImportViewModelTests: XCTestCase {
             return
         }
         let tmpSample = tmp.appendingPathComponent("sample-copy2.zip")
-        try FileManager.default.copyItem(at: samplePath, to: tmpSample)
+        try FileManager.default.copyItem(at: sampleURL, to: tmpSample)
         let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
         let vm = ImportViewModel(
             catalogService: MockCatalog(books: []),
@@ -595,18 +593,13 @@ final class ImportViewModelTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        let basePath = "/Users/tungdoan/Projects/iOS/novels/docs/samples/van-gioi-chi-rut-thuong-he-thong.zip"
-        let samplePath = URL(fileURLWithPath: basePath)
-        let fallback = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("docs/samples/van-gioi-chi-rut-thuong-he-thong.zip")
-        let url = FileManager.default.fileExists(atPath: samplePath.path) ? samplePath : fallback
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("sample ZIP not available")
+        let sampleURL = realSampleURL()
+        guard FileManager.default.fileExists(atPath: sampleURL.path) else {
+            XCTFail("missing sample at \(sampleURL.path)"); return
         }
         // Copy to tmp to preserve original sample (ImportViewModel deletes zip after import)
         let tmpSample = tmp.appendingPathComponent("sample-copy.zip")
-        try FileManager.default.copyItem(at: url, to: tmpSample)
+        try FileManager.default.copyItem(at: sampleURL, to: tmpSample)
         let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
         let vm = ImportViewModel(
             catalogService: MockCatalog(books: []),
@@ -744,24 +737,21 @@ final class ImportViewModelTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        // Create valid ZIP then flip one byte in stored data
-        let src = tmp.appendingPathComponent("src-crc", isDirectory: true)
-        let ch = src.appendingPathComponent("chapters", isDirectory: true)
-        try FileManager.default.createDirectory(at: ch, withIntermediateDirectories: true)
-        try #"{"id":"crc-test","name":"C","count":1,"author":"A","references":["C1"]}"#
-            .write(to: src.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
-        try "<p>hi</p>".write(to: ch.appendingPathComponent("chapter-1.html"), atomically: true, encoding: .utf8)
         let zipURL = tmp.appendingPathComponent("crc.zip")
-        try FileManager.default.zipItem(at: src, to: zipURL, shouldKeepParent: false)
+        try makeDescriptorFlagStoreZip(at: zipURL, files: [
+            "book.json": Data(#"{"id":"crc-test","name":"C","count":1,"author":"A","references":["C1"]}"#.utf8),
+            "chapters/chapter-1.html": Data("<p>hello</p>".utf8), // swiftlint:disable:this trailing_comma
+        ])
         var data = try Data(contentsOf: zipURL)
-        // Corrupt a byte inside stored file data to trigger CRC mismatch
-        if let range = data.range(of: Data("crc-test".utf8)) {
+        // Corrupt a byte inside chapter-1.html to trigger CRC mismatch
+        if let range = data.range(of: Data("<p>hello</p>".utf8)) {
             data[range.lowerBound] ^= 0xFF
-            try data.write(to: zipURL)
-        } else if data.count > 50 {
-            data[data.count - 50] ^= 0xFF
-            try data.write(to: zipURL)
+        } else if let range = data.range(of: Data("hello".utf8)) {
+            data[range.lowerBound] ^= 0xFF
+        } else {
+            XCTFail("fixture not found"); return
         }
+        try data.write(to: zipURL)
         let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
         let vm = ImportViewModel(
             catalogService: MockCatalog(books: []),

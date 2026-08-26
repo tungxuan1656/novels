@@ -3,6 +3,8 @@ import Foundation
 enum ZipValidator {
     // MARK: - Hygiene helper (shared with FileManagerZIP resolver)
 
+    /// Hygiene entries are macOS Finder artifacts: __MACOSX/, .DS_Store, ._ resource forks.
+    /// Over-match note: legitimate files starting with "._" will be ignored (rare in book packages; acceptable per book-package.md tolerant ingest).
     static func isHygieneEntry(_ name: String) -> Bool {
         if name == "__MACOSX" || name.hasPrefix("__MACOSX/") || name.contains("/__MACOSX/") {
             return true

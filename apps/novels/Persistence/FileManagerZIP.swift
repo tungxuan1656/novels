@@ -243,7 +243,7 @@ private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
         }
     }
 
-    guard inflateResult == zStreamEnd || inflateResult == zOk else {
+    guard inflateResult == zStreamEnd else {
         throw CocoaError(.fileReadCorruptFile)
     }
 
@@ -263,9 +263,12 @@ private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
 private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
     // If producer already emitted zlib-wrapped data, NSData(zlib) handles it.
     if let decoded = try? (data as NSData).decompressed(using: .zlib) as Data,
-       decoded.count == expectedSize || expectedSize == 0
+       decoded.count == expectedSize
     { // swiftlint:disable:this opening_brace
         return decoded
+    }
+    if expectedSize == 0, data.isEmpty {
+        return Data()
     }
     // Correct path: raw deflate via zlib inflateInit2(-15) – validates CRC/size
     // without requiring a dummy Adler. This restores support for most ZIP producers.
@@ -273,35 +276,6 @@ private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
 }
 
 // MARK: - Whitelist & Security Helpers
-
-private func isAllowedFileName(_ name: String) -> Bool {
-    if name == "book.json" {
-        return true
-    }
-    if name == "chapters/" {
-        return true
-    }
-    if name == "chapters" {
-        return true
-    } // some zips omit trailing slash
-    if name.hasPrefix("chapters/chapter-") && name.hasSuffix(".html") {
-        // Ensure single level: chapters/chapter-N.html no extra slash
-        let prefix = "chapters/"
-        let suffix = name.dropFirst(prefix.count)
-        if suffix.contains("/") || suffix.contains("\\") {
-            return false
-        }
-        let middle = suffix.dropFirst("chapter-".count).dropLast(".html".count)
-        if middle.isEmpty {
-            return false
-        }
-        if !middle.allSatisfy({ $0.isNumber }) {
-            return false
-        }
-        return true
-    }
-    return false
-}
 
 private func hasPathTraversal(_ name: String) -> Bool {
     if name.hasPrefix("/") || name.hasPrefix("\\") {
@@ -350,6 +324,10 @@ private func readDescriptor(at pos: Int, data: Data) -> (crc: UInt32, comp: UInt
 
 // swiftlint:enable large_tuple
 
+/// NOTE: Linear scan inside compressed data may hit false header
+/// signatures (~1.4e-3 per entry). CRC + size checks catch truncation;
+/// central-directory back-scan would be more robust but heavier.
+/// Accepted for hotfix scope.
 private func findNextHeaderPos(from start: Int, data: Data) -> Int? {
     var idx = start
     while idx + 4 <= data.count {
@@ -525,10 +503,8 @@ extension FileManager {
                     }
                     continue
                 }
-                // Only reject unsupported compression method and security
-                // TODO(feat-010/task-2): Outer-folder entries (not in whitelist) are allowed
-                // temporarily — will be flattened by resolver
-                // Still enforce method cap
+                // Outer-folder entries allowed temporarily — flattened by resolver; method/crc/size still enforced
+                // above
                 if compMethod != 0, compMethod != 8 {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
@@ -543,32 +519,34 @@ extension FileManager {
                     guard let nextHeaderPos = findNextHeaderPos(from: dataStart, data: data) else {
                         throw CocoaError(.fileReadCorruptFile)
                     }
+                    // Prefer 16-byte signed descriptor if signature matches at nextHeaderPos-16, else 12-byte unsigned
                     // swiftlint:disable:next large_tuple
                     var desc: (crc: UInt32, comp: UInt32, uncomp: UInt32, len: Int)?
                     var descStart = nextHeaderPos
-                    // Try 16-byte descriptor with signature
                     if nextHeaderPos >= 16 {
                         let p16 = nextHeaderPos - 16
-                        if p16 >= dataStart, let descriptorInfo = readDescriptor(at: p16, data: data),
-                           descriptorInfo.len == 16 // swiftlint:disable:this opening_brace
-                        { // swiftlint:disable:this opening_brace
-                            desc = descriptorInfo
-                            descStart = p16
+                        if p16 >= dataStart {
+                            let sig16 = UInt32(data[p16]) | UInt32(data[p16 + 1]) << 8
+                                | UInt32(data[p16 + 2]) << 16 | UInt32(data[p16 + 3]) << 24
+                            if sig16 == 0x0807_4B50, let descriptor = readDescriptor(at: p16, data: data),
+                               descriptor.len == 16
+                            { // swiftlint:disable:this opening_brace
+                                desc = descriptor
+                                descStart = p16
+                            }
                         }
                     }
                     if desc == nil, nextHeaderPos >= 12 {
                         let p12 = nextHeaderPos - 12
-                        if p12 >= dataStart {
+                        if p12 >= dataStart, let descriptor = readDescriptor(at: p12, data: data) {
+                            // Ensure not misreading signed descriptor as unsigned: already checked above
                             let sigAtP12 = UInt32(data[p12]) | UInt32(data[p12 + 1]) << 8
                                 | UInt32(data[p12 + 2]) << 16 | UInt32(data[p12 + 3]) << 24
                             if sigAtP12 != 0x0807_4B50 {
-                                let crc = UInt32(data[p12]) | UInt32(data[p12 + 1]) << 8
-                                    | UInt32(data[p12 + 2]) << 16 | UInt32(data[p12 + 3]) << 24
-                                let comp = UInt32(data[p12 + 4]) | UInt32(data[p12 + 5]) << 8
-                                    | UInt32(data[p12 + 6]) << 16 | UInt32(data[p12 + 7]) << 24
-                                let uncomp = UInt32(data[p12 + 8]) | UInt32(data[p12 + 9]) << 8
-                                    | UInt32(data[p12 + 10]) << 16 | UInt32(data[p12 + 11]) << 24
-                                desc = (crc, comp, uncomp, 12)
+                                desc = descriptor
+                                descStart = p12
+                            } else if descriptor.len == 16 { // if still signed, use it
+                                desc = descriptor
                                 descStart = p12
                             }
                         }
