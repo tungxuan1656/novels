@@ -6,11 +6,12 @@ Enable discovery and offline import of book ZIP packages from the remote catalog
 
 ## Scope
 
-- Catalog POST to `BOOKS_API_URL` with no body/auth; states loading/empty/error with retry. POST returns `{success, data, message}` per `docs/contracts/catalog-api.md:24`; on `success:false` display `message` toast, no folder created.
-- `URLSession` download of selected ZIP to temp directory.
-- Strict archive-root validation (`book.json` at root, `chapters/chapter-N.html` 1..count, reject wrapper/`__MACOSX`).
-- Atomic ingest to `Application Support/novels/books/<slug>/` via replacement boundary from feat-001; delete temp ZIP only after success.
-- Re-import of same slug overwrites atomically; Home Library refreshes on success.
+- Catalog POST to `BOOKS_API_URL` with no body/auth; states loading/empty/error with retry + pull-to-refresh. POST returns `{success, data, message}` per `docs/contracts/catalog-api.md:24`; on `success:false` display `message` toast, no folder created.
+- `URLSession` download of selected ZIP to temp directory with blocking overlay spinner simple (“Đang tải…” / “Đang giải nén…”) per clarification 2026-08-25.
+- Strict archive-root validation (`book.json` at root, `chapters/chapter-N.html` 1..count, reject wrapper/`__MACOSX`) with generic toast “Gói sách không hợp lệ, không thể nhập” per clarification.
+- Atomic ingest to `Application Support/novels/books/<slug>/` via replacement boundary from feat-001; delete temp ZIP only after success; temp cleanup on failure/cancel.
+- Re-import of same slug overwrites atomically without confirm per clarification 2026-08-25; Home Library refreshes on success via `LibraryViewModel.refresh()` and pop to Library.
+- Catalog list sorted locally: default Tên A→Z, option Mới nhất (lastUpdated desc) per clarification; no search/filter — YAGNI.
 - Consumes atomic replacement boundary from feat-001; do not reopen persistence decisions.
 
 ## Non-goals
@@ -33,9 +34,9 @@ See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownersh
 
 ## Plan
 
-External plan required at activation (≥4 files expected) — create `docs/plans/feat-003.md` per `feat-001` template (`features/feat-001.md:47-51` and `docs/plans/feat-001.md`).
+External plan required at activation (≥4 files expected) — created `docs/plans/feat-003.md` per `feat-001` template (`features/feat-001.md:47-51` and `docs/plans/feat-001.md`).
 
-- Link: `docs/plans/feat-003.md` (to be created at activation)
+- Link: `docs/plans/feat-003.md` (accepted design 2026-08-25 — approach A minimal spec-faithful)
 
 ## Ownership
 
@@ -50,6 +51,6 @@ External plan required at activation (≥4 files expected) — create `docs/plan
 ## Handoff
 
 - State: todo
-- Evidence: —
+- Evidence: Accepted design recorded at `docs/plans/feat-003.md` (2026-08-25, approach A) — covers CatalogService POST contract, ImportViewModel states + sort + atomic replace, AddBookView + Router/Library integration, verification. Feature file scope clarified for sort/spinner/toast/ghi đè per brainstorm.
 - Blockers: none
-- Next: Awaiting feat-001 and feat-002 completion before activation
+- Next: Awaiting user review of `docs/plans/feat-003.md` and `features/feat-003.md` before implementation planning; activation ready (depends_on feat-001, feat-002 done)
