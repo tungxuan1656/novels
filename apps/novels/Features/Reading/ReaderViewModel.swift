@@ -73,10 +73,10 @@ final class ReaderViewModel {
     }
 
     func goToChapter(_ number: Int) async {
-        let maxCount = book?.count ?? number
-        chapterNumber = min(max(1, number), maxCount)
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
+        } else {
+            chapterNumber = max(1, number)
         }
         await load()
         persistChapter()
@@ -99,22 +99,20 @@ final class ReaderViewModel {
     }
 
     func onAppear() {
-        let existingOffset = settingsStore.session?.offset ?? 0
-        let existingOnScreen = settingsStore.session?.onScreen ?? false
-        // Keep offset if same book, else reset
-        let offsetToKeep: Double
-        if let session = settingsStore.session, session.bookId == bookId {
-            offsetToKeep = session.offset
+        let existing = settingsStore.session
+        let offsetToKeep = (existing?.bookId == bookId) ? existing?.offset ?? 0 : 0
+        let chapterToKeep: Int
+        if let session = existing, session.bookId == bookId {
+            chapterToKeep = session.chapterNumber
+            chapterNumber = chapterToKeep
         } else {
-            offsetToKeep = 0
+            chapterToKeep = chapterNumber
         }
-        _ = existingOffset
-        _ = existingOnScreen
         settingsStore.session = ReadingSession(
             bookId: bookId,
             onScreen: true,
             offset: offsetToKeep,
-            chapterNumber: chapterNumber
+            chapterNumber: chapterToKeep
         )
         settingsStore.save()
     }
@@ -141,42 +139,10 @@ final class ReaderViewModel {
     }
 
     private func loadBookFallback() -> Book? {
-        let fm: FileManager
-        let rootURL: URL
-        if let fileRepo = repository as? FileBookRepository {
-            fm = fileRepo.fileManager
-            rootURL = fileRepo.root
-        } else {
-            fm = FileManager.default
-            rootURL = AppPaths.booksRoot()
-        }
-        let bookURL = rootURL.appendingPathComponent(bookId).appendingPathComponent("book.json")
-        guard fm.fileExists(atPath: bookURL.path) else { return nil }
-        guard let data = try? Data(contentsOf: bookURL) else { return nil }
-        return try? JSONDecoder().decode(Book.self, from: data)
+        try? repository.book(slug: bookId)
     }
 
     private func readChapterHTML(number: Int) -> String? {
-        if let fileRepo = repository as? FileBookRepository {
-            let url = fileRepo.root
-                .appendingPathComponent(bookId, isDirectory: true)
-                .appendingPathComponent("chapters/chapter-\(number).html", isDirectory: false)
-            if fileRepo.fileManager.fileExists(atPath: url.path) {
-                return try? String(contentsOf: url, encoding: .utf8)
-            }
-            // Fallback to repository helper (may throw missing)
-            if let html = try? fileRepo.chapterHTML(slug: bookId, number: number) {
-                return html
-            }
-            // Also try AppPaths for completeness
-            let fallback = AppPaths.booksRoot()
-                .appendingPathComponent(bookId, isDirectory: true)
-                .appendingPathComponent("chapters/chapter-\(number).html", isDirectory: false)
-            if FileManager.default.fileExists(atPath: fallback.path) {
-                return try? String(contentsOf: fallback, encoding: .utf8)
-            }
-            return nil
-        }
         do {
             return try repository.chapterHTML(slug: bookId, number: number)
         } catch {
@@ -188,11 +154,5 @@ final class ReaderViewModel {
             }
             return nil
         }
-    }
-}
-
-extension ToastCenter {
-    var lastMessage: String? {
-        current?.message
     }
 }

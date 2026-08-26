@@ -12,6 +12,8 @@ enum HtmlParser {
         var italicDepth = 0
         var currentText = ""
         var insideBlock = false
+        // swiftlint:disable:next implicit_optional_initialization
+        var skipTag: String? = nil
 
         func currentKind() -> TextSpan.Kind {
             if let level = headingLevel {
@@ -44,6 +46,17 @@ enum HtmlParser {
                     previousWasSpace = false
                 }
             }
+            return result
+        }
+
+        func decodeEntities(_ input: String) -> String {
+            var result = input
+            result = result.replacingOccurrences(of: "&amp;", with: "&")
+            result = result.replacingOccurrences(of: "&lt;", with: "<")
+            result = result.replacingOccurrences(of: "&gt;", with: ">")
+            result = result.replacingOccurrences(of: "&quot;", with: "\"")
+            result = result.replacingOccurrences(of: "&apos;", with: "'")
+            result = result.replacingOccurrences(of: "&nbsp;", with: " ")
             return result
         }
 
@@ -117,13 +130,24 @@ enum HtmlParser {
                 if tagName.hasSuffix("/") {
                     tagName = String(tagName.dropLast())
                 }
-                // Remove trailing "/" for cases like "br/"
-                if tagName.hasSuffix("/") {
-                    tagName = String(tagName.dropLast())
+
+                if let active = skipTag {
+                    if isClosing, tagName == active {
+                        skipTag = nil
+                    }
+                    index = html.index(after: closeIndex)
+                    continue
+                }
+                if !isClosing && (tagName == "script" || tagName == "style") {
+                    skipTag = tagName
+                    index = html.index(after: closeIndex)
+                    continue
                 }
 
                 if tagName == "br" {
                     flush()
+                    let span = TextSpan(text: "\n", kind: currentKind(), isLineBreak: true)
+                    currentSpans.append(span)
                 } else if tagName == "b" || tagName == "strong" {
                     flush()
                     if isClosing {
@@ -184,7 +208,10 @@ enum HtmlParser {
                 index = html.index(after: closeIndex)
             } else {
                 let nextTag = html[index...].firstIndex(of: "<") ?? html.endIndex
-                currentText += String(html[index ..< nextTag])
+                if skipTag == nil {
+                    let raw = String(html[index ..< nextTag])
+                    currentText += decodeEntities(raw)
+                }
                 index = nextTag
             }
         }

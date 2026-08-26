@@ -19,7 +19,8 @@ final class HtmlParserTests: XCTestCase {
         XCTAssertEqual(blocks[0].isHeading, true)
         XCTAssertEqual(blocks[0].headingLevel, 2)
         XCTAssertEqual(blocks[0].spans[0].text, "Title")
-        XCTAssertEqual(blocks[1].spans.map { $0.text }.joined(separator: "|"), "Line1|Line2")
+        XCTAssertEqual(blocks[1].spans.filter { !$0.isLineBreak }.map { $0.text }.joined(separator: "|"), "Line1|Line2")
+        XCTAssertTrue(blocks[1].spans.contains(where: { $0.isLineBreak }))
     }
 
     func testParseNestedBoldItalicAndWhitespace() {

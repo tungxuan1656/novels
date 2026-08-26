@@ -1,5 +1,6 @@
 import SwiftUI
 
+// swiftlint:disable:next type_body_length
 struct ReaderView: View {
     let bookId: String
     @Bindable var router: Router
@@ -13,6 +14,7 @@ struct ReaderView: View {
     @State private var viewportHeight: CGFloat = 0
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
+    @State private var isProgrammaticScrolling = false
 
     init(
         bookId: String,
@@ -99,7 +101,12 @@ struct ReaderView: View {
                     }
                 }
                 .onDisappear {
+                    // Flush pending offset before cancelling debounce
+                    if debounceTask != nil {
+                        viewModel.saveOffset(Double(-offsetY))
+                    }
                     debounceTask?.cancel()
+                    debounceTask = nil
                     viewModel.onDisappear()
                 }
                 .onChange(of: outer.size.height) { _, newValue in
@@ -146,6 +153,9 @@ struct ReaderView: View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
                 let combined = block.spans.reduce(Text("")) { accumulator, span in
+                    if span.isLineBreak {
+                        return accumulator + Text("\n")
+                    }
                     var piece = Text(span.text)
                         .font(fontFor(block: block, span: span))
                         .foregroundStyle(DesignTokens.text)
@@ -170,7 +180,7 @@ struct ReaderView: View {
         let design = ReaderFontDesign.design(for: settingsStore.typography.font)
         if block.isHeading {
             let level = CGFloat(block.headingLevel ?? 3)
-            return .system(size: base + level * 2, weight: .bold, design: design)
+            return .system(size: base + CGFloat(7 - level) * 2, weight: .bold, design: design)
         }
         return .system(size: base, design: design)
     }
@@ -193,6 +203,9 @@ struct ReaderView: View {
     private var footerNav: some View {
         HStack {
             Button("Trước") {
+                debounceTask?.cancel()
+                debounceTask = nil
+                beginProgrammaticScrolling()
                 Task {
                     await viewModel.goPrev()
                     scrollToTop()
@@ -203,6 +216,9 @@ struct ReaderView: View {
             .accessibilityLabel("Chương trước")
             Spacer()
             Button("Sau") {
+                debounceTask?.cancel()
+                debounceTask = nil
+                beginProgrammaticScrolling()
                 Task {
                     await viewModel.goNext()
                     scrollToTop()
@@ -216,6 +232,9 @@ struct ReaderView: View {
 
     private func toBottomButton(_ proxy: ScrollViewProxy) -> some View {
         Button {
+            debounceTask?.cancel()
+            debounceTask = nil
+            beginProgrammaticScrolling()
             withAnimation {
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
@@ -235,13 +254,17 @@ struct ReaderView: View {
         let y = Double(value)
         offsetY = y
         debouncedSave(-y)
-        let isNearBottom = ReaderOverscrollLogic.isNearBottom(
+        guard !isProgrammaticScrolling else { return }
+        let isOverscrolled = ReaderOverscrollLogic.isOverscrolledBeyondBottom(
             offsetY: value,
             contentHeight: contentHeight,
             viewportHeight: viewportHeight
         )
-        if isNearBottom, !overscrollLock, viewModel.canGoNext {
+        if isOverscrolled, !overscrollLock, viewModel.canGoNext {
             overscrollLock = true
+            debounceTask?.cancel()
+            debounceTask = nil
+            beginProgrammaticScrolling()
             Task {
                 await viewModel.goNext()
                 scrollToTop()
@@ -250,6 +273,9 @@ struct ReaderView: View {
             }
         } else if value > 40, !overscrollLock, viewModel.canGoPrev {
             overscrollLock = true
+            debounceTask?.cancel()
+            debounceTask = nil
+            beginProgrammaticScrolling()
             Task {
                 await viewModel.goPrev()
                 scrollToTop()
@@ -271,6 +297,9 @@ struct ReaderView: View {
     }
 
     private func scrollToTop() {
+        debounceTask?.cancel()
+        debounceTask = nil
+        beginProgrammaticScrolling()
         scrollPosition = ScrollPosition(point: .zero)
         if let proxy = scrollProxy {
             withAnimation {
@@ -286,14 +315,21 @@ struct ReaderView: View {
             sessionOffset: session?.offset,
             currentBookId: bookId
         ) else { return }
-        scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
-        // Fallback for environments without scrollPosition point support
-        if let proxy = scrollProxy {
-            Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 80_000_000)
-                withAnimation {
-                    proxy.scrollTo("top", anchor: .top)
-                }
+        beginProgrammaticScrolling()
+        Task {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+            await MainActor.run {
+                scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
+            }
+        }
+    }
+
+    private func beginProgrammaticScrolling() {
+        isProgrammaticScrolling = true
+        Task {
+            try? await Task.sleep(nanoseconds: 400_000_000)
+            await MainActor.run {
+                isProgrammaticScrolling = false
             }
         }
     }

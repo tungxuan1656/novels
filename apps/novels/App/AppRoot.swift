@@ -21,7 +21,7 @@ struct AppRoot: View {
                         case let .reading(bookId):
                             ReaderView(bookId: bookId, router: router)
                         case let .references(bookId):
-                            let repo = FileBookRepository(root: AppPaths.booksRoot(), fileManager: .default)
+                            let repo = router.repository
                             if let book = try? repo.book(slug: bookId) {
                                 ReferencesView(
                                     book: book,

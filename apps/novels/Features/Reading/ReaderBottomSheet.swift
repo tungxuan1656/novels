@@ -4,6 +4,7 @@ struct ReaderBottomSheet: View {
     @Bindable var settingsStore: SettingsStore
     var onClose: () -> Void
     @State private var showGearToast = false
+    /// Source of truth for font names is ReaderFontDesign (ScrollOffsetPreference.swift) — keep in sync: System/Serif/Mono
     let fonts = ["System", "Serif", "Mono"]
 
     var body: some View {
@@ -22,8 +23,11 @@ struct ReaderBottomSheet: View {
                     }
                     .accessibilityLabel("Đóng")
                     Button {
-                        showGearToast = true
-                        onClose()
+                        withAnimation { showGearToast = true }
+                        Task {
+                            try? await Task.sleep(nanoseconds: 2_000_000_000)
+                            withAnimation { showGearToast = false }
+                        }
                     } label: {
                         Image(systemName: "gearshape")
                             .foregroundStyle(DesignTokens.muted)

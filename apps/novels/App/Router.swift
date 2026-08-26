@@ -7,7 +7,7 @@ final class Router {
     var path = NavigationPath()
     var toast = ToastCenter()
     private let settingsStore: SettingsStore
-    private let repository: BookRepository
+    let repository: BookRepository
     private var isPushing = false
 
     init(settingsStore: SettingsStore = .shared, repository: BookRepository? = nil) {
