@@ -9,6 +9,10 @@ struct ReaderView: View {
     @State private var overscrollLock = false
     @State private var showSheet = false
     @State private var scrollProxy: ScrollViewProxy?
+    @State private var contentHeight: CGFloat = 0
+    @State private var viewportHeight: CGFloat = 0
+    @State private var debounceTask: Task<Void, Never>?
+    @State private var scrollPosition = ScrollPosition(point: .zero)
 
     init(
         bookId: String,
@@ -33,52 +37,77 @@ struct ReaderView: View {
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
-                    header
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .frame(maxWidth: .infinity)
-                    } else if viewModel.blocks.isEmpty {
-                        Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                            .foregroundStyle(DesignTokens.muted)
-                    } else {
-                        content
+        GeometryReader { outer in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
+                        header
+                        if viewModel.isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                        } else if viewModel.blocks.isEmpty {
+                            Text(viewModel.errorMessage ?? "Không tìm thấy chương")
+                                .foregroundStyle(DesignTokens.muted)
+                        } else {
+                            content
+                        }
+                        footerNav
+                        Color.clear
+                            .frame(height: 1)
+                            .id("bottom")
                     }
-                    footerNav
-                    Color.clear
-                        .frame(height: 1)
-                        .id("bottom")
+                    .padding(DesignTokens.spacing16)
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ContentHeightKey.self,
+                                value: geometry.size.height
+                            )
+                        }
+                    )
+                    .background(
+                        GeometryReader { geometry in
+                            Color.clear.preference(
+                                key: ScrollOffsetKey.self,
+                                value: geometry.frame(in: .named("reader")).minY
+                            )
+                        }
+                    )
+                    .id("top")
                 }
-                .padding(DesignTokens.spacing16)
+                .coordinateSpace(name: "reader")
+                .scrollPosition($scrollPosition)
+                .onPreferenceChange(ScrollOffsetKey.self) { value in
+                    handleOffset(value)
+                }
+                .onPreferenceChange(ContentHeightKey.self) { value in
+                    contentHeight = value
+                }
+                .onPreferenceChange(ViewportHeightKey.self) { value in
+                    viewportHeight = value
+                }
                 .background(
-                    GeometryReader { geometry in
-                        Color.clear.preference(
-                            key: ScrollOffsetKey.self,
-                            value: geometry.frame(in: .named("reader")).minY
-                        )
-                    }
+                    Color.clear.preference(key: ViewportHeightKey.self, value: outer.size.height)
                 )
-                .id("top")
-            }
-            .coordinateSpace(name: "reader")
-            .onPreferenceChange(ScrollOffsetKey.self) { value in
-                handleOffset(value)
-            }
-            .onAppear {
-                scrollProxy = proxy
-                viewModel.onAppear()
-                Task {
-                    await viewModel.load()
-                    restoreOffset(proxy)
+                .onAppear {
+                    scrollProxy = proxy
+                    viewportHeight = outer.size.height
+                    viewModel.onAppear()
+                    Task {
+                        await viewModel.load()
+                        restoreOffset()
+                    }
                 }
-            }
-            .onDisappear {
-                viewModel.onDisappear()
-            }
-            .overlay(alignment: .bottomTrailing) {
-                toBottomButton(proxy)
+                .onDisappear {
+                    debounceTask?.cancel()
+                    viewModel.onDisappear()
+                }
+                .onChange(of: outer.size.height) { _, newValue in
+                    viewportHeight = newValue
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    toBottomButton(proxy)
+                }
             }
         }
         .background(DesignTokens.backgroundPaper)
@@ -138,11 +167,12 @@ struct ReaderView: View {
 
     private func fontFor(block: TextBlock, span: TextSpan) -> Font {
         let base = CGFloat(settingsStore.typography.fontSize)
+        let design = ReaderFontDesign.design(for: settingsStore.typography.font)
         if block.isHeading {
             let level = CGFloat(block.headingLevel ?? 3)
-            return .system(size: base + level * 2, weight: .bold)
+            return .system(size: base + level * 2, weight: .bold, design: design)
         }
-        return .system(size: base)
+        return .system(size: base, design: design)
     }
 
     private var header: some View {
@@ -204,8 +234,13 @@ struct ReaderView: View {
     private func handleOffset(_ value: CGFloat) {
         let y = Double(value)
         offsetY = y
-        viewModel.saveOffset(-y)
-        if y < -40, !overscrollLock, viewModel.canGoNext {
+        debouncedSave(-y)
+        let isNearBottom = ReaderOverscrollLogic.isNearBottom(
+            offsetY: value,
+            contentHeight: contentHeight,
+            viewportHeight: viewportHeight
+        )
+        if isNearBottom, !overscrollLock, viewModel.canGoNext {
             overscrollLock = true
             Task {
                 await viewModel.goNext()
@@ -213,7 +248,7 @@ struct ReaderView: View {
                 try? await Task.sleep(nanoseconds: 400_000_000)
                 overscrollLock = false
             }
-        } else if y > 40, !overscrollLock, viewModel.canGoPrev {
+        } else if value > 40, !overscrollLock, viewModel.canGoPrev {
             overscrollLock = true
             Task {
                 await viewModel.goPrev()
@@ -224,22 +259,42 @@ struct ReaderView: View {
         }
     }
 
+    private func debouncedSave(_ offset: Double) {
+        debounceTask?.cancel()
+        debounceTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                viewModel.saveOffset(offset)
+            }
+        }
+    }
+
     private func scrollToTop() {
+        scrollPosition = ScrollPosition(point: .zero)
         if let proxy = scrollProxy {
             withAnimation {
                 proxy.scrollTo("top", anchor: .top)
             }
-        } else {
-            // fallback: no proxy available
         }
     }
 
-    private func restoreOffset(_ proxy: ScrollViewProxy) {
-        let offset = settingsStore.session?.offset ?? 0
-        if offset > 0 {
-            // Offset restore approximated; manual verification covers scroll position
-            // Keep for per-book offset persistence logic (VM handles offset save)
-            _ = proxy
+    private func restoreOffset() {
+        let session = settingsStore.session
+        guard let offset = ReaderOffsetRestore.offsetToRestore(
+            sessionBookId: session?.bookId,
+            sessionOffset: session?.offset,
+            currentBookId: bookId
+        ) else { return }
+        scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
+        // Fallback for environments without scrollPosition point support
+        if let proxy = scrollProxy {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 80_000_000)
+                withAnimation {
+                    proxy.scrollTo("top", anchor: .top)
+                }
+            }
         }
     }
 }
