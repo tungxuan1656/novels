@@ -170,6 +170,7 @@ struct ReaderView: View {
             }
             .disabled(!viewModel.canGoPrev)
             .accessibilityIdentifier("prevButton")
+            .accessibilityLabel("Chương trước")
             Spacer()
             Button("Sau") {
                 Task {
@@ -179,6 +180,7 @@ struct ReaderView: View {
             }
             .disabled(!viewModel.canGoNext)
             .accessibilityIdentifier("nextButton")
+            .accessibilityLabel("Chương sau")
         }
     }
 
