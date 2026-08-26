@@ -46,6 +46,32 @@ final class RouterTests: XCTestCase {
         router.didPopFromReading()
         XCTAssertEqual(store.session?.onScreen, false)
     }
+
+    func testRouterPushesAddBook() throws {
+        let store = try SettingsStore(userDefaults: XCTUnwrap(UserDefaults(suiteName: UUID().uuidString)))
+        let router = Router(settingsStore: store, repository: FakeRepository(books: []))
+        router.push(.addBook)
+        XCTAssertEqual(router.path.count, 1)
+        router.pop()
+        XCTAssertEqual(router.path.count, 0)
+    }
+
+    func testAddBookViewDefaultSortIsNameAZ() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        let repo = FileBookRepository(root: tmp, fileManager: .default)
+        let catalog = RouterTestMockCatalog(books: [])
+        let downloader = RouterTestMockDownloader()
+        let viewModel = ImportViewModel(
+            catalogService: catalog,
+            repository: repo,
+            downloader: downloader
+        )
+        XCTAssertEqual(viewModel.sortOption, .nameAZ)
+        let view = AddBookView(viewModel: viewModel)
+        XCTAssertEqual(view.viewModel.sortOption, .nameAZ)
+    }
 }
 
 struct FakeRepository: BookRepository {
@@ -64,4 +90,21 @@ struct FakeRepository: BookRepository {
 
     func save(validatedRoot: URL, slug: String) throws {}
     func deleteBook(slug: String) throws {}
+}
+
+private actor RouterTestMockCatalog: CatalogFetching {
+    var books: [ExportedBook]
+    init(books: [ExportedBook]) {
+        self.books = books
+    }
+
+    func fetchCatalog() async throws -> [ExportedBook] {
+        books
+    }
+}
+
+private struct RouterTestMockDownloader: Downloader {
+    func download(from url: URL) async throws -> URL {
+        throw ImportError.downloadFailed
+    }
 }

@@ -23,6 +23,7 @@ final class Router {
     enum Route: Hashable {
         case reading(bookId: String)
         case references
+        case addBook
     }
 
     func restoreInitialRoute() {

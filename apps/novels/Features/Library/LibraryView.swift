@@ -17,7 +17,9 @@ struct LibraryView: View {
                 } description: {
                     Text("Nhấn + để thêm sách")
                 } actions: {
-                    Button("Thêm sách") {}
+                    Button("Thêm sách") {
+                        router.push(.addBook)
+                    }
                 }
                 .accessibilityIdentifier("library.empty")
             } else {
@@ -71,7 +73,9 @@ struct LibraryView: View {
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: {
+                Button {
+                    router.push(.addBook)
+                } label: {
                     Image(systemName: "plus")
                         .accessibilityLabel("Thêm sách")
                 }
