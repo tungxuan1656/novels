@@ -45,14 +45,14 @@ struct FileBookRepository: BookRepository {
     }
 
     func book(slug: String) throws -> Book? {
-        guard isValidSlug(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
+        guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
         let folderURL = root.appendingPathComponent(slug, isDirectory: true)
         guard fileManager.fileExists(atPath: folderURL.path) else { return nil }
         return validatedBook(at: folderURL)
     }
 
     func chapterHTML(slug: String, number: Int) throws -> String {
-        guard isValidSlug(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
+        guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
         guard let book = try book(slug: slug) else {
             throw BookRepositoryError.bookNotFound(slug: slug)
         }
@@ -69,7 +69,7 @@ struct FileBookRepository: BookRepository {
     }
 
     func save(validatedRoot: URL, slug: String) throws {
-        guard isValidSlug(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
+        guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
         guard ZipValidator.isValidRoot(at: validatedRoot, fileManager: fileManager) else {
             throw BookRepositoryError.invalidValidatedRoot
         }
@@ -135,32 +135,13 @@ struct FileBookRepository: BookRepository {
     }
 
     func deleteBook(slug: String) throws {
-        guard isValidSlug(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
+        guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
         let destination = root.appendingPathComponent(slug, isDirectory: true)
         guard fileManager.fileExists(atPath: destination.path) else { return }
         try fileManager.removeItem(at: destination)
     }
 
     // MARK: - Private
-
-    private func isValidSlug(_ slug: String) -> Bool {
-        if slug.isEmpty {
-            return false
-        }
-        if slug == "." || slug == ".." {
-            return false
-        }
-        if slug.hasPrefix("/") {
-            return false
-        }
-        if slug.contains("/") || slug.contains("\\") {
-            return false
-        }
-        if slug.contains("..") {
-            return false
-        }
-        return true
-    }
 
     private func validatedBook(at folderURL: URL) -> Book? {
         let bookURL = folderURL.appendingPathComponent("book.json", isDirectory: false)

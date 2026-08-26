@@ -318,7 +318,5 @@ final class BookRepositoryTests: XCTestCase {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         XCTAssertTrue(AppPaths.booksRoot(baseURL: base).path.hasSuffix("novels/books"))
         XCTAssertTrue(AppPaths.cacheRoot(baseURL: base).path.hasSuffix("novels/cache"))
-        XCTAssertTrue(AppPaths.booksRoot(base: base).path.hasSuffix("novels/books"))
-        XCTAssertTrue(AppPaths.cacheRoot(base: base).path.hasSuffix("novels/cache"))
     }
 }
