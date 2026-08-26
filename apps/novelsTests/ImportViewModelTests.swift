@@ -218,7 +218,7 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: zip.path))
     }
 
-    func testImportInvalidWrapperNoFolder() async throws {
+    func testImportSingleFolderWrapperFlattens() async throws {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
@@ -490,11 +490,16 @@ final class ImportViewModelTests: XCTestCase {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        // Use real sample ZIP if available
-        let samplePath =
-            URL(
-                fileURLWithPath: "/Users/tungdoan/Projects/iOS/novels/docs/samples/van-gioi-chi-rut-thuong-he-thong.zip"
-            )
+        // Use real sample ZIP if available — derive relative path from #file, fallback to absolute for local dev
+        let absoluteFallback = URL(
+            fileURLWithPath: "/Users/tungdoan/Projects/iOS/novels/docs/samples/van-gioi-chi-rut-thuong-he-thong.zip"
+        )
+        let relativeCandidate = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("docs/samples/van-gioi-chi-rut-thuong-he-thong.zip")
+        let samplePath = FileManager.default.fileExists(atPath: absoluteFallback.path)
+            ? absoluteFallback
+            : relativeCandidate
         guard FileManager.default.fileExists(atPath: samplePath.path) else {
             // Fallback synthetic mirror: wrapper with __MACOSX injection
             let src = tmp.appendingPathComponent("src-\(UUID().uuidString)", isDirectory: true)

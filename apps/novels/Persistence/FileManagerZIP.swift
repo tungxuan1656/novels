@@ -319,18 +319,7 @@ private func hasPathTraversal(_ name: String) -> Bool {
     return false
 }
 
-private func isHygieneEntry(_ name: String) -> Bool {
-    if name == "__MACOSX" || name.hasPrefix("__MACOSX/") || name.contains("/__MACOSX/") {
-        return true
-    }
-    if name == ".DS_Store" || name.hasSuffix("/.DS_Store") {
-        return true
-    }
-    if name.hasPrefix("._") || name.contains("/._") {
-        return true
-    }
-    return false
-}
+// isHygieneEntry consolidated to ZipValidator.isHygieneEntry (single source)
 
 // swiftlint:disable large_tuple
 private func readDescriptor(at pos: Int, data: Data) -> (crc: UInt32, comp: UInt32, uncomp: UInt32, len: Int)? {
@@ -521,7 +510,7 @@ extension FileManager {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
                 // Hygiene filter: skip __MACOSX / .DS_Store / ._* without throw
-                if isHygieneEntry(fileName) {
+                if ZipValidator.isHygieneEntry(fileName) {
                     if isDescriptor {
                         guard let nextPos = findNextHeaderPos(from: dataStart, data: data) else {
                             throw CocoaError(.fileReadCorruptFile)
@@ -689,35 +678,10 @@ extension FileManager {
     // MARK: - Canonical Root Resolver (Task 2: wrapper flatten)
 
     func resolveCanonicalRoot(at url: URL) -> URL {
-        if ZipValidator.isValidRoot(at: url, fileManager: self) {
-            return url
-        }
-        guard let top = try? contentsOfDirectory(
-            at: url,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: []
-        ) else {
-            return url
-        }
-        // Lọc hygiene entries (__MACOSX, .DS_Store, ._* resource forks)
-        let filtered = top.filter { !isHygieneEntry($0.lastPathComponent) && $0.lastPathComponent != ".DS_Store" }
-        // Chỉ flatten khi đúng 1 subfolder duy nhất
-        guard filtered.count == 1, let single = filtered.first else {
-            return url
-        }
-        var isDir: ObjCBool = false
-        _ = fileExists(atPath: single.path, isDirectory: &isDir)
-        guard isDir.boolValue else {
-            return url
-        }
-        if ZipValidator.isValidRoot(at: single, fileManager: self) {
-            return single
-        }
-        return url
+        resolveCanonicalRoot(at: url, fileManager: self)
     }
 
     func resolveCanonicalRoot(at url: URL, fileManager: FileManager) -> URL {
-        // Overload for explicit fileManager param (interface compatibility)
         if ZipValidator.isValidRoot(at: url, fileManager: fileManager) {
             return url
         }
@@ -728,7 +692,9 @@ extension FileManager {
         ) else {
             return url
         }
-        let filtered = top.filter { !isHygieneEntry($0.lastPathComponent) && $0.lastPathComponent != ".DS_Store" }
+        // Lọc hygiene entries (__MACOSX, .DS_Store, ._* resource forks)
+        let filtered = top.filter { !ZipValidator.isHygieneEntry($0.lastPathComponent) }
+        // Chỉ flatten khi đúng 1 subfolder duy nhất
         guard filtered.count == 1, let single = filtered.first else {
             return url
         }
