@@ -48,6 +48,6 @@ External plan at activation — `docs/plans/feat-004.md` per feat-001.
 ## Handoff
 
 - State: done
-- Evidence: `docs/plans/feat-004.md` + 7 task commits 5135ab1 HtmlParser, d068d72 ViewModel, fbf9815 References, d1eec46 BottomSheet, 044c6d1 ReaderView, d50d6aa Router/AppRoot, 8de01b5 integration + `./init.sh` PASS (format 0/58 lint 0 build PASS test PASS 165.7s), `xcodebuild test` PASS (~70 tests), grep offline checks 0 hits WebKit/URLSession in Reading
+- Evidence: `docs/plans/feat-004.md` + 8 commits 5135ab1 HtmlParser, d068d72 ViewModel, fbf9815 References, d1eec46 BottomSheet, 044c6d1 ReaderView, d50d6aa Router/AppRoot, 8de01b5 integration, ef80e5c fix overscroll+restore+font+debounce (11 tests ReaderViewFixTests) + `./init.sh` PASS (format 0/58 lint 0 build PASS test PASS 165.7s → 11 extra tests post-fix, total ~81 tests), `xcodebuild test` PASS, grep offline checks 0 hits WebKit/URLSession in Reading; oracle review NEEDS_FIX addressed (critical overscroll + 3 majors)
 - Blockers: none
 - Next: feat-005 Settings + Cache Manager ready (depends 001,002) OR feat-006 AI Reading blocked until 005 done — choose activation
