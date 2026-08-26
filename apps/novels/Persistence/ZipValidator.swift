@@ -1,6 +1,21 @@
 import Foundation
 
 enum ZipValidator {
+    // MARK: - Hygiene helper (shared with FileManagerZIP resolver)
+
+    static func isHygieneEntry(_ name: String) -> Bool {
+        if name == "__MACOSX" || name.hasPrefix("__MACOSX/") || name.contains("/__MACOSX/") {
+            return true
+        }
+        if name == ".DS_Store" || name.hasSuffix("/.DS_Store") {
+            return true
+        }
+        if name.hasPrefix("._") || name.contains("/._") {
+            return true
+        }
+        return false
+    }
+
     static func isValidRoot(at url: URL) -> Bool {
         isValidRoot(at: url, fileManager: .default)
     }

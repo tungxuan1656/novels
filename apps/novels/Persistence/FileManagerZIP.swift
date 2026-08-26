@@ -320,7 +320,7 @@ private func hasPathTraversal(_ name: String) -> Bool {
 }
 
 private func isHygieneEntry(_ name: String) -> Bool {
-    if name.hasPrefix("__MACOSX/") || name.contains("/__MACOSX/") {
+    if name == "__MACOSX" || name.hasPrefix("__MACOSX/") || name.contains("/__MACOSX/") {
         return true
     }
     if name == ".DS_Store" || name.hasSuffix("/.DS_Store") {
@@ -684,5 +684,62 @@ extension FileManager {
                 break
             }
         }
+    }
+
+    // MARK: - Canonical Root Resolver (Task 2: wrapper flatten)
+
+    func resolveCanonicalRoot(at url: URL) -> URL {
+        if ZipValidator.isValidRoot(at: url, fileManager: self) {
+            return url
+        }
+        guard let top = try? contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: []
+        ) else {
+            return url
+        }
+        // Lọc hygiene entries (__MACOSX, .DS_Store, ._* resource forks)
+        let filtered = top.filter { !isHygieneEntry($0.lastPathComponent) && $0.lastPathComponent != ".DS_Store" }
+        // Chỉ flatten khi đúng 1 subfolder duy nhất
+        guard filtered.count == 1, let single = filtered.first else {
+            return url
+        }
+        var isDir: ObjCBool = false
+        _ = fileExists(atPath: single.path, isDirectory: &isDir)
+        guard isDir.boolValue else {
+            return url
+        }
+        if ZipValidator.isValidRoot(at: single, fileManager: self) {
+            return single
+        }
+        return url
+    }
+
+    func resolveCanonicalRoot(at url: URL, fileManager: FileManager) -> URL {
+        // Overload for explicit fileManager param (interface compatibility)
+        if ZipValidator.isValidRoot(at: url, fileManager: fileManager) {
+            return url
+        }
+        guard let top = try? fileManager.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: []
+        ) else {
+            return url
+        }
+        let filtered = top.filter { !isHygieneEntry($0.lastPathComponent) && $0.lastPathComponent != ".DS_Store" }
+        guard filtered.count == 1, let single = filtered.first else {
+            return url
+        }
+        var isDir: ObjCBool = false
+        _ = fileManager.fileExists(atPath: single.path, isDirectory: &isDir)
+        guard isDir.boolValue else {
+            return url
+        }
+        if ZipValidator.isValidRoot(at: single, fileManager: fileManager) {
+            return single
+        }
+        return url
     }
 }

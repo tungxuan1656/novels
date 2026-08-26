@@ -149,14 +149,15 @@ final class ImportViewModel {
             let bookId: String = try await Task.detached(priority: .userInitiated) {
                 try FileManager.default.createDirectory(at: tmpUnzip, withIntermediateDirectories: true)
                 try FileManager.default.unzipItem(at: zipURL, to: tmpUnzip)
-                guard ZipValidator.isValidRoot(at: tmpUnzip) else {
+                let canonical = FileManager.default.resolveCanonicalRoot(at: tmpUnzip)
+                guard ZipValidator.isValidRoot(at: canonical) else {
                     throw ImportError.invalidPackage
                 }
                 try Task.checkCancellation()
-                let bookData = try Data(contentsOf: tmpUnzip.appendingPathComponent("book.json"))
+                let bookData = try Data(contentsOf: canonical.appendingPathComponent("book.json"))
                 let book = try JSONDecoder().decode(Book.self, from: bookData)
                 let repo = FileBookRepository(root: repoRoot, fileManager: .default)
-                try repo.save(validatedRoot: tmpUnzip, slug: book.id)
+                try repo.save(validatedRoot: canonical, slug: book.id)
                 return book.id
             }.value
             // Hop back to MainActor for state updates
