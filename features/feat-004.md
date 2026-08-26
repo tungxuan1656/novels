@@ -1,7 +1,5 @@
 # feat-004 — Offline Book Reader
 
-> Intended — not yet in code (see ARCHITECTURE.md §2)
-
 ## Goal
 
 Offline native Text reader for `chapter-N.html` with bounded nav, saved offset, and typography.
@@ -21,11 +19,11 @@ Offline native Text reader for `chapter-N.html` with bounded nav, saved offset, 
 
 ## Acceptance
 
-- [ ] Parses HTML to spans and renders with `SwiftUI.Text` for `1 <= N <= count`; prev/next disabled at bounds; References selects and returns.
-- [ ] Overscroll auto-advances with short lock; to-bottom button; swipe-back disabled per `docs/design/navigation.md §3 Stack Structure` (`docs/product/flows.md §4 Reading`).
-- [ ] Offset saved per slug and restored on resume/re-entry; `onScreen` correct.
-- [ ] Bottom sheet controls (font + size/lineHeight/letterSpacing) persist via `SettingsStore.typography` and apply instantly.
-- [ ] Missing `chapter-N.html` toasts 'Không tìm thấy chương' without crash; rapid nav does not corrupt offset.
+- [x] Parses HTML to spans and renders with `SwiftUI.Text` for `1 <= N <= count`; prev/next disabled at bounds; References selects and returns.
+- [x] Overscroll auto-advances with short lock; to-bottom button; swipe-back disabled per `docs/design/navigation.md §3 Stack Structure` (`docs/product/flows.md §4 Reading`).
+- [x] Offset saved per slug and restored on resume/re-entry; `onScreen` correct.
+- [x] Bottom sheet controls (font + size/lineHeight/letterSpacing) persist via `SettingsStore.typography` and apply instantly.
+- [x] Missing `chapter-N.html` toasts 'Không tìm thấy chương' without crash; rapid nav does not corrupt offset.
 
 ## Relevant docs
 
@@ -49,7 +47,7 @@ External plan at activation — `docs/plans/feat-004.md` per feat-001.
 
 ## Handoff
 
-- State: todo
-- Evidence: —
+- State: done
+- Evidence: `docs/plans/feat-004.md` + 7 task commits 5135ab1 HtmlParser, d068d72 ViewModel, fbf9815 References, d1eec46 BottomSheet, 044c6d1 ReaderView, d50d6aa Router/AppRoot, 8de01b5 integration + `./init.sh` PASS (format 0/58 lint 0 build PASS test PASS 165.7s), `xcodebuild test` PASS (~70 tests), grep offline checks 0 hits WebKit/URLSession in Reading
 - Blockers: none
-- Next: Awaiting feat-001, feat-002, feat-003 before activation
+- Next: feat-005 Settings + Cache Manager ready (depends 001,002) OR feat-006 AI Reading blocked until 005 done — choose activation
