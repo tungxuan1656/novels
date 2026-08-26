@@ -22,7 +22,7 @@ final class Router {
 
     enum Route: Hashable {
         case reading(bookId: String)
-        case references
+        case references(bookId: String)
         case addBook
     }
 

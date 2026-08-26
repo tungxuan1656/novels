@@ -153,7 +153,7 @@ struct ReaderView: View {
                 .accessibilityIdentifier("chapterText")
             Spacer()
             Button("Mục lục") {
-                router.push(.references)
+                router.push(.references(bookId: bookId))
             }
             .accessibilityIdentifier("tocButton")
         }
