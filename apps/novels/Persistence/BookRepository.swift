@@ -85,19 +85,51 @@ struct FileBookRepository: BookRepository {
             try? fileManager.removeItem(at: tmp)
             throw error
         }
-        do {
-            if fileManager.fileExists(atPath: destination.path) {
-                try fileManager.removeItem(at: destination)
-            }
-            try fileManager.moveItem(at: tmp, to: destination)
-        } catch {
-            // Cross-volume fallback: copy then clean tmp
+        // Atomic replacement: use replaceItemAt when destination exists to avoid crash window losing existing book
+        if fileManager.fileExists(atPath: destination.path) {
             do {
-                try fileManager.copyItem(at: tmp, to: destination)
-                try? fileManager.removeItem(at: tmp)
+                _ = try fileManager.replaceItem(
+                    at: destination,
+                    withItemAt: tmp,
+                    backupItemName: nil,
+                    options: [],
+                    resultingItemURL: nil
+                )
+                // replaceItemAt consumes tmp; ensure cleanup if still present
+                if fileManager.fileExists(atPath: tmp.path) {
+                    try? fileManager.removeItem(at: tmp)
+                }
             } catch {
-                try? fileManager.removeItem(at: tmp)
-                throw error
+                // Fallback: if replace fails, destination is still intact (atomic guarantee).
+                // Do NOT have removed destination earlier. Try copy fallback without losing existing book.
+                // If destination still exists, we failed to replace - keep original and clean tmp.
+                // Only attempt copy if destination unexpectedly missing (e.g., replace removed it before failing).
+                if fileManager.fileExists(atPath: destination.path) {
+                    try? fileManager.removeItem(at: tmp)
+                    throw error
+                } else {
+                    // Destination missing after failed replace - try to restore from tmp via copy
+                    do {
+                        try fileManager.copyItem(at: tmp, to: destination)
+                        try? fileManager.removeItem(at: tmp)
+                    } catch {
+                        try? fileManager.removeItem(at: tmp)
+                        throw error
+                    }
+                }
+            }
+        } else {
+            do {
+                try fileManager.moveItem(at: tmp, to: destination)
+            } catch {
+                // Cross-volume fallback: copy then clean tmp (destination did not exist, safe)
+                do {
+                    try fileManager.copyItem(at: tmp, to: destination)
+                    try? fileManager.removeItem(at: tmp)
+                } catch {
+                    try? fileManager.removeItem(at: tmp)
+                    throw error
+                }
             }
         }
     }

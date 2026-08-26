@@ -185,6 +185,26 @@ final class BookRepositoryTests: XCTestCase {
         try fm.removeItem(at: tmp)
     }
 
+    func testValidatorRejectsMacOSXAlongsideValid() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        try fm.createDirectory(at: tmp.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try #"{"id":"s","name":"N","count":1,"references":["C1"]}"#
+            .write(to: tmp.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        try "<html>c1</html>".write(
+            to: tmp.appendingPathComponent("chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        // Initially valid
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+        // Add __MACOSX alongside valid files -> should be invalid (strict exact-root)
+        try fm.createDirectory(at: tmp.appendingPathComponent("__MACOSX"), withIntermediateDirectories: true)
+        try "junk".write(to: tmp.appendingPathComponent("__MACOSX/._book.json"), atomically: true, encoding: .utf8)
+        XCTAssertFalse(ZipValidator.isValidRoot(at: tmp))
+        try fm.removeItem(at: tmp)
+    }
+
     // MARK: - chapterHTML
 
     func testChapterHTMLValidation() throws {

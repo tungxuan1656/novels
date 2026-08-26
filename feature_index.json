@@ -20,7 +20,7 @@
     {
       "id": "feat-003",
       "title": "Catalog Import + ZIP Ingestion",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-001", "feat-002"]
     },
     {
