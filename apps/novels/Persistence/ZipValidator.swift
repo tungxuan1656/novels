@@ -43,6 +43,9 @@ enum ZipValidator {
         var hasChaptersDir = false
         for entry in topContents {
             let name = entry.lastPathComponent
+            if isHygieneEntry(name) {
+                continue
+            }
             var isDir: ObjCBool = false
             // Use fileExists to determine directory status reliably
             _ = fileManager.fileExists(atPath: entry.path, isDirectory: &isDir)
@@ -51,7 +54,7 @@ enum ZipValidator {
             } else if name == "chapters", isDir.boolValue {
                 hasChaptersDir = true
             } else {
-                // Any extra entry at root (e.g., __MACOSX, outer folder, .DS_Store) invalidates
+                // Any extra non-hygiene entry at root (e.g., extra.txt, outer folder) invalidates
                 return false
             }
         }
@@ -61,15 +64,18 @@ enum ZipValidator {
         // For count == 0, chapters may be empty or missing but if present must be valid and no extra check already done
         // swiftlint:disable:next empty_count - book.count is domain Int, not collection.count
         if book.count == 0 {
-            // If chapters dir exists, ensure it doesn't contain unexpected files (optional strict)
+            // If chapters dir exists, ensure it doesn't contain unexpected files (hygiene ignored)
             if hasChaptersDir {
                 let chaptersURL = url.appendingPathComponent("chapters", isDirectory: true)
                 if let chapterContents = try? fileManager.contentsOfDirectory(
                     at: chaptersURL,
                     includingPropertiesForKeys: [],
                     options: []
-                ), !chapterContents.isEmpty {
-                    return false
+                ) {
+                    let filtered = chapterContents.filter { !isHygieneEntry($0.lastPathComponent) }
+                    if !filtered.isEmpty {
+                        return false
+                    }
                 }
             }
             return true
@@ -90,7 +96,8 @@ enum ZipValidator {
         } catch {
             return false
         }
-        if chapterContents.count != book.count {
+        let filteredChapters = chapterContents.filter { !isHygieneEntry($0.lastPathComponent) }
+        if filteredChapters.count != book.count {
             return false
         }
         // Ensure each expected chapter file exists and no extra naming
@@ -98,8 +105,8 @@ enum ZipValidator {
             let chapterURL = chaptersURL.appendingPathComponent("chapter-\(number).html", isDirectory: false)
             guard fileManager.fileExists(atPath: chapterURL.path) else { return false }
         }
-        // Validate no extra filenames beyond chapter-N.html
-        for entry in chapterContents {
+        // Validate no extra filenames beyond chapter-N.html (hygiene already filtered)
+        for entry in filteredChapters {
             let name = entry.lastPathComponent
             guard name.hasPrefix("chapter-"), name.hasSuffix(".html") else { return false }
             let middle = name.dropFirst("chapter-".count).dropLast(".html".count)

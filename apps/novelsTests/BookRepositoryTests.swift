@@ -1,6 +1,7 @@
 @testable import novels
 import XCTest
 
+// swiftlint:disable:next type_body_length
 final class BookRepositoryTests: XCTestCase {
     // MARK: - Helpers
 
@@ -198,9 +199,79 @@ final class BookRepositoryTests: XCTestCase {
         )
         // Initially valid
         XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
-        // Add __MACOSX alongside valid files -> should be invalid (strict exact-root)
+        // Add __MACOSX alongside valid files -> now tolerant (ignored)
         try fm.createDirectory(at: tmp.appendingPathComponent("__MACOSX"), withIntermediateDirectories: true)
         try "junk".write(to: tmp.appendingPathComponent("__MACOSX/._book.json"), atomically: true, encoding: .utf8)
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+        try fm.removeItem(at: tmp)
+    }
+
+    func testValidatorToleratesDSStoreAndMacOSX() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+        try #"{"id":"s","name":"N","count":1,"references":["C1"]}"#
+            .write(to: tmp.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        let ch = tmp.appendingPathComponent("chapters")
+        try fm.createDirectory(at: ch, withIntermediateDirectories: true)
+        try "<p>hi</p>".write(to: ch.appendingPathComponent("chapter-1.html"), atomically: true, encoding: .utf8)
+        fm.createFile(atPath: tmp.appendingPathComponent(".DS_Store").path, contents: Data())
+        let mac = tmp.appendingPathComponent("__MACOSX")
+        try fm.createDirectory(at: mac, withIntermediateDirectories: true)
+        fm.createFile(atPath: mac.appendingPathComponent("._book.json").path, contents: Data(repeating: 0, count: 163))
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+        // Also hygiene inside chapters should be ignored
+        fm.createFile(atPath: ch.appendingPathComponent(".DS_Store").path, contents: Data())
+        fm.createFile(
+            atPath: ch.appendingPathComponent("._chapter-1.html").path,
+            contents: Data(repeating: 0, count: 10)
+        )
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+        // Real extra still fails
+        try "extra".write(to: tmp.appendingPathComponent("extra.txt"), atomically: true, encoding: .utf8)
+        XCTAssertFalse(ZipValidator.isValidRoot(at: tmp))
+        try fm.removeItem(at: tmp.appendingPathComponent("extra.txt"))
+        // Hygiene ._* at root ignored, still valid
+        fm.createFile(atPath: tmp.appendingPathComponent("._DS_Store").path, contents: Data())
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+    }
+
+    func testValidatorStillRejectsMissingChapter() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        try fm.createDirectory(at: tmp.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try #"{"id":"s","name":"N","count":2,"references":["C1","C2"]}"#
+            .write(to: tmp.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        try "<html>c1</html>".write(
+            to: tmp.appendingPathComponent("chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        // chapter-2 missing -> false even with hygiene present
+        fm.createFile(atPath: tmp.appendingPathComponent(".DS_Store").path, contents: Data())
+        XCTAssertFalse(ZipValidator.isValidRoot(at: tmp))
+        try fm.removeItem(at: tmp)
+    }
+
+    func testValidatorStillRejectsRealExtraInsideChapters() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        try fm.createDirectory(at: tmp.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try #"{"id":"s","name":"N","count":1,"references":["C1"]}"#
+            .write(to: tmp.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        try "<html>c1</html>".write(
+            to: tmp.appendingPathComponent("chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        XCTAssertTrue(ZipValidator.isValidRoot(at: tmp))
+        // real extra inside chapters should fail
+        try "extra".write(
+            to: tmp.appendingPathComponent("chapters/extra.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
         XCTAssertFalse(ZipValidator.isValidRoot(at: tmp))
         try fm.removeItem(at: tmp)
     }
