@@ -6,11 +6,45 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		E2DB619A303C43F300D20F8F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
+			remoteInfo = novels;
+		};
+		E2DB61A5303C43F300D20F8F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
+			remoteInfo = novels;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		E2DB617F303C43F300D20F8F /* novels.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = novels.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2DB6190303C43F300D20F8F /* novelsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = novelsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2DB619B303C43F300D20F8F /* novelsUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = novelsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E2DB61A6303C43F300D20F8F /* Exceptions for "novelsTests" folder in "novelsTests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E2DB6195303C43F300D20F8F /* novelsTests */;
+		};
+		E2DB61A7303C43F300D20F8F /* Exceptions for "novelsUITests" folder in "novelsUITests" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E2DB61A0303C43F300D20F8F /* novelsUITests */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2DB6181303C43F300D20F8F /* novels */ = {
@@ -21,7 +55,7 @@
 		E2DB6191303C43F300D20F8F /* novelsTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E2DB61A6303C43F300D20F8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				E2DB61A6303C43F300D20F8F /* Exceptions for "novelsTests" folder in "novelsTests" target */,
 			);
 			path = novelsTests;
 			sourceTree = "<group>";
@@ -29,29 +63,12 @@
 		E2DB619C303C43F300D20F8F /* novelsUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				E2DB61A7303C43F300D20F8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+				E2DB61A7303C43F300D20F8F /* Exceptions for "novelsUITests" folder in "novelsUITests" target */,
 			);
 			path = novelsUITests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
-
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E2DB61A6303C43F300D20F8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Info.plist",
-			);
-			target = E2DB6195303C43F300D20F8F /* novelsTests */;
-		};
-		E2DB61A7303C43F300D20F8F /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"Info.plist",
-			);
-			target = E2DB61A0303C43F300D20F8F /* novelsUITests */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		E2DB617C303C43F300D20F8F /* Frameworks */ = {
@@ -259,23 +276,6 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXContainerItemProxy section */
-		E2DB619A303C43F300D20F8F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
-			remoteInfo = novels;
-		};
-		E2DB61A5303C43F300D20F8F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
-			remoteInfo = novels;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXTargetDependency section */
 		E2DB6199303C43F300D20F8F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -439,7 +439,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -471,7 +471,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -496,7 +496,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
 			};
 			name = Debug;
@@ -522,7 +522,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
 			};
 			name = Release;
@@ -547,7 +547,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = novels;
 			};
 			name = Debug;
@@ -572,7 +572,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 				TEST_TARGET_NAME = novels;
 			};
 			name = Release;

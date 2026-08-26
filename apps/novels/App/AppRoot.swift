@@ -19,10 +19,22 @@ struct AppRoot: View {
                     // swiftlint:disable switch_case_alignment
                     switch route {
                         case let .reading(bookId):
-                            ReadingShellView(bookId: bookId, router: router)
-                        case .references:
-                            Text("Tài liệu tham khảo")
-                                .navigationTitle("Tham khảo")
+                            ReaderView(bookId: bookId, router: router)
+                        case let .references(bookId):
+                            let repo = router.repository
+                            if let book = try? repo.book(slug: bookId) {
+                                ReferencesView(
+                                    book: book,
+                                    current: settingsStore.session?.chapterNumber ?? 1,
+                                    onSelect: { number in
+                                        settingsStore.session?.chapterNumber = number
+                                        settingsStore.save()
+                                    },
+                                    router: router
+                                )
+                            } else {
+                                Text("Không tìm thấy chương")
+                            }
                         case .addBook:
                             AddBookView(viewModel: makeImportViewModel())
                     }
