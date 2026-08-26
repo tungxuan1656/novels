@@ -11,7 +11,7 @@
   - Local Book Repository → `books/<slug>/` in `Application Support/novels/` via `Foundation.FileManager` and `Codable`. See `docs/contracts/local-data.md` and `docs/decisions/book-identity.md`.
   - ProcessedChapter cache → `processed_chapters.sqlite` in `Application Support/novels/cache/` via system `SQLite3` (`libsqlite3`, no package). See `docs/contracts/local-data.md`.
   - Settings, Session, Typography → `UserDefaults` wrapped by `@Observable`. Stores `AI_CUSTOM_HEADERS` as normal JSON. No `Keychain`. See `docs/contracts/settings-schema.md`.
-  - File handling: `FileManager.unzipItem` extracts ZIP with strict root validation. See `docs/contracts/book-package.md` and `docs/contracts/local-data.md`.
+   - File handling: `FileManager.unzipItem` extracts ZIP with tolerant hygiene + wrapper flatten + data-descriptor support, strict security invariants preserved. See `docs/contracts/book-package.md` and `docs/contracts/local-data.md`.
   - HTML rendering: `Foundation` parses `div`, `h*`, `p`, `br`, `b`, `strong`, `i`, `em`, `span` into spans for `SwiftUI.Text`. No WebKit. See `docs/contracts/local-data.md`.
   - Networking: `URLSession` uses `async/await`, `Task` cancellation, and `actor` de-duplication for catalog, AI, and prefetch. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
   - Security: `NSAppTransportSecurity` allows `http://localhost:8317` only.

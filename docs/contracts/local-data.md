@@ -6,7 +6,7 @@
 
 | Boundary | Store | Root / file | API |
 |---|---|---|---|
-| Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<book.json.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (strict archive-root validation) |
+| Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<book.json.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) |
 | ProcessedChapter cache (single) | SQLite via system `libsqlite3` (no Swift package) | `Application Support/novels/cache/processed_chapters.sqlite` | `SQLite3` behind internal protocol; rendering is native `SwiftUI.Text` (no WebKit) |
 | Settings / Session / Typography | `UserDefaults` wrapped by `@Observable` | Current keys only; `AI_CUSTOM_HEADERS` stored as normal JSON string (no Keychain) | `Foundation.UserDefaults` + `Observation.@Observable` |
 | Runtime-only | In-memory | `PrefetchStatus` `{ isRunning, currentBookId, totalChapters, processedChapters, message, errors[]}` | — |
@@ -18,7 +18,7 @@ React Native findings are historical reference only — no RN package and no RN 
 - **Identity:** folder name is the string slug `book.json.id` (see `../decisions/book-identity.md`). Remote numeric `ExportedBook.id` / `bookId` are metadata only and never used as folder or cache key.
 - **Contents:** per book folder with `book.json` at root and `chapters/chapter-N.html` (1-based, `N=1..count`). See `book-package.md`.
 - **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to text spans for `SwiftUI.Text`; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
-- **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` → validate exact root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
+- **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) → validate (flattened) root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
 - **Reference:** https://developer.apple.com/documentation/foundation/filemanager
 
 ## 2. ProcessedChapter Cache (Single AI Cache)

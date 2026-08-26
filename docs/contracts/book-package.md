@@ -13,7 +13,10 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 - `book.json` at the ZIP root (not nested in a subfolder).
 - `chapters/chapter-N.html` for every `N` in `1..count`, where `count` is the chapter count declared in `book.json` / `BookMeta.chapterCount`. 1-based, no `chapter-0.html`. [Observed — `domain-model.md` Invariants]
-- Valid ZIP contains exactly that layout. App accepts only the exact archive-root layout and rejects any other shape (including outer-folder or `__MACOSX` wrappers). Producer fixes the ZIP; app does not adapt to wrappers.
+- Canonical layout remains `book.json` + `chapters/chapter-N.html` at archive root.
+- Tolerant ingest (2026-08-26): App accepts both canonical and single outer-folder wrapper (payload nested one level) and ignores hygiene entries `__MACOSX/`, `.DS_Store`, `._*` resource forks, flattening wrapper to canonical root when detected. Hygiene is skipped during unzip and validation; invalid content still fails.
+- ZIPs using data-descriptor (flag `0x08`) for DEFLATE are supported via trailing descriptor parsing.
+- Security invariants (zip-slip, 100MB cap, CRC, STORE/DEFLATE only) remain enforced.
 
 ### book.json
 
@@ -37,14 +40,14 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 1. Ensure repository and temp folders exist.
 2. Download ZIP from `ExportedBook.exportUrl` to temp.
-3. Extract to Local Book Repository expecting the exact root layout; if `book.json` or `chapters/` is not at archive root, the package is invalid and creates no book.
+3. Extract to Local Book Repository with tolerant hygiene + wrapper flatten + data-descriptor support: `__MACOSX/`, `.DS_Store`, `._*` are ignored, a single outer-folder wrapper is flattened to canonical root when detected; if `book.json` or `chapters/` is still not at (flattened) root, the package is invalid and creates no book. Security invariants remain enforced.
 4. Delete ZIP on full success; on any failure show error, create no entry, allow retry. Re-import overwrites same folder. [Observed — BR-02, `flows.md` §2, `book-import.md`]
 
 ## Reference Sample — Non-Canonical
 
 - **File:** `../../docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` — **tracked, not a fixture**.
-- **Why non-canonical:** ZIP wraps payload in an outer folder `van-gioi-chi-rut-thuong-he-thong/` and includes `__MACOSX/` resource forks; it does **not** have `book.json` at archive root and is therefore rejected by the exact-root rule above.
-- Do not treat this ZIP as a valid test fixture and do not change import behavior or the ZIP to accommodate wrappers. Keep it as a reference; do not delete it in docs tasks.
+- **Why non-canonical:** ZIP wraps payload in an outer folder `van-gioi-chi-rut-thuong-he-thong/` and includes `__MACOSX/` resource forks; it does **not** have `book.json` at archive root and was previously rejected by the exact-root rule — now tolerated via flatten (kept as reference).
+- Do not treat this ZIP as a valid test fixture and do not change the ZIP; tolerant ingest flattens the wrapper on import. Keep it as a reference; do not delete it in docs tasks.
 
 ## Cases
 
@@ -58,13 +61,15 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 ## Rules
 
-- Require `book.json + chapters/chapter-N.html` at archive root, 1-based, `count == references.length`.
-- Reject outer-folder and `__MACOSX` wrappers.
+- Require `book.json + chapters/chapter-N.html` at (flattened) archive root, 1-based, `count == references.length`.
+- Tolerant: single outer-folder wrapper is flattened to canonical root; hygiene `__MACOSX/`, `.DS_Store`, `._*` is ignored during unzip and validation.
+- ZIPs using data-descriptor (flag `0x08`) for DEFLATE are supported via trailing descriptor parsing.
+- Security invariants (zip-slip, 100MB cap, CRC, STORE/DEFLATE only) remain enforced.
 - Treat unknown `book.json` fields as ignored.
 
 ## Avoid
 
-- Do not flatten wrappers or strip outer folders.
+- Do not accept 2+ top-level entries wrapping payload; only single outer-folder flatten is tolerated.
 - Do not duplicate shape in other docs; link here.
 
 ## Examples
