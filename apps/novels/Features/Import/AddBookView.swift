@@ -71,13 +71,22 @@ struct AddBookView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(DesignTokens.backgroundWhite)
             case .empty:
-                ContentUnavailableView(
-                    "Chưa có sách",
-                    systemImage: "books.vertical",
-                    description: Text("Danh mục trống")
-                )
+                VStack(spacing: DesignTokens.spacing16) {
+                    ContentUnavailableView(
+                        "Chưa có sách",
+                        systemImage: "books.vertical",
+                        description: Text("Danh mục trống")
+                    )
+                    Button("Thử lại") {
+                        Task { await viewModel.loadCatalog() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignTokens.accent)
+                    .accessibilityLabel("Thử lại")
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(DesignTokens.backgroundWhite)
+                .padding(DesignTokens.sidePadding)
             case let .error(message):
                 VStack(spacing: DesignTokens.spacing16) {
                     Text(message)
@@ -103,11 +112,21 @@ struct AddBookView: View {
                                 try await viewModel.importBook(exp)
                                 toast.show("Đã nhập sách", type: .success)
                                 router.pop()
+                            } catch let error as ImportError {
+                                switch error {
+                                    case .downloadFailed:
+                                        toast.show("Không tải được gói sách, thử lại", type: .error)
+                                    case .invalidPackage:
+                                        toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
+                                }
+                            } catch is CancellationError {
+                                // cancelled, no toast
                             } catch {
-                                toast.show(
-                                    "Gói sách không hợp lệ, không thể nhập",
-                                    type: .error
-                                )
+                                if let urlError = error as? URLError, urlError.code == .timedOut {
+                                    toast.show("Không tải được gói sách, thử lại", type: .error)
+                                } else {
+                                    toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
+                                }
                             }
                         }
                     } label: {

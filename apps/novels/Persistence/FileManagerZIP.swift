@@ -1,6 +1,15 @@
 import Compression
 import Foundation
 
+// MARK: - Decision Note
+
+// Polyfill: Foundation on Linux/Sim lacks FileManager.zipItem/unzipItem.
+// Production ships `unzipItem` only (secure extraction for import).
+// `zipItem` is retained as test helper to generate ZIP fixtures without external tools
+// (used by ImportViewModelTests.makeValidZip, BookRepository tests). Keep for now
+// to avoid breaking existing tests; production code never calls zipItem.
+// If removed, tests must generate ZIPs via alternative fixture data.
+
 // MARK: - CRC32
 
 private let crcTable: [UInt32] = (0 ..< 256).map { i in
@@ -116,6 +125,56 @@ private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
     throw CocoaError(.fileReadCorruptFile)
 }
 
+// MARK: - Whitelist & Security Helpers
+
+private func isAllowedFileName(_ name: String) -> Bool {
+    if name == "book.json" {
+        return true
+    }
+    if name == "chapters/" {
+        return true
+    }
+    if name == "chapters" {
+        return true
+    } // some zips omit trailing slash
+    if name.hasPrefix("chapters/chapter-") && name.hasSuffix(".html") {
+        // Ensure single level: chapters/chapter-N.html no extra slash
+        let prefix = "chapters/"
+        let suffix = name.dropFirst(prefix.count)
+        if suffix.contains("/") || suffix.contains("\\") {
+            return false
+        }
+        let middle = suffix.dropFirst("chapter-".count).dropLast(".html".count)
+        if middle.isEmpty {
+            return false
+        }
+        if !middle.allSatisfy({ $0.isNumber }) {
+            return false
+        }
+        return true
+    }
+    return false
+}
+
+private func hasPathTraversal(_ name: String) -> Bool {
+    if name.hasPrefix("/") || name.hasPrefix("\\") {
+        return true
+    }
+    // Check any component equals ".." or contains ".." as per requirement
+    if name.contains("..") {
+        return true
+    }
+    let comps = name.split(separator: "/")
+    for comp in comps where comp == ".." {
+        return true
+    }
+    // Windows absolute like C:\
+    if name.count >= 2, name[name.index(name.startIndex, offsetBy: 1)] == ":" {
+        return true
+    }
+    return false
+}
+
 // MARK: - FileManager ZIP Polyfill
 
 private struct ZipEntry {
@@ -223,15 +282,28 @@ extension FileManager {
         try final.write(to: destinationURL)
     }
 
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     func unzipItem(at sourceURL: URL, to destinationURL: URL) throws {
-        let data = try Data(contentsOf: sourceURL)
+        let maxTotalUncompressed: UInt64 = 100 * 1024 * 1024 // 100MB cap
+        var totalUncompressed: UInt64 = 0
+        // Resolve destination for prefix check handling /var vs /private symlink
+        let baseResolved = destinationURL.resolvingSymlinksInPath().standardizedFileURL.path
         try createDirectory(at: destinationURL, withIntermediateDirectories: true)
+        let data = try Data(contentsOf: sourceURL)
         var pos = 0
         while pos + 30 <= data.count {
             let sig = UInt32(data[pos]) | UInt32(data[pos + 1]) << 8
                 | UInt32(data[pos + 2]) << 16 | UInt32(data[pos + 3]) << 24
             if sig == 0x0403_4B50 {
+                let flag = UInt16(data[pos + 6]) | UInt16(data[pos + 7]) << 8
+                // Reject data-descriptor (bit 3) – sizes/crc in trailing descriptor not supported
+                // Mapped to ImportError.invalidPackage in ImportViewModel
+                if flag & 0x08 != 0 {
+                    throw CocoaError(.fileReadCorruptFile)
+                }
                 let compMethod = UInt16(data[pos + 8]) | UInt16(data[pos + 9]) << 8
+                let crcHeader = UInt32(data[pos + 14]) | UInt32(data[pos + 15]) << 8
+                    | UInt32(data[pos + 16]) << 16 | UInt32(data[pos + 17]) << 24
                 let compSize = UInt32(data[pos + 18]) | UInt32(data[pos + 19]) << 8
                     | UInt32(data[pos + 20]) << 16 | UInt32(data[pos + 21]) << 24
                 let uncompSize = UInt32(data[pos + 22]) | UInt32(data[pos + 23]) << 8
@@ -244,32 +316,74 @@ extension FileManager {
                 let dataStart = extraEnd
                 let dataEnd = dataStart + Int(compSize)
                 guard nameEnd <= data.count, extraEnd <= data.count, dataEnd <= data.count else {
-                    break
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
                 let nameData = data[nameStart ..< nameEnd]
-                guard let fileName = String(data: nameData, encoding: .utf8) else {
-                    throw CocoaError(.fileReadCorruptFile)
+                guard let fileName = String(data: nameData, encoding: .utf8), !fileName.isEmpty else {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                }
+                // Zip-slip: reject "..", leading "/" or absolute
+                if hasPathTraversal(fileName) {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                }
+                // Whitelist only book.json and chapters/chapter-N.html (plus chapters/ dir)
+                if !isAllowedFileName(fileName) {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                }
+                // Cap total uncompressed size (zip bomb)
+                totalUncompressed += UInt64(uncompSize)
+                if totalUncompressed > maxTotalUncompressed {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                }
+                // Also reject if single entry exceeds cap
+                if UInt64(uncompSize) > maxTotalUncompressed {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
                 let fileDataCompressed = data[dataStart ..< dataEnd]
                 let fileData: Data
                 if compMethod == 0 {
                     fileData = Data(fileDataCompressed)
+                    // Verify CRC32 for stored
+                    if crc32(fileData) != crcHeader {
+                        throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                    }
+                    if UInt32(fileData.count) != uncompSize {
+                        throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                    }
                 } else if compMethod == 8 {
                     fileData = try decompressDeflate(
                         Data(fileDataCompressed),
                         expectedSize: Int(uncompSize)
                     )
+                    if crc32(fileData) != crcHeader {
+                        throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                    }
+                    if UInt32(fileData.count) != uncompSize {
+                        throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                    }
                 } else {
-                    throw CocoaError(.fileReadCorruptFile)
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
+                // Ensure resolved dest has prefix destination (handle /var -> /private symlink)
                 let destURL = destinationURL.appendingPathComponent(fileName)
-                if fileName.hasSuffix("/") {
+                let destResolved = destURL.resolvingSymlinksInPath().standardizedFileURL.path
+                // Normalize base with trailing slash check
+                if destResolved != baseResolved && !destResolved.hasPrefix(baseResolved + "/") {
+                    throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                }
+                if fileName.hasSuffix("/") || fileName == "chapters" {
                     try createDirectory(at: destURL, withIntermediateDirectories: true)
                 } else {
                     try createDirectory(
                         at: destURL.deletingLastPathComponent(),
                         withIntermediateDirectories: true
                     )
+                    // Ensure parent also within base
+                    let parentResolved = destURL.deletingLastPathComponent()
+                        .resolvingSymlinksInPath().standardizedFileURL.path
+                    if parentResolved != baseResolved, !parentResolved.hasPrefix(baseResolved + "/") {
+                        throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
+                    }
                     try fileData.write(to: destURL)
                 }
                 pos = dataEnd

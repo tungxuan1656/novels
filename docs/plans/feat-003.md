@@ -37,7 +37,7 @@
 | `apps/novelsTests/ImportViewModelTests.swift` | Sort, catalogState, atomic replace, re-import | `ImportViewModel`, `FileBookRepository` |
 | `apps/novelsTests/RouterTests.swift` (extend) | AddBook navigation | `Router` |
 
-Each file has one clear responsibility, communicates via well-defined interfaces, and can be understood/tested independently. No file exceeds 200 lines.
+Each file has one clear responsibility, communicates via well-defined interfaces, and can be understood/tested independently. No file exceeds 200 lines except `FileManagerZIP.swift` polyfill (375 lines acknowledged – pure-Swift ZIP polyfill ships `unzipItem` for production, `zipItem` retained as test helper for `makeValidZip`; production path uses only `unzipItem`).
 
 ---
 
@@ -357,7 +357,8 @@ func importBook(_ exp: ExportedBook) async throws {
     let dest = booksRoot.appendingPathComponent(book.id)
     let staging = booksRoot.appendingPathComponent(".tmp-\(book.id)-\(UUID().uuidString)")
     if FileManager.default.fileExists(atPath: dest.path) { try FileManager.default.removeItem(at: dest) }
-    try FileManager.default.moveItem(at: tmpUnzip.appendingPathComponent(book.id).pathExists ? tmpUnzip.appendingPathComponent(book.id) : tmpUnzip, to: staging)
+    // NOTE: `.pathExists` is not a URL API – use `FileManager.fileExists(atPath:)`; fixed in implementation
+    try FileManager.default.moveItem(at: tmpUnzip, to: staging)
     // actually unzip already at tmpUnzip with book.json at root, so move tmpUnzip directly to staging
     try FileManager.default.moveItem(at: tmpUnzip, to: dest) // atomic: staging is tmpUnzip itself after validation
     try? FileManager.default.removeItem(at: zipURL) // delete only on success

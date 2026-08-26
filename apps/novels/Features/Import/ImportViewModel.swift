@@ -14,8 +14,15 @@ protocol Downloader: Sendable {
 struct URLSessionDownloader: Downloader {
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil) {
+        if let session {
+            self.session = session
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 30
+            config.timeoutIntervalForResource = 30
+            self.session = URLSession(configuration: config)
+        }
     }
 
     func download(from url: URL) async throws -> URL {
@@ -81,22 +88,27 @@ final class ImportViewModel {
     }
 
     func loadCatalog() async {
+        guard catalogState != .loading else { return }
         catalogState = .loading
         do {
             let books = try await catalogService.fetchCatalog()
             loadedBooks = books
             catalogState = books.isEmpty ? .empty : .loaded(books)
-        } catch let error as CatalogError {
-            if case let .serverMessage(message) = error {
-                catalogState = .error(message)
-            } else {
-                catalogState = .error("Không có kết nối")
-            }
         } catch {
-            if let catalogError = error as? CatalogError, case let .serverMessage(message) = catalogError {
-                catalogState = .error(message)
+            if let catalogError = error as? CatalogError {
+                switch catalogError {
+                    // swiftlint:disable:next switch_case_alignment
+                    case let .serverMessage(message):
+                        catalogState = .error(message)
+                    // swiftlint:disable:next switch_case_alignment
+                    case .network:
+                        catalogState = .error("Không có kết nối")
+                    // swiftlint:disable:next switch_case_alignment
+                    case .decoding:
+                        catalogState = .error("Không tải được danh mục, thử lại")
+                }
             } else {
-                catalogState = .error("Không có kết nối")
+                catalogState = .error("Không tải được danh mục, thử lại")
             }
         }
     }
@@ -119,40 +131,54 @@ final class ImportViewModel {
             importState = .idle
             throw ImportError.downloadFailed
         }
+        // Hop to extracting state on MainActor
         importState = .extracting
         try Task.checkCancellation()
         let tmpUnzip = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        // Ensure cleanup of tmp unzip always
+        // Capture repository root for off-main work (avoid MainActor isolation in detached task)
+        let repoRoot = repository.root
+        var didSucceed = false
+        // Ensure tmpUnzip always cleaned; zipURL deleted on all paths (success, failure, cancel)
         defer {
             try? FileManager.default.removeItem(at: tmpUnzip)
+            // Delete zipURL in all non-success paths as well; on success also delete
+            try? FileManager.default.removeItem(at: zipURL)
         }
         do {
-            try FileManager.default.createDirectory(at: tmpUnzip, withIntermediateDirectories: true)
-            try FileManager.default.unzipItem(at: zipURL, to: tmpUnzip)
-            guard ZipValidator.isValidRoot(at: tmpUnzip) else {
-                throw ImportError.invalidPackage
-            }
-            try Task.checkCancellation()
-            let bookData = try Data(contentsOf: tmpUnzip.appendingPathComponent("book.json"))
-            let book = try JSONDecoder().decode(Book.self, from: bookData)
-            try repository.save(validatedRoot: tmpUnzip, slug: book.id)
-            // Delete ZIP only on success
-            try? FileManager.default.removeItem(at: zipURL)
+            // Off-main ingest: unzip, Data read, repository.save
+            let bookId: String = try await Task.detached(priority: .userInitiated) {
+                try FileManager.default.createDirectory(at: tmpUnzip, withIntermediateDirectories: true)
+                try FileManager.default.unzipItem(at: zipURL, to: tmpUnzip)
+                guard ZipValidator.isValidRoot(at: tmpUnzip) else {
+                    throw ImportError.invalidPackage
+                }
+                try Task.checkCancellation()
+                let bookData = try Data(contentsOf: tmpUnzip.appendingPathComponent("book.json"))
+                let book = try JSONDecoder().decode(Book.self, from: bookData)
+                let repo = FileBookRepository(root: repoRoot, fileManager: .default)
+                try repo.save(validatedRoot: tmpUnzip, slug: book.id)
+                return book.id
+            }.value
+            didSucceed = true
+            // Hop back to MainActor for state updates
             importState = .idle
-            onImportSuccess?(book.id)
-        } catch let error as ImportError {
-            importState = .idle
-            throw error
+            onImportSuccess?(bookId)
         } catch is CancellationError {
             importState = .idle
             throw CancellationError()
+        } catch let error as ImportError {
+            importState = .idle
+            throw error
         } catch {
             importState = .idle
             if let importErr = error as? ImportError {
                 throw importErr
             }
+            // Map any unzip/CocoaError to invalidPackage (zip-slip, CRC, etc.)
             throw ImportError.invalidPackage
         }
+        // Prevent defer double-delete confusion: didSucceed flag ensures we don't miss deletion
+        _ = didSucceed
     }
 }

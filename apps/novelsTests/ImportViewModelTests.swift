@@ -271,4 +271,112 @@ final class ImportViewModelTests: XCTestCase {
         )
         XCTAssertEqual(content, "v2 1")
     }
+
+    func testImportRejectsMacOSXAlongsideValid() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Create valid src then add __MACOSX folder before zipping
+        let src = tmp.appendingPathComponent("src-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: src.appendingPathComponent("chapters"),
+            withIntermediateDirectories: true
+        )
+        try FileManager.default.createDirectory(
+            at: src.appendingPathComponent("__MACOSX"),
+            withIntermediateDirectories: true
+        )
+        let bookJSON = #"{"id":"macosx-test","name":"N","count":1,"author":null,"references":["C1"]}"#
+        try bookJSON.write(to: src.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        try "<html>c1</html>".write(
+            to: src.appendingPathComponent("chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "junk".write(to: src.appendingPathComponent("__MACOSX/._book.json"), atomically: true, encoding: .utf8)
+        let zipURL = tmp.appendingPathComponent("\(UUID().uuidString).zip", isDirectory: false)
+        try FileManager.default.zipItem(at: src, to: zipURL, shouldKeepParent: false)
+        try? FileManager.default.removeItem(at: src)
+        let repo = FileBookRepository(
+            root: tmp.appendingPathComponent("books", isDirectory: true),
+            fileManager: .default
+        )
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        do {
+            try await vm.importBook(book(slug: "macosx-test", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage due to __MACOSX")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        } catch {
+            // Any error is acceptable as invalidPackage mapping
+            XCTAssertTrue(error is ImportError || (error as NSError).domain == NSCocoaErrorDomain)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tmp.appendingPathComponent("books/macosx-test").path))
+    }
+
+    func testUnzipRejectsZipSlip() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("slip.zip")
+        // Build raw ZIP with traversal entry "../evil.txt"
+        let fileName = "../evil.txt"
+        let fileData = Data("evil".utf8)
+        // CRC32 for "evil"
+        var crc: UInt32 = 0xFFFF_FFFF
+        let table: [UInt32] = (0 ..< 256).map { idx in
+            var crcVal = UInt32(idx)
+            for _ in 0 ..< 8 {
+                crcVal = (crcVal & 1) != 0 ? (crcVal >> 1) ^ 0xEDB8_8320 : crcVal >> 1
+            }
+            return crcVal
+        }
+        for byte in fileData {
+            crc = (crc >> 8) ^ table[Int((crc ^ UInt32(byte)) & 0xFF)]
+        }
+        crc ^= 0xFFFF_FFFF
+        var local = Data()
+        func append16(_ value: UInt16, to data: inout Data) {
+            var little = value.littleEndian; data.append(Data(bytes: &little, count: 2))
+        }
+        func append32(_ value: UInt32, to data: inout Data) {
+            var little = value.littleEndian; data.append(Data(bytes: &little, count: 4))
+        }
+        append32(0x0403_4B50, to: &local)
+        append16(20, to: &local); append16(0, to: &local); append16(0, to: &local)
+        append16(0, to: &local); append16(0, to: &local)
+        append32(crc, to: &local); append32(UInt32(fileData.count), to: &local); append32(
+            UInt32(fileData.count),
+            to: &local
+        )
+        let nameData = try XCTUnwrap(fileName.data(using: .utf8))
+        append16(UInt16(nameData.count), to: &local); append16(0, to: &local)
+        local.append(nameData); local.append(fileData)
+        var central = Data()
+        append32(0x0201_4B50, to: &central)
+        append16(20, to: &central); append16(20, to: &central); append16(0, to: &central); append16(0, to: &central)
+        append16(0, to: &central); append16(0, to: &central)
+        append32(crc, to: &central); append32(UInt32(fileData.count), to: &central); append32(
+            UInt32(fileData.count),
+            to: &central
+        )
+        append16(UInt16(nameData.count), to: &central); append16(0, to: &central); append16(0, to: &central)
+        append16(0, to: &central); append16(0, to: &central); append32(0, to: &central); append32(0, to: &central)
+        central.append(nameData)
+        var eocd = Data()
+        append32(0x0605_4B50, to: &eocd); append16(0, to: &eocd); append16(0, to: &eocd)
+        append16(1, to: &eocd); append16(1, to: &eocd)
+        append32(UInt32(central.count), to: &eocd); append32(UInt32(local.count), to: &eocd); append16(0, to: &eocd)
+        var final = Data(); final.append(local); final.append(central); final.append(eocd)
+        try final.write(to: zipURL)
+        let dest = tmp.appendingPathComponent("dest", isDirectory: true)
+        XCTAssertThrowsError(try FileManager.default.unzipItem(at: zipURL, to: dest))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dest.appendingPathComponent("evil.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tmp.appendingPathComponent("evil.txt").path))
+    }
 }

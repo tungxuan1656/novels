@@ -27,16 +27,21 @@ actor CatalogService {
         request.timeoutInterval = 15
 
         let data: Data
+        let response: URLResponse
         do {
             let result = try await session.data(for: request)
             data = result.0
-        } catch let error as URLError {
-            throw CatalogError.network(error)
+            response = result.1
         } catch {
             if let urlError = error as? URLError {
                 throw CatalogError.network(urlError)
             }
             throw error
+        }
+
+        // Check HTTP statusCode non-2xx: map to decoding error so UI shows generic toast, not network
+        if let http = response as? HTTPURLResponse, !(200 ... 299).contains(http.statusCode) {
+            throw CatalogError.decoding(NSError(domain: "HTTP", code: http.statusCode, userInfo: nil))
         }
 
         let decoded: CatalogResponse
