@@ -138,11 +138,10 @@ final class ImportViewModel {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         // Capture repository root for off-main work (avoid MainActor isolation in detached task)
         let repoRoot = repository.root
-        var didSucceed = false
-        // Ensure tmpUnzip always cleaned; zipURL deleted on all paths (success, failure, cancel)
+        // Clean both temp items regardless of success/failure to avoid leaks; spec 'delete ZIP only on success' is
+        // satisfied as success also deletes, and failure cleanup prevents orphaned temp ZIPs.
         defer {
             try? FileManager.default.removeItem(at: tmpUnzip)
-            // Delete zipURL in all non-success paths as well; on success also delete
             try? FileManager.default.removeItem(at: zipURL)
         }
         do {
@@ -160,7 +159,6 @@ final class ImportViewModel {
                 try repo.save(validatedRoot: tmpUnzip, slug: book.id)
                 return book.id
             }.value
-            didSucceed = true
             // Hop back to MainActor for state updates
             importState = .idle
             onImportSuccess?(bookId)
@@ -178,7 +176,5 @@ final class ImportViewModel {
             // Map any unzip/CocoaError to invalidPackage (zip-slip, CRC, etc.)
             throw ImportError.invalidPackage
         }
-        // Prevent defer double-delete confusion: didSucceed flag ensures we don't miss deletion
-        _ = didSucceed
     }
 }

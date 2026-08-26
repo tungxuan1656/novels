@@ -8,7 +8,13 @@ final class MockState {
 }
 
 final class MockURLProtocol: URLProtocol {
-    static var current: MockState?
+    // Thread-safe via NSLock; tests remain @MainActor serial, but URLSession delegate queue is background.
+    private static let lock = NSLock()
+    private static var _current: MockState?
+    static var current: MockState? {
+        get { lock.lock(); defer { lock.unlock() }; return _current }
+        set { lock.lock(); defer { lock.unlock() }; _current = newValue }
+    }
 
     // swiftlint:disable:next static_over_final_class
     override class func canInit(with request: URLRequest) -> Bool {
@@ -21,14 +27,19 @@ final class MockURLProtocol: URLProtocol {
     }
 
     override func startLoading() {
-        if let validator = MockURLProtocol.current?.requestValidator {
+        let state: MockState? = {
+            MockURLProtocol.lock.lock()
+            defer { MockURLProtocol.lock.unlock() }
+            return MockURLProtocol._current
+        }()
+        if let validator = state?.requestValidator {
             validator(request)
         }
-        if let error = MockURLProtocol.current?.error {
+        if let error = state?.error {
             client?.urlProtocol(self, didFailWithError: error)
             return
         }
-        if let response = MockURLProtocol.current?.response {
+        if let response = state?.response {
             do {
                 let data = try JSONEncoder().encode(response)
                 let httpResponse = HTTPURLResponse(

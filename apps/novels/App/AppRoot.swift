@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct AppRoot: View {
-    @State private var router = Router()
+    @State private var router: Router
     @State private var libraryViewModel: LibraryViewModel
-    @State private var settingsStore = SettingsStore.shared
+    @State private var settingsStore: SettingsStore
 
     init() {
         let router = Router()

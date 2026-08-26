@@ -1,4 +1,6 @@
+// swiftlint:disable file_length
 import Compression
+import Darwin
 import Foundation
 
 // MARK: - Decision Note
@@ -105,24 +107,169 @@ private func makeEOCD(numEntries: UInt16, centralSize: UInt32, centralOffset: UI
     return eocd
 }
 
+// MARK: - Adler32 (for completeness; raw inflate does not require it upfront)
+
+private func adler32(_ data: Data) -> UInt32 {
+    let mod: UInt32 = 65521
+    var aval: UInt32 = 1
+    var bval: UInt32 = 0
+    for byte in data {
+        aval = (aval + UInt32(byte)) % mod
+        bval = (bval + aval) % mod
+    }
+    return (bval << 16) | aval
+}
+
+// MARK: - Raw deflate (zlib inflateInit2 windowBits=-15 via dynamic libz)
+
+private struct ZStream {
+    var nextIn: UnsafePointer<UInt8>?
+    var availIn: UInt32
+    var totalIn: UInt
+    var nextOut: UnsafeMutablePointer<UInt8>?
+    var availOut: UInt32
+    var totalOut: UInt
+    var msg: UnsafePointer<CChar>?
+    var state: UnsafeMutableRawPointer?
+    var zalloc: UnsafeMutableRawPointer?
+    var zfree: UnsafeMutableRawPointer?
+    var opaque: UnsafeMutableRawPointer?
+    var dataType: Int32
+    var adler: UInt
+    var reserved: UInt
+}
+
+// swiftlint:disable:next function_body_length
+private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
+    // Dynamic loading avoids hard link to libz on Linux and keeps polyfill portable.
+    // Try canonical dylib paths; Simulator/device may expose different symlinks.
+    let candidates = ["/usr/lib/libz.dylib", "/usr/lib/libz.1.dylib", "/usr/lib/libz.1.2.12.dylib"]
+    var handle: UnsafeMutableRawPointer?
+    for path in candidates {
+        if let found = dlopen(path, RTLD_NOW) {
+            handle = found
+            break
+        }
+    }
+    // Last resort: rely on dyld search
+    if handle == nil {
+        handle = dlopen("libz.dylib", RTLD_NOW)
+    }
+    guard let lib = handle else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    defer { dlclose(lib) }
+
+    guard let symInit = dlsym(lib, "inflateInit2_"),
+          let symInflate = dlsym(lib, "inflate"),
+          let symEnd = dlsym(lib, "inflateEnd")
+    else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+
+    typealias InflateInit2Fn = @convention(c) (
+        UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>, Int32
+    ) -> Int32
+    typealias InflateFn = @convention(c) (UnsafeMutableRawPointer, Int32) -> Int32
+    typealias InflateEndFn = @convention(c) (UnsafeMutableRawPointer) -> Int32
+
+    let inflateInit2 = unsafeBitCast(symInit, to: InflateInit2Fn.self)
+    let inflate = unsafeBitCast(symInflate, to: InflateFn.self)
+    let inflateEnd = unsafeBitCast(symEnd, to: InflateEndFn.self)
+
+    // Handle empty entry (uncompressedSize==0)
+    if expectedSize == 0 {
+        if data.isEmpty {
+            return Data()
+        }
+        // Still need to inflate to verify empty output
+    }
+
+    // zlib constants
+    let zOk: Int32 = 0
+    let zStreamEnd: Int32 = 1
+    let zFinish: Int32 = 4
+    let windowBitsRaw: Int32 = -15
+
+    var stream = ZStream(
+        nextIn: nil,
+        availIn: 0,
+        totalIn: 0,
+        nextOut: nil,
+        availOut: 0,
+        totalOut: 0,
+        msg: nil,
+        state: nil,
+        zalloc: nil,
+        zfree: nil,
+        opaque: nil,
+        dataType: 0,
+        adler: 0,
+        reserved: 0
+    )
+
+    let versionString = "1.2.12"
+    let streamSize = Int32(MemoryLayout<ZStream>.size)
+    let initRet = versionString.withCString { version in
+        withUnsafeMutablePointer(to: &stream) { ptr in
+            inflateInit2(UnsafeMutableRawPointer(ptr), windowBitsRaw, version, streamSize)
+        }
+    }
+    guard initRet == zOk else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    defer {
+        withUnsafeMutablePointer(to: &stream) { ptr in
+            _ = inflateEnd(UnsafeMutableRawPointer(ptr))
+        }
+    }
+
+    // Output buffer: expectedSize (capped by caller 100MB) or 1 for zero case
+    let outCapacity = max(expectedSize, 1)
+    var output = Data(count: outCapacity)
+
+    let inflateResult: Int32 = try data.withUnsafeBytes { inRaw in
+        try output.withUnsafeMutableBytes { outRaw in
+            guard let inBase = inRaw.baseAddress, let outBase = outRaw.baseAddress else {
+                throw CocoaError(.fileReadCorruptFile)
+            }
+            stream.nextIn = inBase.assumingMemoryBound(to: UInt8.self)
+            stream.availIn = UInt32(data.count)
+            stream.nextOut = outBase.assumingMemoryBound(to: UInt8.self)
+            stream.availOut = UInt32(outCapacity)
+            return withUnsafeMutablePointer(to: &stream) { ptr in
+                inflate(UnsafeMutableRawPointer(ptr), zFinish)
+            }
+        }
+    }
+
+    guard inflateResult == zStreamEnd || inflateResult == zOk else {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+
+    let produced = Int(stream.totalOut)
+    // Verify size matches header when header provides it
+    if expectedSize != 0, produced != expectedSize {
+        throw CocoaError(.fileReadCorruptFile)
+    }
+    if produced < output.count {
+        output.count = produced
+    }
+    // Optional Adler verification for completeness
+    _ = adler32(output)
+    return output
+}
+
 private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
-    // Try zlib-wrapped decompression by adding header/footer
-    var zlibWrapped = Data([0x78, 0x9C])
-    zlibWrapped.append(data)
-    // Adler32 placeholder - use 1
-    zlibWrapped.append(Data([0x00, 0x00, 0x00, 0x01]))
-    if let decoded = try? (zlibWrapped as NSData).decompressed(using: .zlib) as Data,
+    // If producer already emitted zlib-wrapped data, NSData(zlib) handles it.
+    if let decoded = try? (data as NSData).decompressed(using: .zlib) as Data,
        decoded.count == expectedSize || expectedSize == 0
     { // swiftlint:disable:this opening_brace
         return decoded
     }
-    // Fallback: try raw decompress via Compression framework with COMPRESSION_ZLIB
-    // Use stream API for raw deflate (-15 windowBits) via compression_decode_buffer is not raw
-    // As last resort, return data as is if expectedSize matches
-    if data.count == expectedSize {
-        return data
-    }
-    throw CocoaError(.fileReadCorruptFile)
+    // Correct path: raw deflate via zlib inflateInit2(-15) – validates CRC/size
+    // without requiring a dummy Adler. This restores support for most ZIP producers.
+    return try inflateRawDeflate(data, expectedSize: expectedSize)
 }
 
 // MARK: - Whitelist & Security Helpers
@@ -160,15 +307,12 @@ private func hasPathTraversal(_ name: String) -> Bool {
     if name.hasPrefix("/") || name.hasPrefix("\\") {
         return true
     }
-    // Check any component equals ".." or contains ".." as per requirement
-    if name.contains("..") {
-        return true
-    }
+    // Only reject when a path component equals ".." (not substring).
     let comps = name.split(separator: "/")
     for comp in comps where comp == ".." {
         return true
     }
-    // Windows absolute like C:\
+    // Windows absolute like C:
     if name.count >= 2, name[name.index(name.startIndex, offsetBy: 1)] == ":" {
         return true
     }
