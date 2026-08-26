@@ -133,81 +133,6 @@ private func makeWrapperZip(at base: URL) -> URL {
     return zipURL
 }
 
-private func makeDeflateWithDescriptorZip(at url: URL, files: [String: Data]) throws {
-    /// Build ZIP with flag 0x08 (data-descriptor) and STORE (0) for simplicity
-    /// Local header sizes/crc zero, descriptor holds real values with signature
-    func crc32(_ data: Data) -> UInt32 {
-        let table: [UInt32] = (0 ..< 256).map { idx in
-            var crcVal = UInt32(idx)
-            for _ in 0 ..< 8 {
-                crcVal = (crcVal & 1) != 0 ? (crcVal >> 1) ^ 0xEDB8_8320 : crcVal >> 1
-            }
-            return crcVal
-        }
-        var crc: UInt32 = 0xFFFF_FFFF
-        for byte in data {
-            crc = (crc >> 8) ^ table[Int((crc ^ UInt32(byte)) & 0xFF)]
-        }
-        return crc ^ 0xFFFF_FFFF
-    }
-    func append16(_ value: UInt16, to data: inout Data) {
-        var little = value.littleEndian
-        data.append(Data(bytes: &little, count: 2))
-    }
-    func append32(_ value: UInt32, to data: inout Data) {
-        var little = value.littleEndian
-        data.append(Data(bytes: &little, count: 4))
-    }
-    var localData = Data()
-    var centralData = Data()
-    var offset: UInt32 = 0
-    for (name, content) in files {
-        let nameData = name.data(using: .utf8)!
-        let crc = crc32(content)
-        let compSize = UInt32(content.count)
-        let uncompSize = UInt32(content.count)
-        var local = Data()
-        append32(0x0403_4B50, to: &local)
-        append16(20, to: &local)
-        append16(0x08, to: &local) // flag descriptor
-        append16(0, to: &local) // STORE
-        append16(0, to: &local); append16(0, to: &local)
-        append32(0, to: &local) // crc zero in header (descriptor)
-        append32(0, to: &local) // comp zero
-        append32(0, to: &local) // uncomp zero
-        append16(UInt16(nameData.count), to: &local); append16(0, to: &local)
-        local.append(nameData)
-        local.append(content)
-        // descriptor with signature
-        append32(0x0807_4B50, to: &local)
-        append32(crc, to: &local)
-        append32(compSize, to: &local)
-        append32(uncompSize, to: &local)
-        localData.append(local)
-        var central = Data()
-        append32(0x0201_4B50, to: &central)
-        append16(20, to: &central); append16(20, to: &central)
-        append16(0x08, to: &central); append16(0, to: &central)
-        append16(0, to: &central); append16(0, to: &central)
-        append32(crc, to: &central)
-        append32(compSize, to: &central); append32(uncompSize, to: &central)
-        append16(UInt16(nameData.count), to: &central); append16(0, to: &central)
-        append16(0, to: &central); append16(0, to: &central); append16(0, to: &central)
-        append32(0, to: &central); append32(offset, to: &central)
-        central.append(nameData)
-        centralData.append(central)
-        offset += UInt32(local.count)
-    }
-    var eocd = Data()
-    append32(0x0605_4B50, to: &eocd)
-    append16(0, to: &eocd); append16(0, to: &eocd)
-    append16(UInt16(files.count), to: &eocd); append16(UInt16(files.count), to: &eocd)
-    append32(UInt32(centralData.count), to: &eocd); append32(offset, to: &eocd); append16(0, to: &eocd)
-    var final = Data()
-    final.append(localData); final.append(centralData); final.append(eocd)
-    try final.write(to: url)
-}
-
 // MARK: - Tests
 
 @MainActor
@@ -395,9 +320,9 @@ final class ImportViewModelTests: XCTestCase {
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: tmp) }
         let zipURL = tmp.appendingPathComponent("flag08.zip")
-        try makeDeflateWithDescriptorZip(at: zipURL, files: [
+        try makeDescriptorFlagStoreZip(at: zipURL, files: [
             "book.json": Data(#"{"id":"t","name":"T","count":1,"author":"A","references":["C1"]}"#.utf8),
-            "chapters/chapter-1.html": Data("<p>hi</p>".utf8),
+            "chapters/chapter-1.html": Data("<p>hi</p>".utf8), // swiftlint:disable:this trailing_comma
         ])
         let out = tmp.appendingPathComponent("out")
         XCTAssertNoThrow(try FileManager.default.unzipItem(at: zipURL, to: out))

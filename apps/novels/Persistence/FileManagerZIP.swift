@@ -537,8 +537,8 @@ extension FileManager {
                     continue
                 }
                 // Only reject unsupported compression method and security
-                // Outer-folder entries (not in whitelist) are allowed
-                // temporarily — will be flattened by resolver (Task 2)
+                // TODO(feat-010/task-2): Outer-folder entries (not in whitelist) are allowed
+                // temporarily — will be flattened by resolver
                 // Still enforce method cap
                 if compMethod != 0, compMethod != 8 {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
@@ -560,11 +560,9 @@ extension FileManager {
                     // Try 16-byte descriptor with signature
                     if nextHeaderPos >= 16 {
                         let p16 = nextHeaderPos - 16
-                        // swiftlint:disable:next opening_brace
-                        if p16 >= dataStart,
-                           let descriptorInfo = readDescriptor(at: p16, data: data),
-                           descriptorInfo.len == 16
-                        {
+                        if p16 >= dataStart, let descriptorInfo = readDescriptor(at: p16, data: data),
+                           descriptorInfo.len == 16 // swiftlint:disable:this opening_brace
+                        { // swiftlint:disable:this opening_brace
                             desc = descriptorInfo
                             descStart = p16
                         }
