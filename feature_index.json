@@ -58,6 +58,12 @@
       "title": "Lint / Format Tooling & Git Hooks",
       "status": "done",
       "depends_on": []
+    },
+    {
+      "id": "feat-010",
+      "title": "Tolerant ZIP Ingestion Hotfix",
+      "status": "todo",
+      "depends_on": ["feat-003"]
     }
   ]
 }
