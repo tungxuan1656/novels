@@ -7,7 +7,7 @@ nonisolated struct PrefetchStatus: Equatable, Sendable {
     var processedChapters: Int = 0
     var message: String = ""
     var errors: [String] = []
-    nonisolated init(
+    init(
         isRunning: Bool = false,
         currentBookId: String? = nil,
         totalChapters: Int = 0,
@@ -15,15 +15,11 @@ nonisolated struct PrefetchStatus: Equatable, Sendable {
         message: String = "",
         errors: [String] = []
     ) {
-        self.isRunning = isRunning
-        self.currentBookId = currentBookId
-        self.totalChapters = totalChapters
-        self.processedChapters = processedChapters
-        self.message = message
-        self.errors = errors
+        self.isRunning = isRunning; self.currentBookId = currentBookId; self.totalChapters = totalChapters; self
+            .processedChapters = processedChapters; self.message = message; self.errors = errors
     }
 
-    nonisolated static var idle: PrefetchStatus {
+    static var idle: PrefetchStatus {
         PrefetchStatus()
     }
 }

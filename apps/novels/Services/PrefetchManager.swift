@@ -2,6 +2,7 @@ import Foundation
 
 actor PrefetchManager {
     private var task: Task<Void, Never>?
+    private var generation = 0
     private var statusValue: PrefetchStatus = .idle
 
     func currentStatus() -> PrefetchStatus {
@@ -43,16 +44,14 @@ actor PrefetchManager {
             statusValue = PrefetchStatus(
                 isRunning: false,
                 currentBookId: bookId,
-                totalChapters: effectiveN,
+                totalChapters: 0,
                 processedChapters: 0,
                 message: "Đã hoàn tất",
                 errors: []
             )
             return
         }
-        let cached: Set<Int> = await MainActor.run {
-            (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: range)) ?? []
-        }
+        let cached: Set<Int> = (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: range)) ?? []
         let misses = range.filter { !cached.contains($0) }
         guard !misses.isEmpty else {
             statusValue = PrefetchStatus(
@@ -73,7 +72,10 @@ actor PrefetchManager {
             message: "Đang tải trước...",
             errors: []
         )
-        let currentTask = Task {
+        generation += 1
+        let currentGeneration = generation
+        var createdTask: Task<Void, Never>!
+        createdTask = Task {
             var processed = 0
             var errors: [String] = []
             for number in misses {
@@ -87,9 +89,7 @@ actor PrefetchManager {
                 if Task.isCancelled {
                     break
                 }
-                let htmlResult: String? = await MainActor.run {
-                    try? repository.chapterHTML(slug: bookId, number: number)
-                }
+                let htmlResult: String? = try? repository.chapterHTML(slug: bookId, number: number)
                 guard let html = htmlResult else {
                     // distinguish book deleted vs missing chapter
                     let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
@@ -100,7 +100,7 @@ actor PrefetchManager {
                     await self.updateStatus(processed: processed, errors: errors)
                     continue
                 }
-                let parsed: [TextBlock] = await MainActor.run { HtmlParser.parse(html: html) }
+                let parsed: [TextBlock] = HtmlParser.parse(html: html)
                 let raw = parsed.flatMap { $0.spans.map { $0.text } }.joined(separator: " ")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !raw.isEmpty else {
@@ -132,14 +132,13 @@ actor PrefetchManager {
                 }
             }
             await self.finish(processed: processed, errors: errors, bookId: bookId)
+            await self.clearTaskIfCurrent(generation: currentGeneration)
         }
-        task = currentTask
+        task = createdTask
     }
 
-    private func bookStillExists(bookId: String, repository: BookRepository) async -> Bool {
-        await MainActor.run {
-            (try? repository.book(slug: bookId)) != nil
-        }
+    private func bookStillExists(bookId: String, repository: BookRepository) -> Bool {
+        (try? repository.book(slug: bookId)) != nil
     }
 
     private func updateStatus(processed: Int, errors: [String]) {
@@ -153,6 +152,11 @@ actor PrefetchManager {
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi"
-        task = nil
+    }
+
+    private func clearTaskIfCurrent(generation targetGeneration: Int) {
+        if generation == targetGeneration {
+            task = nil
+        }
     }
 }

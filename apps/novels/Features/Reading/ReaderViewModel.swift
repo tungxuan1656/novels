@@ -3,6 +3,7 @@ import Observation
 
 @MainActor
 @Observable
+// swiftlint:disable:next type_body_length
 final class ReaderViewModel {
     let bookId: String
     private let repository: BookRepository
@@ -73,9 +74,6 @@ final class ReaderViewModel {
             book = try repository.book(slug: bookId)
         } catch {
             book = nil
-        }
-        if book == nil {
-            book = loadBookFallback()
         }
         if let count = book?.count, count > 0 {
             chapterNumber = min(max(1, chapterNumber), count)
@@ -256,9 +254,18 @@ final class ReaderViewModel {
             prefetchStatus = .idle
             return
         }
-        guard errorMessage == nil else { return }
-        guard let total = book?.count, total > 0 else { return }
-        guard let service = aiService else { return }
+        guard errorMessage == nil else {
+            cancelPrefetch()
+            return
+        }
+        guard let total = book?.count, total > 0 else {
+            cancelPrefetch()
+            return
+        }
+        guard let service = aiService else {
+            cancelPrefetch()
+            return
+        }
         prefetchPollTask?.cancel()
         let mode = aiMode
         let current = chapterNumber
@@ -296,12 +303,12 @@ final class ReaderViewModel {
     private func cancelPrefetch() {
         Task { await prefetchManager.cancel() }
         prefetchPollTask?.cancel()
-        prefetchStatus.isRunning = false
-        prefetchStatus.message = "Đã hủy"
-    }
-
-    private func loadBookFallback() -> Book? {
-        try? repository.book(slug: bookId)
+        if aiMode == .none {
+            prefetchStatus = .idle
+        } else {
+            prefetchStatus.isRunning = false
+            prefetchStatus.message = "Đã hủy"
+        }
     }
 
     private func readChapterHTML(number: Int) -> String? {
