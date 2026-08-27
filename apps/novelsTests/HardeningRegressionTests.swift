@@ -33,6 +33,8 @@ final class HardeningRegressionTests: XCTestCase {
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = 1,2"))
         XCTAssertTrue(pbx.contains("IPHONEOS_DEPLOYMENT_TARGET = 26.5;"))
         XCTAssertTrue(pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J;") || pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J"))
+        XCTAssertFalse(pbx.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"))
+        XCTAssertFalse(pbx.lowercased().contains("~ipad"))
     }
 
     func testInfoPlistATSAndLaunch() throws {
