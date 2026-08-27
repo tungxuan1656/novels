@@ -6,6 +6,27 @@ set -o pipefail
 # Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
 MAX_JOBS="${HARNESS_JOBS:-4}"
 STATUS=0
+QUICK=0
+
+for arg in "$@"; do
+  case "$arg" in
+    --quick|-q)
+      QUICK=1
+      ;;
+    --help|-h)
+      echo "Usage: ./init.sh [--quick]"
+      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build/test)"
+      echo "  --help, -h    Show this help"
+      echo ""
+      echo "Full verification (default): format + lint + build + test + drift"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $arg (use --help)" >&2
+      exit 2
+      ;;
+  esac
+done
 
 FORMAT_TASKS=(
   "if command -v swiftformat >/dev/null; then swiftformat --lint apps --verbose; else echo 'SKIP [format] swiftformat not installed — run bash scripts/setup.sh'; fi"
@@ -85,7 +106,11 @@ echo "=== Lint ==="
 run_parallel "lint" "${LINT_TASKS[@]}"
 
 echo "=== Build and test ==="
-run_parallel "build/test" "${BUILD_TASKS[@]}" "${TEST_TASKS[@]}"
+if [ "$QUICK" -eq 1 ]; then
+  echo "SKIP [build/test] --quick (build and test skipped)"
+else
+  run_parallel "build/test" "${BUILD_TASKS[@]}" "${TEST_TASKS[@]}"
+fi
 
 echo "=== Drift ==="
 if [ ! -f .agents/skills/using-skills/SKILL.md ]; then
