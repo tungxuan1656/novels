@@ -50,7 +50,7 @@
     {
       "id": "feat-008",
       "title": "Hardening + Release Readiness",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-001", "feat-002", "feat-003", "feat-004", "feat-005", "feat-006", "feat-007"]
     },
     {
