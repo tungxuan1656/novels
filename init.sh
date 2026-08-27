@@ -87,6 +87,29 @@ run_parallel "lint" "${LINT_TASKS[@]}"
 echo "=== Build and test ==="
 run_parallel "build/test" "${BUILD_TASKS[@]}" "${TEST_TASKS[@]}"
 
+echo "=== Drift ==="
+if [ ! -f .agents/skills/using-skills/SKILL.md ]; then
+  echo "SKIP [drift] using-skills not present"
+else
+  SKILL_TOTAL=$(ls -d .agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')
+  CLAIMED=$(grep -oE '[0-9]+ skills' .agents/skills/using-skills/SKILL.md | head -1 | grep -oE '[0-9]+' || echo 21)
+  EXPECTED=$((CLAIMED+1))
+  if [ "$SKILL_TOTAL" != "$EXPECTED" ]; then
+    echo "FAIL [drift] using-skills catalog claims ${CLAIMED} skills but found $((SKILL_TOTAL-1)) siblings (total $SKILL_TOTAL)" >&2
+    STATUS=1
+  else
+    echo "PASS [drift] skill catalog claims ${CLAIMED} siblings, found $((SKILL_TOTAL-1)) siblings (total $SKILL_TOTAL)"
+  fi
+  if grep -q "Tham chiếu nhanh.*alphabet" .agents/skills/using-skills/SKILL.md; then
+    echo "FAIL [drift] duplicate section Tham chiếu nhanh still present" >&2
+    STATUS=1
+  fi
+  if grep -q "Khi nào cần skill mới" .agents/skills/using-skills/SKILL.md; then
+    echo "FAIL [drift] duplicate section Khi nào cần skill mới still present" >&2
+    STATUS=1
+  fi
+fi
+
 if [ "$STATUS" -ne 0 ]; then
   echo "=== Verification failed ===" >&2
   exit "$STATUS"
