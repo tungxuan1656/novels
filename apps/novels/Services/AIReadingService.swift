@@ -63,12 +63,7 @@ actor AIReadingService {
         }
         inFlight[cacheKey] = task
         defer { inFlight[cacheKey] = nil }
-        do {
-            return try await task.value
-        } catch {
-            inFlight[cacheKey] = nil
-            throw error
-        }
+        return try await task.value
     }
 
     func reprocess(bookId: String, chapterNumber: Int, mode: AIMode, rawText: String) async throws -> String {
@@ -77,6 +72,7 @@ actor AIReadingService {
         }
         let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
         if let existing = inFlight[cacheKey] {
+            // Cancel previous in-flight work before reprocessing
             existing.cancel()
             inFlight[cacheKey] = nil
         }

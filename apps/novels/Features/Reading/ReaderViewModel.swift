@@ -49,8 +49,10 @@ final class ReaderViewModel {
                 if let fileCache = try? SQLiteProcessedChapterCache() {
                     return fileCache
                 }
-                // swiftlint:disable:next force_try
-                return try! SQLiteProcessedChapterCache.inMemory()
+                if let mem = try? SQLiteProcessedChapterCache.inMemory() {
+                    return mem
+                }
+                fatalError("Unable to create ProcessedChapter cache")
             }()
             let client = AIClient(settings: settingsStore)
             self.aiService = AIReadingService(cache: resolvedCache, client: client, settings: settingsStore)
@@ -195,7 +197,6 @@ final class ReaderViewModel {
                 ) ?? raw
             }
             processedContent = result
-            blocks = HtmlParser.parse(html: "<p>\(result)</p>")
         } catch {
             aiError = error.localizedDescription
             toastCenter?.show(aiError ?? "AI processing failed.", type: .error)

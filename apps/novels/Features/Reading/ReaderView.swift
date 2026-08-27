@@ -166,7 +166,7 @@ struct ReaderView: View {
             }
             if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
                 aiProcessedContent(processed)
-            } else if !viewModel.isAIProcessing, viewModel.aiError == nil, viewModel.processedContent == nil {
+            } else if !viewModel.isAIProcessing, viewModel.aiError == nil {
                 if viewModel.blocks.isEmpty {
                     Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                         .foregroundStyle(DesignTokens.muted)
@@ -176,7 +176,7 @@ struct ReaderView: View {
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(DesignTokens.muted)
-            } else if viewModel.processedContent == nil {
+            } else {
                 content
             }
         }

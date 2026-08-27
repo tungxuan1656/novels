@@ -105,6 +105,7 @@ struct ReaderBottomSheet: View {
                 selection: Binding(
                     get: { viewModel.aiMode },
                     set: { newValue in
+                        viewModel.aiMode = newValue
                         Task { await viewModel.setAIMode(newValue) }
                     }
                 )

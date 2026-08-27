@@ -46,6 +46,9 @@ actor AIClient {
                     ],
                 ]
                 for (key, value) in extra {
+                    if key == "model" || key == "messages" || key == "stream" {
+                        continue
+                    }
                     body[key] = value
                 }
                 request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -66,19 +69,35 @@ actor AIClient {
                 return content
             } catch {
                 lastError = error
+                if error is DecodingError {
+                    throw AIClientError.noResponse
+                }
                 if case AIClientError.noResponse = error {
                     throw error
                 }
-                if case AIClientError.httpError = error {
-                    throw error
+                if case let AIClientError.httpError(code, _) = error {
+                    if (400 ... 499).contains(code) {
+                        throw error
+                    }
+                    if attempt < 2 {
+                        let delay: UInt64 = attempt == 0 ? 1_000_000_000 : 2_000_000_000
+                        try? await Task.sleep(nanoseconds: delay)
+                        continue
+                    } else {
+                        throw lastError ?? error
+                    }
                 }
-                if attempt < 2 {
-                    let delay: UInt64 = attempt == 0 ? 1_000_000_000 : 2_000_000_000
-                    try? await Task.sleep(nanoseconds: delay)
-                    continue
-                } else {
-                    throw AIClientError.httpError(0, "AI processing failed.")
+                if error is URLError || (error as NSError).domain == NSURLErrorDomain {
+                    if attempt < 2 {
+                        let delay: UInt64 = attempt == 0 ? 1_000_000_000 : 2_000_000_000
+                        try? await Task.sleep(nanoseconds: delay)
+                        continue
+                    } else {
+                        throw lastError ?? AIClientError.httpError(0, "AI processing failed.")
+                    }
                 }
+                // Programming errors (e.g., JSONSerialization) — do not retry
+                throw error
             }
         }
         throw lastError ?? AIClientError.httpError(0, "AI processing failed.")
