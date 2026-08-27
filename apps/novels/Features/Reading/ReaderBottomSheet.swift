@@ -22,8 +22,12 @@ struct ReaderBottomSheet: View {
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundStyle(DesignTokens.muted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Đóng")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                     Button {
                         withAnimation { showGearToast = true }
                         Task {
@@ -33,8 +37,12 @@ struct ReaderBottomSheet: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .foregroundStyle(DesignTokens.muted)
+                            .frame(minWidth: 44, minHeight: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Cài đặt")
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
                 Divider()
                 if let viewModel {
@@ -54,6 +62,8 @@ struct ReaderBottomSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("fontPicker")
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 stepperRow(
                     title: "Cỡ chữ",
                     value: Binding(
@@ -116,10 +126,15 @@ struct ReaderBottomSheet: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("aiModePicker")
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             Button("Xử lý lại") {
                 Task { await viewModel.reprocess() }
             }
             .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
+            .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("reprocessButton")
             if viewModel.isAIProcessing {
                 ProgressView("Đang xử lý...")
@@ -150,10 +165,14 @@ struct ReaderBottomSheet: View {
                     .foregroundStyle(DesignTokens.text)
             }
             .labelsHidden()
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
             Text(String(format: format, value.wrappedValue))
                 .monospacedDigit()
                 .foregroundStyle(DesignTokens.text)
         }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 
     private func clampAndSaveFontSize(_ value: Double) {

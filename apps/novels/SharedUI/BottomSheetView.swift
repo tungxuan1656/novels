@@ -11,6 +11,7 @@ struct BottomSheetView<Content: View>: View {
                 .frame(width: 40, height: 5)
                 .padding(.top, DesignTokens.spacing8)
                 .padding(.bottom, DesignTokens.spacing12)
+                .accessibilityHidden(true)
             content
                 .padding(.horizontal, DesignTokens.spacing16)
                 .padding(.bottom, DesignTokens.spacing16)

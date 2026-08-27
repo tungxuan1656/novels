@@ -133,7 +133,11 @@ struct ReaderView: View {
                         Image(systemName: "chevron.left")
                         Text("Thư viện")
                     }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
                 .accessibilityLabel("Quay lại Thư viện")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -141,8 +145,12 @@ struct ReaderView: View {
                     showSheet = true
                 } label: {
                     Image(systemName: "textformat.size")
+                        .frame(minWidth: 44, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("typographyButton")
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
         }
         .interactiveDismissDisabled(true)
@@ -243,6 +251,8 @@ struct ReaderView: View {
             Button("Mục lục") {
                 router.push(.references(bookId: bookId))
             }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("tocButton")
         }
         .accessibilityIdentifier("header")
@@ -281,6 +291,9 @@ struct ReaderView: View {
                 }
             }
             .disabled(!viewModel.canGoPrev)
+            .opacity(viewModel.canGoPrev ? 1 : 0.4)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("prevButton")
             .accessibilityLabel("Chương trước")
             Spacer()
@@ -294,6 +307,9 @@ struct ReaderView: View {
                 }
             }
             .disabled(!viewModel.canGoNext)
+            .opacity(viewModel.canGoNext ? 1 : 0.4)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("nextButton")
             .accessibilityLabel("Chương sau")
         }
@@ -314,8 +330,12 @@ struct ReaderView: View {
                 .foregroundStyle(.white)
                 .clipShape(Circle())
                 .shadow(radius: 4)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .padding()
+        .frame(minWidth: 44, minHeight: 44)
+        .contentShape(Rectangle())
         .accessibilityIdentifier("toBottomButton")
     }
 

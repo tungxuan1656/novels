@@ -23,10 +23,15 @@ struct ReferencesView: View {
                                 .foregroundStyle(DesignTokens.accent)
                         }
                     }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 .listRowBackground(chapter == current ? DesignTokens.accent.opacity(0.08) : Color.clear)
                 .fontWeight(chapter == current ? .bold : .regular)
                 .accessibilityIdentifier("ref-\(chapter)")
+                .accessibilityLabel("Chương \(chapter): \(title)")
             }
         }
         .navigationTitle("Tài liệu tham khảo")
@@ -41,7 +46,12 @@ struct ReferencesView: View {
                         Image(systemName: "chevron.left")
                         Text("Đọc sách")
                     }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityLabel("Quay lại Đọc sách")
             }
         }
     }

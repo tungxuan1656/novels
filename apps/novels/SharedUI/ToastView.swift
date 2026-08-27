@@ -83,6 +83,7 @@ struct ToastView: View {
             .background(data.type.color)
             .clipShape(Capsule())
             .accessibilityLabel(data.message)
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 

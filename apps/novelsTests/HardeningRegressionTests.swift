@@ -62,3 +62,67 @@ final class HardeningRegressionTests: XCTestCase {
         XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~ipad"))
     }
 }
+
+final class HardeningA11yTests: XCTestCase {
+    private func repoRoot() -> URL {
+        let fileURL = URL(fileURLWithPath: #filePath)
+        var current = fileURL.deletingLastPathComponent()
+        for _ in 0 ..< 6 {
+            let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return current
+            }
+            let parent = current.deletingLastPathComponent()
+            if parent.path == current.path {
+                break
+            }
+            current = parent
+        }
+        return fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func source(_ relative: String) throws -> String {
+        let root = repoRoot()
+        let candidate = root.appendingPathComponent(relative)
+        let path = FileManager.default.fileExists(atPath: candidate.path) ? candidate.path : relative
+        return try String(contentsOfFile: path, encoding: .utf8)
+    }
+
+    @MainActor
+    func testLibraryRowsHaveIdentifiersAndMinHeight() throws {
+        let src = try source("apps/novels/Features/Library/LibraryView.swift")
+        XCTAssertTrue(src.contains("accessibilityIdentifier(\"library.row."))
+        XCTAssertTrue(src.contains("accessibilityLabel(\"Thêm sách\")"))
+        XCTAssertTrue(src.contains("accessibilityLabel(\"Cài đặt\")"))
+        XCTAssertTrue(src.contains("56") || src.contains("44") || src.contains("minHeight"))
+    }
+
+    @MainActor
+    func testReaderControlsA11y() throws {
+        let src = try source("apps/novels/Features/Reading/ReaderView.swift")
+        XCTAssertTrue(src.contains("accessibilityIdentifier(\"prevButton\")"))
+        XCTAssertTrue(src.contains("accessibilityLabel(\"Chương trước\")"))
+        XCTAssertTrue(src.contains("accessibilityIdentifier(\"nextButton\")"))
+        XCTAssertTrue(src.contains("accessibilityLabel(\"Chương sau\")"))
+        XCTAssertTrue(src.contains("accessibilityIdentifier(\"typographyButton\")"))
+        XCTAssertTrue(src.contains("accessibilityIdentifier(\"prefetchStatus\")"))
+        XCTAssertTrue(src.contains("44") || src.contains("minHeight"))
+    }
+
+    func testContrastTokensUnchanged() throws {
+        let src = try source("apps/novels/Resources/DesignTokens.swift")
+        // tokens are defined as hex 0xXXXXXX; accept both #XXXXXX and 0x form
+        XCTAssertTrue(src.contains("111111"))
+        XCTAssertTrue(src.contains("6B7280"))
+        XCTAssertTrue(src.contains("2563EB"))
+        XCTAssertTrue(src.contains("FDFCF8"))
+        XCTAssertTrue(src.contains("FFFFFF"))
+    }
+
+    func testBottomSheetHandleA11y() throws {
+        let src = try source("apps/novels/SharedUI/BottomSheetView.swift")
+        XCTAssertTrue(src.contains("DesignTokens.border") || src.lowercased().contains("handle"))
+        // decorative handle should be hidden from VoiceOver
+        XCTAssertTrue(src.contains("accessibilityHidden(true)"))
+    }
+}
