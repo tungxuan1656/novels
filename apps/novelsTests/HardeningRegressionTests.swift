@@ -126,3 +126,309 @@ final class HardeningA11yTests: XCTestCase {
         XCTAssertTrue(src.contains("accessibilityHidden(true)"))
     }
 }
+
+// MARK: - Hardening Edge Sweep (Task 3)
+
+final class HardeningEdgeTests: XCTestCase {
+    override func tearDown() {
+        super.tearDown()
+        AIMockURLProtocol.handler = nil
+    }
+
+    /// 1) offline — Library scan works without network, no URLSession call
+    func testOfflineLibraryScan() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(
+            at: tmp.appendingPathComponent("books/test-slug/chapters"),
+            withIntermediateDirectories: true
+        )
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let bookJSON = #"{"id":"test-slug","name":"Offline Book","author":"A","count":1,"references":["C1"]}"#
+        try bookJSON.write(
+            to: tmp.appendingPathComponent("books/test-slug/book.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "<p>Hello offline</p>".write(
+            to: tmp.appendingPathComponent("books/test-slug/chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let books = try repo.listBooks()
+        XCTAssertEqual(books.count, 1)
+        XCTAssertEqual(books.first?.id, "test-slug")
+        let html = try repo.chapterHTML(slug: "test-slug", number: 1)
+        XCTAssertTrue(html.contains("Hello"))
+    }
+
+    /// 2) invalid ZIP — zip-slip rejected; valid wrapper tolerated via hygiene
+    func testInvalidZIPStillRejected() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let slipData = HardeningEdgeTests.makeZipSlipData()
+        let zipURL = tmp.appendingPathComponent("slip.zip")
+        try slipData.write(to: zipURL)
+        XCTAssertThrowsError(try FileManager.default.unzipItem(at: zipURL, to: tmp.appendingPathComponent("out")))
+        // valid sample with __MACOSX ignored is tolerated (resolver flattens hygiene)
+        let wrapperURL = tmp.appendingPathComponent("wrapper.zip")
+        try TolerantFixtures.makeWrapperWithMacOSXAndFlag08(at: wrapperURL, id: "valid", count: 1)
+        let out = tmp.appendingPathComponent("wrapper-out")
+        XCTAssertNoThrow(try FileManager.default.unzipItem(at: wrapperURL, to: out))
+        let canonical = FileManager.default.resolveCanonicalRoot(at: out)
+        XCTAssertTrue(ZipValidator.isValidRoot(at: canonical))
+    }
+
+    /// 3) missing chapter — Reader shows error without crash, navigation still works
+    @MainActor
+    func testMissingChapterShowsErrorWithoutCrash() async throws {
+        // Use a mock repository that reports book exists but chapter 2 missing
+        struct MissingRepo: BookRepository {
+            func listBooks() throws -> [Book] {
+                []
+            }
+
+            func book(slug: String) throws -> Book? {
+                Book(id: "miss", name: "Miss", author: "A", count: 3, references: ["C1", "C2", "C3"])
+            }
+
+            func chapterHTML(slug: String, number: Int) throws -> String {
+                if number == 2 {
+                    throw BookRepositoryError.missingChapterFile(slug: slug, number: number)
+                }
+                return "<p>C\(number)</p>"
+            }
+
+            func save(validatedRoot: URL, slug: String) throws {}
+            func deleteBook(slug: String) throws {}
+        }
+        let repo = MissingRepo()
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "edge.\(UUID().uuidString)"))
+        let store = SettingsStore(userDefaults: suite)
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let vm = ReaderViewModel(bookId: "miss", repository: repo, settingsStore: store, cache: cache)
+        vm.chapterNumber = 2
+        await vm.load()
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertTrue(vm.errorMessage?.contains("Không tìm thấy chương") ?? false)
+        // goTo still works without crash
+        await vm.goToChapter(3)
+        XCTAssertEqual(vm.chapterNumber, 3)
+    }
+
+    /// 4) invalid JSON headers/body — AI merge ignores bad JSON, request succeeds stored verbatim
+    @MainActor
+    func testInvalidJSONHeadersBodyIgnored() async throws {
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "edge2.\(UUID().uuidString)"))
+        let store = SettingsStore(userDefaults: suite)
+        store.aiCustomHeadersJSON = "not json {"
+        store.aiExtraBodyJSON = "{ broken"
+        store.save()
+        XCTAssertEqual(store.aiCustomHeadersJSON, "not json {")
+        XCTAssertTrue(store.effectiveHeaders().isEmpty)
+        XCTAssertTrue(store.effectiveExtraBody().isEmpty)
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [AIMockURLProtocol.self]
+        AIMockURLProtocol.handler = { req in
+            XCTAssertNil(req.value(forHTTPHeaderField: "X-Bad"))
+            let json = #"{"choices":[{"message":{"content":"ok"}}]}"#
+            return (
+                HTTPURLResponse(url: req.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                json.data(using: .utf8)!
+            )
+        }
+        let client = AIClient(settings: store, session: URLSession(configuration: config))
+        let svc = AIReadingService(cache: cache, client: client, settings: store)
+        let out = try await svc.processedContent(
+            bookId: "s",
+            chapterNumber: 1,
+            mode: .translate,
+            rawText: String(repeating: "a", count: 800)
+        )
+        XCTAssertEqual(out, "ok")
+        XCTAssertEqual(store.aiCustomHeadersJSON, "not json {")
+    }
+
+    /// 5) cache clear immediate — countAll / count / bookIds reflect 0 after clearAll/clear(bookId)
+    func testCacheClearImmediate() throws {
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let now = Date()
+        try cache.upsert(ProcessedChapter(
+            bookId: "a",
+            chapterNumber: 1,
+            mode: .translate,
+            content: "c1",
+            contentHash: "h1",
+            createdAt: now,
+            updatedAt: now
+        ))
+        try cache.upsert(ProcessedChapter(
+            bookId: "a",
+            chapterNumber: 2,
+            mode: .translate,
+            content: "c2",
+            contentHash: "h2",
+            createdAt: now,
+            updatedAt: now
+        ))
+        XCTAssertEqual(try cache.countAll(), 2)
+        try cache.clear(bookId: "a")
+        XCTAssertEqual(try cache.countAll(), 0)
+        XCTAssertEqual(try cache.count(bookId: "a"), 0)
+        try cache.upsert(ProcessedChapter(
+            bookId: "b",
+            chapterNumber: 1,
+            mode: .summary,
+            content: "s1",
+            contentHash: "h3",
+            createdAt: now,
+            updatedAt: now
+        ))
+        try cache.clearAll()
+        XCTAssertEqual(try cache.countAll(), 0)
+    }
+
+    /// 6) prefetch cancel — chapter/mode change cancels task via PrefetchManager.cancel()
+    @MainActor
+    func testPrefetchCancelOnChange() async throws {
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "edge3.\(UUID().uuidString)"))
+        let store = SettingsStore(userDefaults: suite)
+        store.prefetchCount = 5
+        store.save()
+        let repo = MockBookRepo(slug: "p", count: 10)
+        let tracking = TrackingAIClient()
+        tracking.delayPerCall = 300_000_000
+        let svc = tracking.service(cache: cache, settings: store)
+        let mgr = PrefetchManager()
+        await mgr.start(
+            bookId: "p",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .translate,
+            settings: store,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        await mgr.cancel()
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        let status = await mgr.currentStatus()
+        XCTAssertFalse(status.isRunning)
+        let count = try cache.countAll()
+        XCTAssertTrue(count < 5, "count \(count) should be <5")
+        XCTAssertTrue(tracking.calls.count < 5, "calls \(tracking.calls) should be <5")
+    }
+
+    /// 7) kill-on-Reading resume — ReadingSession survives relaunch via UserDefaults
+    @MainActor
+    func testKillOnReadingResume() throws {
+        let suiteName = "kill.\(UUID().uuidString)"
+        let suite = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let store = SettingsStore(userDefaults: suite)
+        store.session = ReadingSession(bookId: "resume-slug", onScreen: true, offset: 42.5, chapterNumber: 2)
+        store.save()
+        // recreate store as if app killed and relaunched
+        let suite2 = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let store2 = SettingsStore(userDefaults: suite2)
+        XCTAssertEqual(store2.session?.bookId, "resume-slug")
+        XCTAssertEqual(store2.session?.onScreen, true)
+        XCTAssertEqual(store2.session?.offset ?? 0, 42.5, accuracy: 0.1)
+        XCTAssertEqual(store2.session?.chapterNumber, 2)
+        // Router restore check
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(
+            at: tmp.appendingPathComponent("resume-slug/chapters"),
+            withIntermediateDirectories: true
+        )
+        let resumeJSON = #"{"id":"resume-slug","name":"R","author":"A","count":1,"references":["C1"]}"#
+        try resumeJSON.write(
+            to: tmp.appendingPathComponent("resume-slug/book.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "<p>hi</p>".write(
+            to: tmp.appendingPathComponent("resume-slug/chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let repo = FileBookRepository(root: tmp, fileManager: .default)
+        let router = Router(settingsStore: store2, repository: repo)
+        router.restoreInitialRoute()
+        XCTAssertEqual(router.path.count, 1)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    // MARK: - Helpers
+
+    static func makeZipSlipData() -> Data {
+        var data = Data()
+        // Local header with traversal name
+        let name = "../evil.txt"
+        let nameData = name.data(using: .utf8)!
+        let content = Data("evil".utf8)
+        let crc: UInt32 = 0 // not validated because we throw before CRC check due to traversal; use 0
+        func append16(_ value: UInt16, to target: inout Data) {
+            var le = value.littleEndian
+            target.append(Data(bytes: &le, count: 2))
+        }
+
+        func append32(_ value: UInt32, to target: inout Data) {
+            var le = value.littleEndian
+            target.append(Data(bytes: &le, count: 4))
+        }
+
+        var local = Data()
+        append32(0x0403_4B50, to: &local)
+        append16(20, to: &local)
+        append16(0, to: &local)
+        append16(0, to: &local)
+        append16(0, to: &local)
+        append16(0, to: &local)
+        append32(crc, to: &local)
+        append32(UInt32(content.count), to: &local)
+        append32(UInt32(content.count), to: &local)
+        append16(UInt16(nameData.count), to: &local)
+        append16(0, to: &local)
+        local.append(nameData)
+        local.append(content)
+
+        var central = Data()
+        append32(0x0201_4B50, to: &central)
+        append16(20, to: &central)
+        append16(20, to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append32(crc, to: &central)
+        append32(UInt32(content.count), to: &central)
+        append32(UInt32(content.count), to: &central)
+        append16(UInt16(nameData.count), to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append16(0, to: &central)
+        append32(0, to: &central)
+        append32(0, to: &central)
+        central.append(nameData)
+
+        var eocd = Data()
+        append32(0x0605_4B50, to: &eocd)
+        append16(0, to: &eocd)
+        append16(0, to: &eocd)
+        append16(1, to: &eocd)
+        append16(1, to: &eocd)
+        append32(UInt32(central.count), to: &eocd)
+        append32(UInt32(local.count), to: &eocd)
+        append16(0, to: &eocd)
+
+        data.append(local)
+        data.append(central)
+        data.append(eocd)
+        return data
+    }
+}
