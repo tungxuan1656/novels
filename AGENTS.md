@@ -71,7 +71,7 @@ If baseline verification fails, record the failure. Fix the failure only when th
 A feature is done only when:
 
 - [ ] Every acceptance criterion passes.
-- [ ] `./init.sh` passes.
+- [ ] `./init.sh` passes (full, không phải `--quick`).
 - [ ] The feature file records verification evidence.
 - [ ] `progress.md` records the result and next action.
 
@@ -83,8 +83,10 @@ A feature is done only when:
 
 ## Verification
 
-- Full: `./init.sh`
+- Full: `./init.sh` — format + lint + build + test + drift (source of truth, dùng cho CI / pre-push / feature done)
+- Quick: `./init.sh --quick` (alias `-q`) — chỉ format + lint + drift, skip build/test (dùng cho loop local nhanh)
+- Help: `./init.sh --help`
 
-`init.sh` is the source of truth. It runs format, lint, build, and test (SKIP). See `ARCHITECTURE.md` §5 for evidence.
+`init.sh` is the source of truth. Full chạy format, lint, build, test, drift. Quick bỏ build/test để tiết kiệm thời gian. Feature done và trước khi commit/push luôn phải chạy **full** `./init.sh`. Xem `ARCHITECTURE.md` §5 cho evidence.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->

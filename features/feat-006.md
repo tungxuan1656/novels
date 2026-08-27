@@ -17,12 +17,12 @@ Deliver cache-first translate/summary rendering for the current chapter via an O
 
 ## Acceptance
 
-- [ ] Cache hit returns without network; miss chunks, retries, merges, and caches under slug identity.
-- [ ] De-duplication prevents parallel duplicate requests for same `(bookId, chapter, mode)`.
-- [ ] Reprocess overwrites cache; mode switch shows cached content or triggers processing.
-- [ ] `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON headers/body ignored at merge per `docs/contracts/ai-service.md:17`, localhost ATS `http://localhost:8317` only.
-- [ ] `mode == "none"` never cached.
-- [ ] Unit test asserts prompts contain BR-03/04 constraints (keep honorifics ta/ngươi/huynh..., natural Vietnamese 100%) and BR-05/06 (summary 50-60% keep plot/dialogue, no hallucination).
+- [x] Cache hit returns without network; miss chunks, retries, merges, and caches under slug identity.
+- [x] De-duplication prevents parallel duplicate requests for same `(bookId, chapter, mode)`.
+- [x] Reprocess overwrites cache; mode switch shows cached content or triggers processing.
+- [x] `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON headers/body ignored at merge per `docs/contracts/ai-service.md:17`, localhost ATS `http://localhost:8317` only.
+- [x] `mode == "none"` never cached.
+- [x] Unit test asserts prompts contain BR-03/04 constraints (keep honorifics ta/ngươi/huynh..., natural Vietnamese 100%) and BR-05/06 (summary 50-60% keep plot/dialogue, no hallucination).
 
 ## Relevant docs
 
@@ -42,7 +42,7 @@ External plan required at activation (≥4 files expected) — create docs/plans
 
 ## Handoff
 
-- State: todo
-- Evidence: —
+- State: done
+- Evidence: docs/plans/feat-006.md (5 tasks), commits 0dd8e14 chunker/prompt (AIChunker 1300 + BR-03/04/05/06 honorifics 50-60%), 1a28a4a AIClient POST + merge ignore invalid + retry 3× 1000/2000 + ATS localhost, 0651ef4 AIReadingService cache-first dedup + reprocess + SHA256 upsert, 473abbb ReaderViewModel aiMode/processedContent + ReaderBottomSheet aiModePicker/reprocessButton + ReaderView processed rendering, e31c237 AIIntegrationTests ATS/invalid JSON/mode none; verification swiftformat 0/82 lint 0/82 build PASS xcodebuild test PASS 80+ (AIChunker 4/AIPrompt 5/AIClient 4/AIReadingService 6/AIReadingViewModel 4/AIIntegration 3) + ./init.sh PASS (format PASS lint PASS build PASS test PASS drift PASS)
 - Blockers: none
-- Next: Awaiting feat-004 and feat-005 completion before activation
+- Next: feat-007 Chapter Prefetch ready (depends_on feat-006 done)

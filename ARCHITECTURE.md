@@ -61,7 +61,7 @@ Settings → sanitize on launch (missing or invalid → defaults; unknown or leg
 
 ## 5. Verification and Routes
 
-- **Build and test:** `init.sh` is canonical. It runs format, lint, build, and test (SKIP). Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme `novels`, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). Format and lint use SwiftLint and SwiftFormat. Test is SKIP. No test target yet (explicit SKIP in `init.sh`). [Observed]
+- **Build and test:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, test, drift; `--quick` (`-q`) runs format + lint + drift only (skip build/test) cho loop local nhanh. Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme `novels`, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). Format and lint use SwiftLint and SwiftFormat. [Observed]
 - **Product truth:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/*`, business decisions `docs/product/decisions.md`.
 - **Design:** `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
 - **Contracts:** `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`.

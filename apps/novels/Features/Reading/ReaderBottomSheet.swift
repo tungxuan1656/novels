@@ -2,9 +2,11 @@ import SwiftUI
 
 struct ReaderBottomSheet: View {
     @Bindable var settingsStore: SettingsStore
+    var viewModel: ReaderViewModel?
     var onClose: () -> Void
     @State private var showGearToast = false
-    /// Source of truth for font names is ReaderFontDesign (ScrollOffsetPreference.swift) — keep in sync: System/Serif/Mono
+    /// Source of truth for font names is ReaderFontDesign (ScrollOffsetPreference.swift) — keep in sync:
+    /// System/Serif/Mono
     let fonts = ["System", "Serif", "Mono"]
 
     var body: some View {
@@ -35,6 +37,10 @@ struct ReaderBottomSheet: View {
                     .accessibilityLabel("Cài đặt")
                 }
                 Divider()
+                if let viewModel {
+                    aiModeSection(viewModel: viewModel)
+                    Divider()
+                }
                 Picker(
                     "Phông chữ",
                     selection: Binding(
@@ -86,6 +92,44 @@ struct ReaderBottomSheet: View {
                 }
             }
             .padding(DesignTokens.spacing16)
+        }
+    }
+
+    private func aiModeSection(viewModel: ReaderViewModel) -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
+            Text("Chế độ AI")
+                .font(.subheadline)
+                .foregroundStyle(DesignTokens.text)
+            Picker(
+                "Chế độ AI",
+                selection: Binding(
+                    get: { viewModel.aiMode },
+                    set: { newValue in
+                        viewModel.aiMode = newValue
+                        Task { await viewModel.setAIMode(newValue) }
+                    }
+                )
+            ) {
+                Text("Gốc").tag(AIMode.none)
+                Text("Dịch").tag(AIMode.translate)
+                Text("Tóm tắt").tag(AIMode.summary)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("aiModePicker")
+            Button("Xử lý lại") {
+                Task { await viewModel.reprocess() }
+            }
+            .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
+            .accessibilityIdentifier("reprocessButton")
+            if viewModel.isAIProcessing {
+                ProgressView("Đang xử lý...")
+                    .tint(DesignTokens.accent)
+            }
+            if let error = viewModel.aiError {
+                Text(error)
+                    .foregroundStyle(DesignTokens.error)
+                    .font(.caption)
+            }
         }
     }
 

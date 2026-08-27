@@ -30,6 +30,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		E2DB61A8303C43F300D20F8F /* Exceptions for "novels" folder in "novels" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = E2DB617E303C43F300D20F8F /* novels */;
+		};
 		E2DB61A6303C43F300D20F8F /* Exceptions for "novelsTests" folder in "novelsTests" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -49,6 +56,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E2DB6181303C43F300D20F8F /* novels */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				E2DB61A8303C43F300D20F8F /* Exceptions for "novels" folder in "novels" target */,
+			);
 			path = novels;
 			sourceTree = "<group>";
 		};
@@ -420,7 +430,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M5U4E4H84J;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = novels/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -452,7 +463,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = M5U4E4H84J;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = novels/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

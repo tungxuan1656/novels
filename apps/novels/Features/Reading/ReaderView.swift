@@ -47,6 +47,8 @@ struct ReaderView: View {
                         if viewModel.isLoading {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
+                        } else if viewModel.aiMode != .none {
+                            aiSection
                         } else if viewModel.blocks.isEmpty {
                             Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                                 .foregroundStyle(DesignTokens.muted)
@@ -144,8 +146,39 @@ struct ReaderView: View {
         }
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
-            ReaderBottomSheet(settingsStore: settingsStore, onClose: { showSheet = false })
+            ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
                 .presentationDetents([.medium])
+        }
+    }
+
+    private var aiSection: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
+            if viewModel.isAIProcessing {
+                ProgressView("Đang xử lý...")
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("aiProgress")
+            }
+            if let error = viewModel.aiError {
+                Text(error)
+                    .foregroundStyle(DesignTokens.error)
+                    .font(.caption)
+                    .accessibilityIdentifier("aiError")
+            }
+            if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
+                aiProcessedContent(processed)
+            } else if !viewModel.isAIProcessing, viewModel.aiError == nil {
+                if viewModel.blocks.isEmpty {
+                    Text(viewModel.errorMessage ?? "Không tìm thấy chương")
+                        .foregroundStyle(DesignTokens.muted)
+                } else {
+                    content
+                }
+            } else if viewModel.blocks.isEmpty {
+                Text(viewModel.errorMessage ?? "Không tìm thấy chương")
+                    .foregroundStyle(DesignTokens.muted)
+            } else {
+                content
+            }
         }
     }
 
@@ -173,6 +206,20 @@ struct ReaderView: View {
                     .multilineTextAlignment(.leading)
             }
         }
+    }
+
+    private func aiProcessedContent(_ text: String) -> some View {
+        Text(text)
+            .font(.system(
+                size: CGFloat(settingsStore.typography.fontSize),
+                design: ReaderFontDesign.design(for: settingsStore.typography.font)
+            ))
+            .foregroundStyle(DesignTokens.text)
+            .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
+            .kerning(CGFloat(settingsStore.typography.letterSpacing))
+            .multilineTextAlignment(.leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("aiContent")
     }
 
     private func fontFor(block: TextBlock, span: TextSpan) -> Font {

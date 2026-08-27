@@ -45,14 +45,16 @@ Prerequisite: Xcode 16+ and iPhone 17 Pro simulator (iOS 26.5).
 ## Development
 
 - Edit Swift in `apps/novels/`.
-- Run `./init.sh` before you commit.
+- Run `./init.sh --quick` trong lúc lặp nhanh, và `./init.sh` (full) trước khi commit.
 - Keep at most one feature `active`. See `AGENTS.md` and `feature_index.json`.
 
 ## Verification
 
-- Full: `./init.sh`
+- Full: `./init.sh` — format + lint + build + test + drift (source of truth, dùng cho CI / pre-push / feature done)
+- Quick: `./init.sh --quick` (alias `-q`) — chỉ format + lint + drift, skip build/test (dùng cho loop local nhanh)
+- Help: `./init.sh --help`
 
-Run `./init.sh` locally. The script prints `PASS` per phase and `Verification passed` at the end. If a phase reports `FAIL`, fix it and rerun.
+Run `./init.sh --quick` cho feedback nhanh (vài giây). Chạy `./init.sh` full trước khi commit/push. Script in `PASS`/`SKIP`/`FAIL` per phase và `Verification passed` ở cuối. Nếu phase báo `FAIL`, fix và chạy lại.
 
 ## Security
 
