@@ -134,4 +134,19 @@ final class DomainCodableTests: XCTestCase {
         let book = try JSONDecoder().decode(Book.self, from: data)
         XCTAssertNil(book.author)
     }
+
+    func testBookDecodeFallsBackWhenIdMissing() throws {
+        let json = #"{"name":"Vạn Giới","count":1,"author":"A","references":["C1"]}"#
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let book = try JSONDecoder().decode(Book.self, from: data)
+        XCTAssertEqual(book.id, "van-gioi")
+        XCTAssertEqual(book.name, "Vạn Giới")
+    }
+
+    func testBookDecodeEmptyIdFallsBack() throws {
+        let json = #"{"id":"","name":"Vạn Giới Chi Rút Thưởng Hệ Thống","count":1,"author":"A","references":["C1"]}"#
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let book = try JSONDecoder().decode(Book.self, from: data)
+        XCTAssertEqual(book.id, "van-gioi-chi-rut-thuong-he-thong")
+    }
 }

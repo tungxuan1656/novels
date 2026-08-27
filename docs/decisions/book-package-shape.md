@@ -27,6 +27,12 @@ Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but pr
 - Tests use root-layout fixtures when they land. The app does not flatten or ignore outer wrappers.
 - Keep the sample ZIP untouched in docs-only tasks.
 
+## Amendment 2026-08-26 — Tolerant ingest
+
+- Producer ZIPs thực tế là Finder ZIP với flag 0x08 + outer-folder + `__MACOSX` (như sample). Strict reject gây false invalid.
+- Decision: App tolerant single outer-folder + hygiene ignore + data-descriptor support, vẫn giữ strict cho 2+ top-level / missing chapter / CRC fail.
+- Consequences: Sample `van-gioi-...zip` giờ import được qua flatten; docs/plans/feat-010 implements.
+
 ## Links
 
 - Canonical: `../contracts/book-package.md` · `../contracts/local-data.md` · `../../docs/product/domain-model.md` Invariants · `../../docs/product/functional-specs/book-import.md`

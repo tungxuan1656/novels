@@ -243,7 +243,7 @@ private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
         }
     }
 
-    guard inflateResult == zStreamEnd || inflateResult == zOk else {
+    guard inflateResult == zStreamEnd else {
         throw CocoaError(.fileReadCorruptFile)
     }
 
@@ -263,9 +263,12 @@ private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
 private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
     // If producer already emitted zlib-wrapped data, NSData(zlib) handles it.
     if let decoded = try? (data as NSData).decompressed(using: .zlib) as Data,
-       decoded.count == expectedSize || expectedSize == 0
+       decoded.count == expectedSize
     { // swiftlint:disable:this opening_brace
         return decoded
+    }
+    if expectedSize == 0, data.isEmpty {
+        return Data()
     }
     // Correct path: raw deflate via zlib inflateInit2(-15) – validates CRC/size
     // without requiring a dummy Adler. This restores support for most ZIP producers.
@@ -273,35 +276,6 @@ private func decompressDeflate(_ data: Data, expectedSize: Int) throws -> Data {
 }
 
 // MARK: - Whitelist & Security Helpers
-
-private func isAllowedFileName(_ name: String) -> Bool {
-    if name == "book.json" {
-        return true
-    }
-    if name == "chapters/" {
-        return true
-    }
-    if name == "chapters" {
-        return true
-    } // some zips omit trailing slash
-    if name.hasPrefix("chapters/chapter-") && name.hasSuffix(".html") {
-        // Ensure single level: chapters/chapter-N.html no extra slash
-        let prefix = "chapters/"
-        let suffix = name.dropFirst(prefix.count)
-        if suffix.contains("/") || suffix.contains("\\") {
-            return false
-        }
-        let middle = suffix.dropFirst("chapter-".count).dropLast(".html".count)
-        if middle.isEmpty {
-            return false
-        }
-        if !middle.allSatisfy({ $0.isNumber }) {
-            return false
-        }
-        return true
-    }
-    return false
-}
 
 private func hasPathTraversal(_ name: String) -> Bool {
     if name.hasPrefix("/") || name.hasPrefix("\\") {
@@ -317,6 +291,54 @@ private func hasPathTraversal(_ name: String) -> Bool {
         return true
     }
     return false
+}
+
+// isHygieneEntry consolidated to ZipValidator.isHygieneEntry (single source)
+
+// swiftlint:disable large_tuple
+private func readDescriptor(at pos: Int, data: Data) -> (crc: UInt32, comp: UInt32, uncomp: UInt32, len: Int)? {
+    if pos + 16 <= data.count {
+        let sig = UInt32(data[pos]) | UInt32(data[pos + 1]) << 8
+            | UInt32(data[pos + 2]) << 16 | UInt32(data[pos + 3]) << 24
+        if sig == 0x0807_4B50 {
+            let crc = UInt32(data[pos + 4]) | UInt32(data[pos + 5]) << 8
+                | UInt32(data[pos + 6]) << 16 | UInt32(data[pos + 7]) << 24
+            let comp = UInt32(data[pos + 8]) | UInt32(data[pos + 9]) << 8
+                | UInt32(data[pos + 10]) << 16 | UInt32(data[pos + 11]) << 24
+            let uncomp = UInt32(data[pos + 12]) | UInt32(data[pos + 13]) << 8
+                | UInt32(data[pos + 14]) << 16 | UInt32(data[pos + 15]) << 24
+            return (crc, comp, uncomp, 16)
+        }
+    }
+    if pos + 12 <= data.count {
+        let crc = UInt32(data[pos]) | UInt32(data[pos + 1]) << 8
+            | UInt32(data[pos + 2]) << 16 | UInt32(data[pos + 3]) << 24
+        let comp = UInt32(data[pos + 4]) | UInt32(data[pos + 5]) << 8
+            | UInt32(data[pos + 6]) << 16 | UInt32(data[pos + 7]) << 24
+        let uncomp = UInt32(data[pos + 8]) | UInt32(data[pos + 9]) << 8
+            | UInt32(data[pos + 10]) << 16 | UInt32(data[pos + 11]) << 24
+        return (crc, comp, uncomp, 12)
+    }
+    return nil
+}
+
+// swiftlint:enable large_tuple
+
+/// NOTE: Linear scan inside compressed data may hit false header
+/// signatures (~1.4e-3 per entry). CRC + size checks catch truncation;
+/// central-directory back-scan would be more robust but heavier.
+/// Accepted for hotfix scope.
+private func findNextHeaderPos(from start: Int, data: Data) -> Int? {
+    var idx = start
+    while idx + 4 <= data.count {
+        let sig = UInt32(data[idx]) | UInt32(data[idx + 1]) << 8
+            | UInt32(data[idx + 2]) << 16 | UInt32(data[idx + 3]) << 24
+        if sig == 0x0403_4B50 || sig == 0x0201_4B50 || sig == 0x0605_4B50 {
+            return idx
+        }
+        idx += 1
+    }
+    return nil
 }
 
 // MARK: - FileManager ZIP Polyfill
@@ -440,17 +462,13 @@ extension FileManager {
                 | UInt32(data[pos + 2]) << 16 | UInt32(data[pos + 3]) << 24
             if sig == 0x0403_4B50 {
                 let flag = UInt16(data[pos + 6]) | UInt16(data[pos + 7]) << 8
-                // Reject data-descriptor (bit 3) – sizes/crc in trailing descriptor not supported
-                // Mapped to ImportError.invalidPackage in ImportViewModel
-                if flag & 0x08 != 0 {
-                    throw CocoaError(.fileReadCorruptFile)
-                }
+                let isDescriptor = (flag & 0x08) != 0
                 let compMethod = UInt16(data[pos + 8]) | UInt16(data[pos + 9]) << 8
                 let crcHeader = UInt32(data[pos + 14]) | UInt32(data[pos + 15]) << 8
                     | UInt32(data[pos + 16]) << 16 | UInt32(data[pos + 17]) << 24
-                let compSize = UInt32(data[pos + 18]) | UInt32(data[pos + 19]) << 8
+                let compSizeHeader = UInt32(data[pos + 18]) | UInt32(data[pos + 19]) << 8
                     | UInt32(data[pos + 20]) << 16 | UInt32(data[pos + 21]) << 24
-                let uncompSize = UInt32(data[pos + 22]) | UInt32(data[pos + 23]) << 8
+                let uncompSizeHeader = UInt32(data[pos + 22]) | UInt32(data[pos + 23]) << 8
                     | UInt32(data[pos + 24]) << 16 | UInt32(data[pos + 25]) << 24
                 let nameLen = Int(UInt16(data[pos + 26]) | UInt16(data[pos + 27]) << 8)
                 let extraLen = Int(UInt16(data[pos + 28]) | UInt16(data[pos + 29]) << 8)
@@ -458,51 +476,147 @@ extension FileManager {
                 let nameEnd = nameStart + nameLen
                 let extraEnd = nameEnd + extraLen
                 let dataStart = extraEnd
-                let dataEnd = dataStart + Int(compSize)
-                guard nameEnd <= data.count, extraEnd <= data.count, dataEnd <= data.count else {
+                guard nameEnd <= data.count, extraEnd <= data.count else {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
                 let nameData = data[nameStart ..< nameEnd]
                 guard let fileName = String(data: nameData, encoding: .utf8), !fileName.isEmpty else {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
-                // Zip-slip: reject "..", leading "/" or absolute
+                // Zip-slip: reject "..", leading "/" or absolute — always
                 if hasPathTraversal(fileName) {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
-                // Whitelist only book.json and chapters/chapter-N.html (plus chapters/ dir)
-                if !isAllowedFileName(fileName) {
+                // Hygiene filter: skip __MACOSX / .DS_Store / ._* without throw
+                if ZipValidator.isHygieneEntry(fileName) {
+                    if isDescriptor {
+                        guard let nextPos = findNextHeaderPos(from: dataStart, data: data) else {
+                            throw CocoaError(.fileReadCorruptFile)
+                        }
+                        pos = nextPos
+                    } else {
+                        let dataEnd = dataStart + Int(compSizeHeader)
+                        guard dataEnd <= data.count else {
+                            throw CocoaError(.fileReadCorruptFile)
+                        }
+                        pos = dataEnd
+                    }
+                    continue
+                }
+                // Outer-folder entries allowed temporarily — flattened by resolver; method/crc/size still enforced
+                // above
+                if compMethod != 0, compMethod != 8 {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
-                // Cap total uncompressed size (zip bomb)
-                totalUncompressed += UInt64(uncompSize)
+                // Determine effective sizes/crc and slice
+                var effectiveCrc = crcHeader
+                var effectiveCompSize = compSizeHeader
+                var effectiveUncompSize = uncompSizeHeader
+                var dataEnd: Int
+                var nextPos: Int
+                var fileDataCompressed: Data
+                if isDescriptor {
+                    guard let nextHeaderPos = findNextHeaderPos(from: dataStart, data: data) else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    // Prefer 16-byte signed descriptor if signature matches at nextHeaderPos-16, else 12-byte unsigned
+                    // swiftlint:disable:next large_tuple
+                    var desc: (crc: UInt32, comp: UInt32, uncomp: UInt32, len: Int)?
+                    var descStart = nextHeaderPos
+                    if nextHeaderPos >= 16 {
+                        let p16 = nextHeaderPos - 16
+                        if p16 >= dataStart {
+                            let sig16 = UInt32(data[p16]) | UInt32(data[p16 + 1]) << 8
+                                | UInt32(data[p16 + 2]) << 16 | UInt32(data[p16 + 3]) << 24
+                            if sig16 == 0x0807_4B50, let descriptor = readDescriptor(at: p16, data: data),
+                               descriptor.len == 16
+                            { // swiftlint:disable:this opening_brace
+                                desc = descriptor
+                                descStart = p16
+                            }
+                        }
+                    }
+                    if desc == nil, nextHeaderPos >= 12 {
+                        let p12 = nextHeaderPos - 12
+                        if p12 >= dataStart, let descriptor = readDescriptor(at: p12, data: data) {
+                            // Ensure not misreading signed descriptor as unsigned: already checked above
+                            let sigAtP12 = UInt32(data[p12]) | UInt32(data[p12 + 1]) << 8
+                                | UInt32(data[p12 + 2]) << 16 | UInt32(data[p12 + 3]) << 24
+                            if sigAtP12 != 0x0807_4B50 {
+                                desc = descriptor
+                                descStart = p12
+                            } else if descriptor.len == 16 { // if still signed, use it
+                                desc = descriptor
+                                descStart = p12
+                            }
+                        }
+                    }
+                    guard let descriptor = desc else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    effectiveCrc = descriptor.crc
+                    effectiveUncompSize = descriptor.uncomp
+                    // Descriptor comp should equal distance; use distance for slicing if mismatch
+                    let computedComp = UInt32(descStart - dataStart)
+                    // Prefer descriptor comp but ensure slice matches actual distance
+                    if descriptor.comp != computedComp {
+                        effectiveCompSize = computedComp
+                    } else {
+                        effectiveCompSize = descriptor.comp
+                    }
+                    dataEnd = descStart
+                    nextPos = nextHeaderPos
+                    guard descStart <= data.count, nextPos <= data.count else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    if effectiveCompSize == 0 {
+                        fileDataCompressed = Data()
+                    } else {
+                        guard dataStart + Int(effectiveCompSize) <= data.count else {
+                            throw CocoaError(.fileReadCorruptFile)
+                        }
+                        fileDataCompressed = Data(data[dataStart ..< dataStart + Int(effectiveCompSize)])
+                    }
+                } else {
+                    dataEnd = dataStart + Int(compSizeHeader)
+                    guard dataEnd <= data.count else {
+                        throw CocoaError(.fileReadCorruptFile)
+                    }
+                    nextPos = dataEnd
+                    if compSizeHeader == 0 {
+                        fileDataCompressed = Data()
+                    } else {
+                        fileDataCompressed = Data(data[dataStart ..< dataEnd])
+                    }
+                }
+                // Cap total uncompressed size (zip bomb) using effective size
+                totalUncompressed += UInt64(effectiveUncompSize)
                 if totalUncompressed > maxTotalUncompressed {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
                 // Also reject if single entry exceeds cap
-                if UInt64(uncompSize) > maxTotalUncompressed {
+                if UInt64(effectiveUncompSize) > maxTotalUncompressed {
                     throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                 }
-                let fileDataCompressed = data[dataStart ..< dataEnd]
                 let fileData: Data
                 if compMethod == 0 {
-                    fileData = Data(fileDataCompressed)
+                    fileData = fileDataCompressed
                     // Verify CRC32 for stored
-                    if crc32(fileData) != crcHeader {
+                    if crc32(fileData) != effectiveCrc {
                         throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                     }
-                    if UInt32(fileData.count) != uncompSize {
+                    if UInt32(fileData.count) != effectiveUncompSize {
                         throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                     }
                 } else if compMethod == 8 {
                     fileData = try decompressDeflate(
-                        Data(fileDataCompressed),
-                        expectedSize: Int(uncompSize)
+                        fileDataCompressed,
+                        expectedSize: Int(effectiveUncompSize)
                     )
-                    if crc32(fileData) != crcHeader {
+                    if crc32(fileData) != effectiveCrc {
                         throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                     }
-                    if UInt32(fileData.count) != uncompSize {
+                    if UInt32(fileData.count) != effectiveUncompSize {
                         throw CocoaError(.fileReadCorruptFile) // mapped to ImportError.invalidPackage
                     }
                 } else {
@@ -530,12 +644,46 @@ extension FileManager {
                     }
                     try fileData.write(to: destURL)
                 }
-                pos = dataEnd
+                pos = nextPos
             } else if sig == 0x0201_4B50 || sig == 0x0605_4B50 {
                 break
             } else {
                 break
             }
         }
+    }
+
+    // MARK: - Canonical Root Resolver (Task 2: wrapper flatten)
+
+    func resolveCanonicalRoot(at url: URL) -> URL {
+        resolveCanonicalRoot(at: url, fileManager: self)
+    }
+
+    func resolveCanonicalRoot(at url: URL, fileManager: FileManager) -> URL {
+        if ZipValidator.isValidRoot(at: url, fileManager: fileManager) {
+            return url
+        }
+        guard let top = try? fileManager.contentsOfDirectory(
+            at: url,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: []
+        ) else {
+            return url
+        }
+        // Lọc hygiene entries (__MACOSX, .DS_Store, ._* resource forks)
+        let filtered = top.filter { !ZipValidator.isHygieneEntry($0.lastPathComponent) }
+        // Chỉ flatten khi đúng 1 subfolder duy nhất
+        guard filtered.count == 1, let single = filtered.first else {
+            return url
+        }
+        var isDir: ObjCBool = false
+        _ = fileManager.fileExists(atPath: single.path, isDirectory: &isDir)
+        guard isDir.boolValue else {
+            return url
+        }
+        if ZipValidator.isValidRoot(at: single, fileManager: fileManager) {
+            return single
+        }
+        return url
     }
 }
