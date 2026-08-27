@@ -3,6 +3,7 @@ import Foundation
 import Observation
 
 @MainActor
+// swiftlint:disable:next type_body_length
 @Observable final class SettingsStore {
     private enum Defaults {
         static let booksAPIURL = "https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books"
@@ -151,6 +152,83 @@ import Observation
         }
         if let session, !SlugValidator.isValid(session.bookId) {
             self.session = nil
+        }
+    }
+
+    func value(forKey key: String) -> String {
+        switch key {
+        case "BOOKS_API_URL":
+            return booksAPIURL
+        case "OPENAI_API_URL":
+            return openaiAPIURL
+        case "OPENAI_MODEL":
+            return openaiModel
+        case "AI_CUSTOM_HEADERS":
+            return aiCustomHeadersJSON
+        case "AI_EXTRA_BODY":
+            return aiExtraBodyJSON
+        case "AI_PROVIDER":
+            return aiProvider
+        case "AI_PROCESS_ACTIONS":
+            return aiProcessActionsJSON
+        case "PREFETCH_COUNT":
+            return "\(prefetchCount)"
+        case "AI_MIN_CHUNK_SIZE":
+            return "\(aiMinChunkSize)"
+        case "font":
+            return typography.font
+        case "fontSize":
+            return "\(typography.fontSize)"
+        case "lineHeight":
+            return "\(typography.lineHeight)"
+        case "letterSpacing":
+            return "\(typography.letterSpacing)"
+        default:
+            return ""
+        }
+    }
+
+    // swiftlint:disable:next cyclomatic_complexity
+    func setValue(_ value: String, forKey key: String) {
+        switch key {
+        case "BOOKS_API_URL":
+            booksAPIURL = value
+        case "OPENAI_API_URL":
+            openaiAPIURL = value
+        case "OPENAI_MODEL":
+            openaiModel = value
+        case "AI_CUSTOM_HEADERS":
+            aiCustomHeadersJSON = value
+        case "AI_EXTRA_BODY":
+            aiExtraBodyJSON = value
+        case "AI_PROVIDER":
+            aiProvider = value
+        case "AI_PROCESS_ACTIONS":
+            aiProcessActionsJSON = value
+        case "PREFETCH_COUNT":
+            if let intValue = Int(value) {
+                prefetchCount = intValue
+            }
+        case "AI_MIN_CHUNK_SIZE":
+            if let intValue = Int(value) {
+                aiMinChunkSize = intValue
+            }
+        case "font":
+            typography.font = value
+        case "fontSize":
+            if let doubleValue = Double(value) {
+                typography.fontSize = doubleValue
+            }
+        case "lineHeight":
+            if let doubleValue = Double(value) {
+                typography.lineHeight = doubleValue
+            }
+        case "letterSpacing":
+            if let doubleValue = Double(value) {
+                typography.letterSpacing = doubleValue
+            }
+        default:
+            break
         }
     }
 

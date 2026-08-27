@@ -37,12 +37,19 @@ struct AppRoot: View {
                             }
                         case .addBook:
                             AddBookView(viewModel: makeImportViewModel())
+                        case .settings:
+                            SettingsView()
+                        case .cacheManager:
+                            CacheManagerView()
+                        case let .settingEditor(settingKey):
+                            SettingEditorView(settingKey: settingKey)
                     }
                     // swiftlint:enable switch_case_alignment
                 }
         }
         .environment(router)
         .environment(router.toast)
+        .environment(settingsStore)
         .toast(center: router.toast)
         .task {
             router.restoreInitialRoute()

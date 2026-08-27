@@ -24,6 +24,9 @@ final class Router {
         case reading(bookId: String)
         case references(bookId: String)
         case addBook
+        case settings
+        case cacheManager
+        case settingEditor(settingKey: String)
     }
 
     func restoreInitialRoute() {

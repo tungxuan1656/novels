@@ -81,10 +81,13 @@ struct LibraryView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
-                Button {} label: {
+                Button {
+                    router.push(.settings)
+                } label: {
                     Image(systemName: "gearshape")
                         .accessibilityLabel("Cài đặt")
                 }
+                .accessibilityIdentifier("settingsButton")
             }
         }
         .loadingOverlay(isLoading: viewModel.isLoading)
