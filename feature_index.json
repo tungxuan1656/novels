@@ -38,7 +38,7 @@
     {
       "id": "feat-006",
       "title": "AI Reading",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-004", "feat-005"]
     },
     {
