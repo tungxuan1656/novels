@@ -94,15 +94,15 @@ final class ReaderViewModel {
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
         if aiMode != .none, errorMessage == nil {
-            triggerPrefetchIfEligible()
+            await triggerPrefetchIfEligible()
         } else {
-            cancelPrefetch()
+            await cancelPrefetch()
         }
     }
 
     func goNext() async {
         guard canGoNext else { return }
-        cancelPrefetch()
+        await cancelPrefetch()
         chapterNumber += 1
         await load()
         persistChapter()
@@ -110,14 +110,14 @@ final class ReaderViewModel {
 
     func goPrev() async {
         guard canGoPrev else { return }
-        cancelPrefetch()
+        await cancelPrefetch()
         chapterNumber -= 1
         await load()
         persistChapter()
     }
 
     func goToChapter(_ number: Int) async {
-        cancelPrefetch()
+        await cancelPrefetch()
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
         } else {
@@ -165,11 +165,19 @@ final class ReaderViewModel {
     func onDisappear() {
         settingsStore.session?.onScreen = false
         settingsStore.save()
-        cancelPrefetch()
+        prefetchPollTask?.cancel()
+        prefetchPollTask = nil
+        if aiMode == .none {
+            prefetchStatus = .idle
+        } else {
+            prefetchStatus.isRunning = false
+            prefetchStatus.message = "Đã hủy"
+        }
+        Task { await prefetchManager.cancel() }
     }
 
     func setAIMode(_ mode: AIMode) async {
-        cancelPrefetch()
+        await cancelPrefetch()
         aiMode = mode
         aiError = nil
         if mode == .none {
@@ -181,7 +189,7 @@ final class ReaderViewModel {
         }
         await loadAIContent(isReprocess: false)
         if errorMessage == nil {
-            triggerPrefetchIfEligible()
+            await triggerPrefetchIfEligible()
         }
     }
 
@@ -189,7 +197,7 @@ final class ReaderViewModel {
         guard aiMode != .none else { return }
         await loadAIContent(isReprocess: true)
         if errorMessage == nil {
-            triggerPrefetchIfEligible()
+            await triggerPrefetchIfEligible()
         }
     }
 
@@ -248,22 +256,21 @@ final class ReaderViewModel {
         settingsStore.save()
     }
 
-    private func triggerPrefetchIfEligible() {
+    private func triggerPrefetchIfEligible() async {
         guard aiMode != .none else {
-            Task { await prefetchManager.cancel() }
-            prefetchStatus = .idle
+            await cancelPrefetch()
             return
         }
         guard errorMessage == nil else {
-            cancelPrefetch()
+            await cancelPrefetch()
             return
         }
         guard let total = book?.count, total > 0 else {
-            cancelPrefetch()
+            await cancelPrefetch()
             return
         }
         guard let service = aiService else {
-            cancelPrefetch()
+            await cancelPrefetch()
             return
         }
         prefetchPollTask?.cancel()
@@ -274,35 +281,37 @@ final class ReaderViewModel {
         let cache = processedCache
         let repo = repository
         let store = settingsStore
-        Task {
-            await manager.start(
-                bookId: slug,
-                currentChapter: current,
-                totalChapters: total,
-                mode: mode,
-                settings: store,
-                cache: cache,
-                aiService: service,
-                repository: repo
-            )
-        }
-        prefetchPollTask = Task { @MainActor in
+        await manager.start(
+            bookId: slug,
+            currentChapter: current,
+            totalChapters: total,
+            mode: mode,
+            settings: store,
+            cache: cache,
+            aiService: service,
+            repository: repo
+        )
+        prefetchPollTask?.cancel()
+        prefetchPollTask = Task { [weak self] in
+            guard let self else { return }
             while !Task.isCancelled {
                 let status = await manager.currentStatus()
-                self.prefetchStatus = status
+                await MainActor.run { self.prefetchStatus = status }
                 if !status.isRunning {
                     break
                 }
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
+            guard !Task.isCancelled else { return }
             let status = await manager.currentStatus()
-            self.prefetchStatus = status
+            await MainActor.run { self.prefetchStatus = status }
         }
     }
 
-    private func cancelPrefetch() {
-        Task { await prefetchManager.cancel() }
+    private func cancelPrefetch() async {
+        await prefetchManager.cancel()
         prefetchPollTask?.cancel()
+        prefetchPollTask = nil
         if aiMode == .none {
             prefetchStatus = .idle
         } else {

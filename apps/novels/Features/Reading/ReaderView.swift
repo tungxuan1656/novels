@@ -265,7 +265,7 @@ struct ReaderView: View {
             Text("Tải trước: \(viewModel.prefetchStatus.errors.count) lỗi")
                 .font(.caption)
                 .foregroundStyle(DesignTokens.error)
-                .accessibilityIdentifier("prefetchStatus")
+                .accessibilityIdentifier("prefetchStatusError")
         }
     }
 

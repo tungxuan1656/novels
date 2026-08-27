@@ -10,6 +10,7 @@ actor PrefetchManager {
     }
 
     func cancel() {
+        generation += 1
         task?.cancel()
         task = nil
         statusValue.isRunning = false
@@ -82,22 +83,14 @@ actor PrefetchManager {
                 if Task.isCancelled {
                     break
                 }
-                let exists = await self.bookStillExists(bookId: bookId, repository: repository)
-                if !exists {
-                    break
-                }
-                if Task.isCancelled {
-                    break
-                }
                 let htmlResult: String? = try? repository.chapterHTML(slug: bookId, number: number)
                 guard let html = htmlResult else {
-                    // distinguish book deleted vs missing chapter
                     let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
                     if !bookExists {
                         break
                     }
                     errors.append("Chương \(number): Không tìm thấy chương")
-                    await self.updateStatus(processed: processed, errors: errors)
+                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     continue
                 }
                 let parsed: [TextBlock] = HtmlParser.parse(html: html)
@@ -105,7 +98,7 @@ actor PrefetchManager {
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !raw.isEmpty else {
                     errors.append("Chương \(number): Nội dung rỗng")
-                    await self.updateStatus(processed: processed, errors: errors)
+                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     continue
                 }
                 if Task.isCancelled {
@@ -119,7 +112,7 @@ actor PrefetchManager {
                         rawText: raw
                     )
                     processed += 1
-                    await self.updateStatus(processed: processed, errors: errors)
+                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                 } catch is CancellationError {
                     break
                 } catch {
@@ -127,11 +120,11 @@ actor PrefetchManager {
                         break
                     }
                     errors.append("Chương \(number): \(error.localizedDescription)")
-                    await self.updateStatus(processed: processed, errors: errors)
+                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     continue
                 }
             }
-            await self.finish(processed: processed, errors: errors, bookId: bookId)
+            await self.finish(processed: processed, errors: errors, bookId: bookId, generation: currentGeneration)
             await self.clearTaskIfCurrent(generation: currentGeneration)
         }
         task = createdTask
@@ -141,14 +134,17 @@ actor PrefetchManager {
         (try? repository.book(slug: bookId)) != nil
     }
 
-    private func updateStatus(processed: Int, errors: [String]) {
+    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) {
+        guard generation == targetGeneration else { return }
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
     }
 
-    private func finish(processed: Int, errors: [String], bookId: String) {
+    private func finish(processed: Int, errors: [String], bookId: String, generation targetGeneration: Int) {
+        guard generation == targetGeneration else { return }
         statusValue.isRunning = false
+        statusValue.currentBookId = bookId
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi"

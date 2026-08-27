@@ -109,6 +109,13 @@ import Observation
         }
     }
 
+    /// Shared helper: returns clamped prefetch count without mutating stored value.
+    /// Stored `prefetchCount` stays as-is (e.g., 99) until `save()` → `sanitize()` coerces it,
+    /// while `effectivePrefetchCount()` returns the fallback (Defaults.prefetchCount = 3) read-only.
+    private func clampedPrefetchCount(_ value: Int) -> Int {
+        (1 ... 10).contains(value) ? value : Defaults.prefetchCount
+    }
+
     func sanitize() {
         if booksAPIURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             booksAPIURL = Defaults.booksAPIURL
@@ -119,9 +126,7 @@ import Observation
         if openaiModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             openaiModel = Defaults.openaiModel
         }
-        if !(1 ... 10).contains(prefetchCount) {
-            prefetchCount = Defaults.prefetchCount
-        }
+        prefetchCount = clampedPrefetchCount(prefetchCount)
         if !(500 ... 5000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
         }
@@ -255,7 +260,8 @@ import Observation
     }
 
     func effectivePrefetchCount() -> Int {
-        (1 ... 10).contains(prefetchCount) ? prefetchCount : 3
+        // Non-mutating read: returns clamped value without coercing stored prefetchCount (stays 99 until save()).
+        clampedPrefetchCount(prefetchCount)
     }
 
     func effectiveHeaders() -> [String: String] {
