@@ -134,6 +134,7 @@ struct ReaderView: View {
                         Text("Thư viện")
                     }
                 }
+                .a11yHitTarget()
                 .accessibilityLabel("Quay lại Thư viện")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -143,6 +144,7 @@ struct ReaderView: View {
                     Image(systemName: "textformat.size")
                 }
                 .accessibilityIdentifier("typographyButton")
+                .a11yHitTarget()
             }
         }
         .interactiveDismissDisabled(true)
@@ -243,6 +245,8 @@ struct ReaderView: View {
             Button("Mục lục") {
                 router.push(.references(bookId: bookId))
             }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("tocButton")
         }
         .accessibilityIdentifier("header")
@@ -281,6 +285,9 @@ struct ReaderView: View {
                 }
             }
             .disabled(!viewModel.canGoPrev)
+            .opacity(viewModel.canGoPrev ? 1 : 0.4)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("prevButton")
             .accessibilityLabel("Chương trước")
             Spacer()
@@ -294,6 +301,9 @@ struct ReaderView: View {
                 }
             }
             .disabled(!viewModel.canGoNext)
+            .opacity(viewModel.canGoNext ? 1 : 0.4)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("nextButton")
             .accessibilityLabel("Chương sau")
         }
@@ -316,6 +326,7 @@ struct ReaderView: View {
                 .shadow(radius: 4)
         }
         .padding()
+        .a11yHitTarget()
         .accessibilityIdentifier("toBottomButton")
     }
 

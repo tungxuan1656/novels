@@ -47,13 +47,21 @@ struct SettingEditorView: View {
                         errorMessage = nil
                     }
                     .foregroundStyle(DesignTokens.error)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel("Xóa")
                     Spacer()
                     Button("Lưu") {
                         save()
                     }
                     .bold()
                     .disabled(shouldBlockSave)
+                    .opacity(shouldBlockSave ? 0.4 : 1)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel("Lưu")
                 }
+                .frame(minHeight: 44)
             }
         }
         .navigationTitle(descriptor.label)

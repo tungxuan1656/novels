@@ -44,6 +44,8 @@ struct LibraryView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
                     .listRowSeparator(.hidden)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -79,6 +81,7 @@ struct LibraryView: View {
                     Image(systemName: "plus")
                         .accessibilityLabel("Thêm sách")
                 }
+                .a11yHitTarget()
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -88,6 +91,7 @@ struct LibraryView: View {
                         .accessibilityLabel("Cài đặt")
                 }
                 .accessibilityIdentifier("settingsButton")
+                .a11yHitTarget()
             }
         }
         .loadingOverlay(isLoading: viewModel.isLoading)

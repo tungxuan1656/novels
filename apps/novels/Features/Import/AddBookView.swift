@@ -13,6 +13,8 @@ struct AddBookView: View {
                     router.pop()
                 }
                 .foregroundStyle(DesignTokens.accent)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
                 .accessibilityLabel("Thư viện")
                 Spacer()
                 Text("Thêm sách")
@@ -25,6 +27,8 @@ struct AddBookView: View {
                 }
                 .pickerStyle(.menu)
                 .tint(DesignTokens.text)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 .accessibilityLabel("Sắp xếp")
             }
             .padding(.horizontal, DesignTokens.sidePadding)
@@ -82,6 +86,8 @@ struct AddBookView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityLabel("Thử lại")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -99,6 +105,8 @@ struct AddBookView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityLabel("Thử lại")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

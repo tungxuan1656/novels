@@ -40,7 +40,10 @@ struct CacheManagerView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.accent)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityIdentifier("retryCacheButton")
+                    .accessibilityLabel("Thử lại")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(DesignTokens.backgroundPaper)
@@ -114,12 +117,15 @@ struct CacheManagerView: View {
                     showClearAllConfirm = true
                 } label: {
                     Label("Xóa tất cả", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignTokens.error)
                 .disabled(total == 0)
+                .opacity(total == 0 ? 0.4 : 1)
                 .accessibilityIdentifier("clearAllButton")
+                .accessibilityLabel("Xóa tất cả")
             }
             .padding(.vertical, 4)
             .listRowBackground(DesignTokens.surface)
@@ -144,7 +150,11 @@ struct CacheManagerView: View {
                             showClearBookConfirm = row.slug
                         }
                         .accessibilityIdentifier("clear-\(row.slug)")
+                        .accessibilityLabel("Xóa \(row.slug)")
+                        .a11yHitTarget()
                     }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
                     .accessibilityIdentifier("cache-\(row.slug)")
                 }
             }

@@ -62,7 +62,11 @@ struct SettingsView: View {
             Section("Dữ liệu") {
                 NavigationLink(value: Router.Route.cacheManager) {
                     Label("Quản lý bộ nhớ đệm", systemImage: "internaldrive")
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 .accessibilityIdentifier("settings-CACHE")
             }
         }
@@ -83,7 +87,11 @@ struct SettingsView: View {
                     .foregroundStyle(DesignTokens.muted)
                     .lineLimit(1)
             }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
         }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
         .accessibilityIdentifier("settings-\(key)")
     }
 }

@@ -24,6 +24,7 @@ struct ReaderBottomSheet: View {
                             .foregroundStyle(DesignTokens.muted)
                     }
                     .accessibilityLabel("Đóng")
+                    .a11yHitTarget()
                     Button {
                         withAnimation { showGearToast = true }
                         Task {
@@ -35,6 +36,7 @@ struct ReaderBottomSheet: View {
                             .foregroundStyle(DesignTokens.muted)
                     }
                     .accessibilityLabel("Cài đặt")
+                    .a11yHitTarget()
                 }
                 Divider()
                 if let viewModel {
@@ -54,6 +56,8 @@ struct ReaderBottomSheet: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("fontPicker")
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
                 stepperRow(
                     title: "Cỡ chữ",
                     value: Binding(
@@ -116,10 +120,15 @@ struct ReaderBottomSheet: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("aiModePicker")
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             Button("Xử lý lại") {
                 Task { await viewModel.reprocess() }
             }
             .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
+            .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
             .accessibilityIdentifier("reprocessButton")
             if viewModel.isAIProcessing {
                 ProgressView("Đang xử lý...")
@@ -150,10 +159,15 @@ struct ReaderBottomSheet: View {
                     .foregroundStyle(DesignTokens.text)
             }
             .labelsHidden()
+            .accessibilityLabel(title)
+            .accessibilityValue(String(format: format, value.wrappedValue))
+            .a11yHitTarget()
             Text(String(format: format, value.wrappedValue))
                 .monospacedDigit()
                 .foregroundStyle(DesignTokens.text)
         }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
     }
 
     private func clampAndSaveFontSize(_ value: Double) {
