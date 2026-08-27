@@ -44,7 +44,7 @@
     {
       "id": "feat-007",
       "title": "Chapter Prefetch",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-006"]
     },
     {

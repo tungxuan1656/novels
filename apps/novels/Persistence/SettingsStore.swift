@@ -254,6 +254,10 @@ import Observation
         }
     }
 
+    func effectivePrefetchCount() -> Int {
+        (1 ... 10).contains(prefetchCount) ? prefetchCount : 3
+    }
+
     func effectiveHeaders() -> [String: String] {
         let trimmed = aiCustomHeadersJSON.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,

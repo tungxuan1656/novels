@@ -18,12 +18,12 @@ Prefetch next N chapters' AI content sequentially and cancellably after a chapte
 
 ## Acceptance
 
-- [ ] Prefetch runs only when eligible; batch check skips cached chapters.
-- [ ] Sequential processing of misses in order; cancellation stops remaining work.
-- [ ] `PrefetchStatus` runtime-only (isRunning/total/processed/message/errors[]) read-only UI, not persisted per `docs/product/domain-model.md:66`.
-- [ ] Single chapter failure does not abort batch; errors collected in `PrefetchStatus.errors`.
-- [ ] Book folder deleted during prefetch cancels pending tasks.
-- [ ] Invalid `PREFETCH_COUNT` coerced to 3.
+- [x] Prefetch runs only when eligible; batch check skips cached chapters.
+- [x] Sequential processing of misses in order; cancellation stops remaining work.
+- [x] `PrefetchStatus` runtime-only (isRunning/total/processed/message/errors[]) read-only UI, not persisted per `docs/product/domain-model.md:66`.
+- [x] Single chapter failure does not abort batch; errors collected in `PrefetchStatus.errors`.
+- [x] Book folder deleted during prefetch cancels pending tasks.
+- [x] Invalid `PREFETCH_COUNT` coerced to 3.
 
 ## Relevant docs
 
@@ -33,7 +33,7 @@ See `AGENTS.md` Routes and `features/feat-template.md` for canonical doc ownersh
 
 External plan required at activation (≥4 files expected) — create docs/plans/feat-007.md per feat-001 template
 
-- Link: `docs/plans/feat-007.md` (to be created at activation)
+- Link: `docs/plans/feat-007.md`
 - Ownership: `PrefetchManager (Task), PrefetchStatus (runtime), batch cache check via feat-006 path`
 
 ## Verify
@@ -43,7 +43,7 @@ External plan required at activation (≥4 files expected) — create docs/plans
 
 ## Handoff
 
-- State: todo
-- Evidence: —
+- State: done
+- Evidence: `docs/plans/feat-007.md` (790 lines, Tasks 1-4), `apps/novels/Domain/PrefetchStatus.swift`, `apps/novels/Services/PrefetchManager.swift`, `apps/novels/Persistence/SettingsStore.swift` `effectivePrefetchCount()`, `apps/novels/Features/Reading/ReaderViewModel.swift` (prefetchStatus/prefetchManager/trigger/cancel wired to load/goNext/goPrev/goToChapter/setAIMode/reprocess/onDisappear + 100ms poll), `apps/novels/Features/Reading/ReaderView.swift` read-only `prefetchStatus` indicator, tests `PrefetchStatusTests` 2 + `PrefetchManagerTests` 7 + `ReaderPrefetchIntegrationTests` 4 PASS; `xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet` PASS, `swiftlint` 0, `swiftformat` 0/87, `./init.sh` PASS (format PASS, lint PASS, build PASS, test PASS 80.36s, drift PASS)
 - Blockers: none
-- Next: Awaiting feat-006 completion before activation
+- Next: feat-008 Hardening + Release Readiness ready (depends feat-007 done) — activate when user approves

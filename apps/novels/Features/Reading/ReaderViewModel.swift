@@ -19,6 +19,10 @@ final class ReaderViewModel {
     var aiError: String?
     private var aiService: AIReadingService?
     private var aiTask: Task<Void, Never>?
+    var prefetchStatus: PrefetchStatus = .idle
+    private let prefetchManager: PrefetchManager
+    private var prefetchPollTask: Task<Void, Never>?
+    private let processedCache: ProcessedChapterCaching
     var canGoPrev: Bool {
         chapterNumber > 1
     }
@@ -33,27 +37,30 @@ final class ReaderViewModel {
         settingsStore: SettingsStore,
         toastCenter: ToastCenter? = nil,
         cache: ProcessedChapterCaching? = nil,
-        aiService: AIReadingService? = nil
+        aiService: AIReadingService? = nil,
+        prefetchManager: PrefetchManager? = nil
     ) {
         self.bookId = bookId
         self.repository = repository
         self.settingsStore = settingsStore
         self.toastCenter = toastCenter
+        self.prefetchManager = prefetchManager ?? PrefetchManager()
+        let resolvedCache: ProcessedChapterCaching = cache ?? {
+            if let fileCache = try? SQLiteProcessedChapterCache() {
+                return fileCache
+            }
+            if let mem = try? SQLiteProcessedChapterCache.inMemory() {
+                return mem
+            }
+            fatalError("Unable to create ProcessedChapter cache")
+        }()
+        processedCache = resolvedCache
         if let session = settingsStore.session, session.bookId == bookId {
             chapterNumber = max(1, session.chapterNumber)
         }
         if let service = aiService {
             self.aiService = service
         } else {
-            let resolvedCache: ProcessedChapterCaching = cache ?? {
-                if let fileCache = try? SQLiteProcessedChapterCache() {
-                    return fileCache
-                }
-                if let mem = try? SQLiteProcessedChapterCache.inMemory() {
-                    return mem
-                }
-                fatalError("Unable to create ProcessedChapter cache")
-            }()
             let client = AIClient(settings: settingsStore)
             self.aiService = AIReadingService(cache: resolvedCache, client: client, settings: settingsStore)
         }
@@ -88,10 +95,16 @@ final class ReaderViewModel {
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
+        if aiMode != .none, errorMessage == nil {
+            triggerPrefetchIfEligible()
+        } else {
+            cancelPrefetch()
+        }
     }
 
     func goNext() async {
         guard canGoNext else { return }
+        cancelPrefetch()
         chapterNumber += 1
         await load()
         persistChapter()
@@ -99,12 +112,14 @@ final class ReaderViewModel {
 
     func goPrev() async {
         guard canGoPrev else { return }
+        cancelPrefetch()
         chapterNumber -= 1
         await load()
         persistChapter()
     }
 
     func goToChapter(_ number: Int) async {
+        cancelPrefetch()
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
         } else {
@@ -152,9 +167,11 @@ final class ReaderViewModel {
     func onDisappear() {
         settingsStore.session?.onScreen = false
         settingsStore.save()
+        cancelPrefetch()
     }
 
     func setAIMode(_ mode: AIMode) async {
+        cancelPrefetch()
         aiMode = mode
         aiError = nil
         if mode == .none {
@@ -165,11 +182,17 @@ final class ReaderViewModel {
             return
         }
         await loadAIContent(isReprocess: false)
+        if errorMessage == nil {
+            triggerPrefetchIfEligible()
+        }
     }
 
     func reprocess() async {
         guard aiMode != .none else { return }
         await loadAIContent(isReprocess: true)
+        if errorMessage == nil {
+            triggerPrefetchIfEligible()
+        }
     }
 
     private func loadAIContent(isReprocess: Bool) async {
@@ -225,6 +248,56 @@ final class ReaderViewModel {
             settingsStore.session?.bookId = bookId
         }
         settingsStore.save()
+    }
+
+    private func triggerPrefetchIfEligible() {
+        guard aiMode != .none else {
+            Task { await prefetchManager.cancel() }
+            prefetchStatus = .idle
+            return
+        }
+        guard errorMessage == nil else { return }
+        guard let total = book?.count, total > 0 else { return }
+        guard let service = aiService else { return }
+        prefetchPollTask?.cancel()
+        let mode = aiMode
+        let current = chapterNumber
+        let slug = bookId
+        let manager = prefetchManager
+        let cache = processedCache
+        let repo = repository
+        let store = settingsStore
+        Task {
+            await manager.start(
+                bookId: slug,
+                currentChapter: current,
+                totalChapters: total,
+                mode: mode,
+                settings: store,
+                cache: cache,
+                aiService: service,
+                repository: repo
+            )
+        }
+        prefetchPollTask = Task { @MainActor in
+            while !Task.isCancelled {
+                let status = await manager.currentStatus()
+                self.prefetchStatus = status
+                if !status.isRunning {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            let status = await manager.currentStatus()
+            self.prefetchStatus = status
+        }
+    }
+
+    private func cancelPrefetch() {
+        Task { await prefetchManager.cancel() }
+        prefetchPollTask?.cancel()
+        prefetchStatus.isRunning = false
+        prefetchStatus.message = "Đã hủy"
     }
 
     private func loadBookFallback() -> Book? {
