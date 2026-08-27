@@ -95,21 +95,11 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		E2782F33303FD71A00D1FA33 /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				E2DB6191303C43F300D20F8F /* novelsTests */,
-				E2DB619C303C43F300D20F8F /* novelsUITests */,
-			);
-			name = "Recovered References";
-			sourceTree = "<group>";
-		};
 		E2DB6176303C43F300D20F8F = {
 			isa = PBXGroup;
 			children = (
 				E2DB6181303C43F300D20F8F /* novels */,
 				E2DB6180303C43F300D20F8F /* Products */,
-				E2782F33303FD71A00D1FA33 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};

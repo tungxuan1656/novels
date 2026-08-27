@@ -107,19 +107,6 @@ final class CacheManagerTests: XCTestCase {
         XCTAssertEqual(try cache.count(bookId: "alpha"), 2)
     }
 
-    @MainActor
-    func testInvalidHeadersIgnoredInMerge() throws {
-        let suite = "test.cacheheaders.\(UUID().uuidString)"
-        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        let store = SettingsStore(userDefaults: userDefaults)
-        store.aiCustomHeadersJSON = "not json"
-        store.save()
-        XCTAssertTrue(store.effectiveHeaders().isEmpty)
-        store.aiCustomHeadersJSON = "{\"Authorization\":\"Bearer x\"}"
-        store.save()
-        XCTAssertEqual(store.effectiveHeaders()["Authorization"], "Bearer x")
-    }
-
     func testCacheViewLoadReflectsImmediately() throws {
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let base = Date()

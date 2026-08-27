@@ -321,31 +321,3 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
         return ids
     }
 }
-
-actor ProcessedChapterStore {
-    private let cache: SQLiteProcessedChapterCache
-
-    init(cache: SQLiteProcessedChapterCache) {
-        self.cache = cache
-    }
-
-    func get(bookId: String, chapterNumber: Int, mode: AIMode) async throws -> ProcessedChapter? {
-        try await MainActor.run { try cache.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode) }
-    }
-
-    func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) async throws -> Set<Int> {
-        try await MainActor.run { try cache.batchStatus(bookId: bookId, mode: mode, numbers: numbers) }
-    }
-
-    func upsert(_ pc: ProcessedChapter) async throws {
-        try await MainActor.run { try cache.upsert(pc) }
-    }
-
-    func clearAll() async throws {
-        try await MainActor.run { try cache.clearAll() }
-    }
-
-    func clear(bookId: String) async throws {
-        try await MainActor.run { try cache.clear(bookId: bookId) }
-    }
-}

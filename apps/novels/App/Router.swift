@@ -43,7 +43,10 @@ final class Router {
     }
 
     func push(_ route: Route) {
-        guard !isPushing else { return }
+        guard !isPushing else {
+            toast.show("Vui lòng chờ", type: .info)
+            return
+        }
         isPushing = true
         path.append(route)
         if case let .reading(bookId) = route {
@@ -59,7 +62,7 @@ final class Router {
             settingsStore.save()
         }
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            try? await Task.sleep(nanoseconds: 100_000_000)
             isPushing = false
         }
     }

@@ -3,37 +3,60 @@ import SwiftUI
 struct CacheManagerView: View {
     @Environment(Router.self) private var router
 
-    private let cache: ProcessedChapterCaching
+    private let cache: ProcessedChapterCaching?
 
     @State private var total = 0
     @State private var rows: [(slug: String, count: Int)] = []
     @State private var isLoading = true
     @State private var showClearAllConfirm = false
     @State private var showClearBookConfirm: String?
+    @State private var initError: String?
 
     init(cache: ProcessedChapterCaching? = nil) {
         if let cache {
             self.cache = cache
+            _initError = State(initialValue: nil)
         } else if let prod = try? SQLiteProcessedChapterCache() {
             self.cache = prod
+            _initError = State(initialValue: nil)
         } else if let mem = try? SQLiteProcessedChapterCache.inMemory() {
             self.cache = mem
+            _initError = State(initialValue: nil)
         } else {
-            fatalError("Unable to initialize cache — inMemory should always succeed")
+            self.cache = nil
+            _initError = State(initialValue: "Bộ nhớ đệm không khả dụng")
         }
     }
 
     var body: some View {
-        List {
-            countCard
-            bookSection
+        Group {
+            if cache == nil {
+                VStack(spacing: 16) {
+                    Text(initError ?? "Bộ nhớ đệm không khả dụng")
+                        .foregroundStyle(DesignTokens.text)
+                        .multilineTextAlignment(.center)
+                    Button("Thử lại") {
+                        Task { await load() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignTokens.accent)
+                    .accessibilityIdentifier("retryCacheButton")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(DesignTokens.backgroundPaper)
+            } else {
+                List {
+                    countCard
+                    bookSection
+                }
+                .scrollContentBackground(.hidden)
+                .background(DesignTokens.backgroundPaper)
+                .refreshable { await load() }
+            }
         }
         .navigationTitle("Quản lý bộ nhớ đệm")
         .navigationBarTitleDisplayMode(.inline)
-        .scrollContentBackground(.hidden)
-        .background(DesignTokens.backgroundPaper)
         .task { await load() }
-        .refreshable { await load() }
         .confirmationDialog(
             "Xác nhận xóa tất cả?",
             isPresented: $showClearAllConfirm,
@@ -70,7 +93,7 @@ struct CacheManagerView: View {
             Text("Hành động không thể hoàn tác.")
         }
         .overlay {
-            if isLoading {
+            if isLoading, cache != nil {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.clear)
@@ -105,10 +128,7 @@ struct CacheManagerView: View {
 
     private var bookSection: some View {
         Section("Theo sách") {
-            if isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else if rows.isEmpty {
+            if rows.isEmpty {
                 Text("Chưa có dữ liệu đệm")
                     .foregroundStyle(DesignTokens.muted)
             } else {
@@ -132,6 +152,13 @@ struct CacheManagerView: View {
     }
 
     private func load() async {
+        guard let cache else {
+            initError = "Bộ nhớ đệm không khả dụng"
+            isLoading = false
+            total = 0
+            rows = []
+            return
+        }
         isLoading = true
         do {
             total = try cache.countAll()
@@ -140,6 +167,7 @@ struct CacheManagerView: View {
                 try (slug, cache.count(bookId: slug))
             }
             .sorted { $0.slug < $1.slug }
+            initError = nil
         } catch {
             total = 0
             rows = []
@@ -148,12 +176,14 @@ struct CacheManagerView: View {
     }
 
     private func clearAll() async {
+        guard let cache else { return }
         do { try cache.clearAll() } catch {}
         await load()
         router.toast.show("Đã xóa tất cả", type: .success)
     }
 
     private func clearBook(_ slug: String) async {
+        guard let cache else { return }
         do { try cache.clear(bookId: slug) } catch {}
         showClearBookConfirm = nil
         await load()

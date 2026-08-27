@@ -104,8 +104,6 @@ import Observation
         }
         if let data = userDefaults.data(forKey: DefaultsKeys.readingSession) {
             session = try? JSONDecoder().decode(ReadingSession.self, from: data)
-        } else if let str = userDefaults.string(forKey: DefaultsKeys.readingSession), let data = str.data(using: .utf8) { // swiftlint:disable:this line_length
-            session = try? JSONDecoder().decode(ReadingSession.self, from: data)
         } else {
             session = nil
         }
@@ -178,11 +176,11 @@ import Observation
         case "font":
             return typography.font
         case "fontSize":
-            return "\(typography.fontSize)"
+            return String(format: "%g", typography.fontSize)
         case "lineHeight":
-            return "\(typography.lineHeight)"
+            return String(format: "%.1f", typography.lineHeight)
         case "letterSpacing":
-            return "\(typography.letterSpacing)"
+            return String(format: "%.1f", typography.letterSpacing)
         default:
             return ""
         }
@@ -208,25 +206,25 @@ import Observation
         case "PREFETCH_COUNT":
             if let intValue = Int(value) {
                 prefetchCount = intValue
-            }
+            } // keep prior valid value on parse failure
         case "AI_MIN_CHUNK_SIZE":
             if let intValue = Int(value) {
                 aiMinChunkSize = intValue
-            }
+            } // keep prior valid value on parse failure
         case "font":
             typography.font = value
         case "fontSize":
             if let doubleValue = Double(value) {
                 typography.fontSize = doubleValue
-            }
+            } // keep prior valid value on parse failure
         case "lineHeight":
             if let doubleValue = Double(value) {
                 typography.lineHeight = doubleValue
-            }
+            } // keep prior valid value on parse failure
         case "letterSpacing":
             if let doubleValue = Double(value) {
                 typography.letterSpacing = doubleValue
-            }
+            } // keep prior valid value on parse failure
         default:
             break
         }

@@ -1,7 +1,5 @@
 import Foundation
 
-// swiftlint:disable switch_case_alignment
-
 struct SettingDescriptor {
     let key: String
     let label: String
@@ -10,7 +8,7 @@ struct SettingDescriptor {
     let defaultValue: String
     let allowsVerbatimSave: Bool
 
-    // swiftlint:disable cyclomatic_complexity function_body_length
+    // swiftlint:disable cyclomatic_complexity function_body_length switch_case_alignment
     func validate(_ value: String) -> String? {
         switch key {
             case "BOOKS_API_URL", "OPENAI_API_URL":
@@ -21,10 +19,7 @@ struct SettingDescriptor {
                 return trimmed.isEmpty ? "Mô hình không được để trống" : nil
             case "AI_PROVIDER":
                 let lowered = value.lowercased()
-                if lowered.isEmpty || lowered == "openai" {
-                    return nil
-                }
-                return "Chỉ hỗ trợ openai"
+                return (lowered.isEmpty || lowered == "openai") ? nil : "Chỉ hỗ trợ openai"
             case "AI_CUSTOM_HEADERS", "AI_EXTRA_BODY":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
@@ -38,8 +33,8 @@ struct SettingDescriptor {
                 }
                 return nil
             case "AI_PROCESS_ACTIONS":
-                if value.isEmpty {
-                    return nil
+                if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return "Rỗng sẽ về mặc định, dùng Xóa để khôi phục"
                 }
                 guard let data = value.data(using: .utf8),
                       let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
@@ -86,141 +81,127 @@ struct SettingDescriptor {
                 return nil
         }
     }
-    // swiftlint:enable cyclomatic_complexity function_body_length
+    // swiftlint:enable cyclomatic_complexity function_body_length switch_case_alignment
 }
 
 enum SettingsViewModel {
-    // swiftlint:disable function_body_length
-    static func descriptor(for key: String) -> SettingDescriptor {
-        switch key {
-            case "BOOKS_API_URL":
-                return SettingDescriptor(
-                    key: key,
-                    label: "URL Danh mục",
-                    placeholder: "https://...",
-                    description: "Endpoint Supabase get-exported-books",
-                    defaultValue: "https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books",
-                    allowsVerbatimSave: false
-                )
-            case "OPENAI_API_URL":
-                return SettingDescriptor(
-                    key: key,
-                    label: "URL OpenAI",
-                    placeholder: "http://localhost:8317/v1/chat/completions",
-                    description: "Endpoint chat/completions (ATS cho phép localhost)",
-                    defaultValue: "http://localhost:8317/v1/chat/completions",
-                    allowsVerbatimSave: false
-                )
-            case "OPENAI_MODEL":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Mô hình",
-                    placeholder: "gpt-4o",
-                    description: "Tên model, mặc định gpt-4o",
-                    defaultValue: "gpt-4o",
-                    allowsVerbatimSave: false
-                )
-            case "AI_PROVIDER":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Nhà cung cấp",
-                    placeholder: "openai",
-                    description: "Chỉ openai, không phân biệt hoa thường",
-                    defaultValue: "openai",
-                    allowsVerbatimSave: false
-                )
-            case "AI_CUSTOM_HEADERS":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Headers tùy chỉnh (JSON)",
-                    placeholder: "{\"Authorization\":\"Bearer ...\"}",
-                    description: "JSON object, sai cú pháp sẽ được lưu nguyên văn nhưng bỏ qua khi gửi",
-                    defaultValue: "",
-                    allowsVerbatimSave: true
-                )
-            case "AI_EXTRA_BODY":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Body bổ sung (JSON)",
-                    placeholder: "{\"temperature\":0.7}",
-                    description: "JSON object trộn shallow vào body, sai sẽ bỏ qua",
-                    defaultValue: "",
-                    allowsVerbatimSave: true
-                )
-            case "AI_PROCESS_ACTIONS":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Hành động AI (JSON)",
-                    placeholder: "[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",
-                    description: "Mảng translate/summary, rỗng sẽ về mặc định 2 action",
-                    defaultValue: SettingsDefaults.defaultActionsJSON,
-                    allowsVerbatimSave: false
-                )
-            case "PREFETCH_COUNT":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Số chương tải trước",
-                    placeholder: "3",
-                    description: "1..10, ngoài khoảng về 3 (BR-08)",
-                    defaultValue: "3",
-                    allowsVerbatimSave: false
-                )
-            case "AI_MIN_CHUNK_SIZE":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Kích thước chunk",
-                    placeholder: "1300",
-                    description: "500..5000, ngoài khoảng về 1300",
-                    defaultValue: "1300",
-                    allowsVerbatimSave: false
-                )
-            case "font":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Phông chữ",
-                    placeholder: "System",
-                    description: "System/Serif/Mono",
-                    defaultValue: "System",
-                    allowsVerbatimSave: false
-                )
-            case "fontSize":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Cỡ chữ",
-                    placeholder: "16",
-                    description: "12..24, bước 1",
-                    defaultValue: "16",
-                    allowsVerbatimSave: false
-                )
-            case "lineHeight":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Giãn dòng",
-                    placeholder: "1.5",
-                    description: "1.2..2.0, bước 0.1",
-                    defaultValue: "1.5",
-                    allowsVerbatimSave: false
-                )
-            case "letterSpacing":
-                return SettingDescriptor(
-                    key: key,
-                    label: "Giãn chữ",
-                    placeholder: "0",
-                    description: "0..1.0, bước 0.1",
-                    defaultValue: "0",
-                    allowsVerbatimSave: false
-                )
-            default:
-                return SettingDescriptor(
-                    key: key,
-                    label: key,
-                    placeholder: "",
-                    description: "",
-                    defaultValue: "",
-                    allowsVerbatimSave: false
-                )
-        }
-    } // swiftlint:enable function_body_length
-}
+    // swiftlint:disable trailing_comma
+    private static let descriptors: [String: SettingDescriptor] = [
+        "BOOKS_API_URL": SettingDescriptor(
+            key: "BOOKS_API_URL",
+            label: "URL Danh mục",
+            placeholder: "https://...",
+            description: "Endpoint Supabase get-exported-books",
+            defaultValue: "https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books",
+            allowsVerbatimSave: false
+        ),
+        "OPENAI_API_URL": SettingDescriptor(
+            key: "OPENAI_API_URL",
+            label: "URL OpenAI",
+            placeholder: "http://localhost:8317/v1/chat/completions",
+            description: "Endpoint chat/completions (ATS cho phép localhost)",
+            defaultValue: "http://localhost:8317/v1/chat/completions",
+            allowsVerbatimSave: false
+        ),
+        "OPENAI_MODEL": SettingDescriptor(
+            key: "OPENAI_MODEL",
+            label: "Mô hình",
+            placeholder: "gpt-4o",
+            description: "Tên model, mặc định gpt-4o",
+            defaultValue: "gpt-4o",
+            allowsVerbatimSave: false
+        ),
+        "AI_PROVIDER": SettingDescriptor(
+            key: "AI_PROVIDER",
+            label: "Nhà cung cấp",
+            placeholder: "openai",
+            description: "Chỉ openai, không phân biệt hoa thường",
+            defaultValue: "openai",
+            allowsVerbatimSave: false
+        ),
+        "AI_CUSTOM_HEADERS": SettingDescriptor(
+            key: "AI_CUSTOM_HEADERS",
+            label: "Headers tùy chỉnh (JSON)",
+            placeholder: "{\"Authorization\":\"Bearer ...\"}",
+            description: "JSON object, sai cú pháp sẽ được lưu nguyên văn nhưng bỏ qua khi gửi",
+            defaultValue: "",
+            allowsVerbatimSave: true
+        ),
+        "AI_EXTRA_BODY": SettingDescriptor(
+            key: "AI_EXTRA_BODY",
+            label: "Body bổ sung (JSON)",
+            placeholder: "{\"temperature\":0.7}",
+            description: "JSON object trộn shallow vào body, sai sẽ bỏ qua",
+            defaultValue: "",
+            allowsVerbatimSave: true
+        ),
+        "AI_PROCESS_ACTIONS": SettingDescriptor(
+            key: "AI_PROCESS_ACTIONS",
+            label: "Hành động AI (JSON)",
+            placeholder: "[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",
+            description: "Mảng translate/summary, rỗng sẽ về mặc định 2 action",
+            defaultValue: SettingsDefaults.defaultActionsJSON,
+            allowsVerbatimSave: false
+        ),
+        "PREFETCH_COUNT": SettingDescriptor(
+            key: "PREFETCH_COUNT",
+            label: "Số chương tải trước",
+            placeholder: "3",
+            description: "1..10, ngoài khoảng về 3 (BR-08)",
+            defaultValue: "3",
+            allowsVerbatimSave: false
+        ),
+        "AI_MIN_CHUNK_SIZE": SettingDescriptor(
+            key: "AI_MIN_CHUNK_SIZE",
+            label: "Kích thước chunk",
+            placeholder: "1300",
+            description: "500..5000, ngoài khoảng về 1300",
+            defaultValue: "1300",
+            allowsVerbatimSave: false
+        ),
+        "font": SettingDescriptor(
+            key: "font",
+            label: "Phông chữ",
+            placeholder: "System",
+            description: "System/Serif/Mono",
+            defaultValue: "System",
+            allowsVerbatimSave: false
+        ),
+        "fontSize": SettingDescriptor(
+            key: "fontSize",
+            label: "Cỡ chữ",
+            placeholder: "16",
+            description: "12..24, bước 1",
+            defaultValue: "16",
+            allowsVerbatimSave: false
+        ),
+        "lineHeight": SettingDescriptor(
+            key: "lineHeight",
+            label: "Giãn dòng",
+            placeholder: "1.5",
+            description: "1.2..2.0, bước 0.1",
+            defaultValue: "1.5",
+            allowsVerbatimSave: false
+        ),
+        "letterSpacing": SettingDescriptor(
+            key: "letterSpacing",
+            label: "Giãn chữ",
+            placeholder: "0",
+            description: "0..1.0, bước 0.1",
+            defaultValue: "0",
+            allowsVerbatimSave: false
+        ),
+    ]
+    // swiftlint:enable trailing_comma
 
-// swiftlint:enable switch_case_alignment
+    static func descriptor(for key: String) -> SettingDescriptor {
+        descriptors[key] ?? SettingDescriptor(
+            key: key,
+            label: key,
+            placeholder: "",
+            description: "",
+            defaultValue: "",
+            allowsVerbatimSave: false
+        )
+    }
+}
