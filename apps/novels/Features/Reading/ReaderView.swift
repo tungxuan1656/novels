@@ -55,6 +55,7 @@ struct ReaderView: View {
                         } else {
                             content
                         }
+                        prefetchIndicator
                         footerNav
                         Color.clear
                             .frame(height: 1)
@@ -245,6 +246,27 @@ struct ReaderView: View {
             .accessibilityIdentifier("tocButton")
         }
         .accessibilityIdentifier("header")
+    }
+
+    @ViewBuilder
+    private var prefetchIndicator: some View {
+        if viewModel.prefetchStatus.isRunning {
+            HStack(spacing: 8) {
+                ProgressView().scaleEffect(0.8)
+                Text(
+                    "Đang tải trước \(viewModel.prefetchStatus.processedChapters)/\(viewModel.prefetchStatus.totalChapters)"
+                )
+                .font(.caption)
+                .foregroundStyle(DesignTokens.muted)
+            }
+            .accessibilityIdentifier("prefetchStatus")
+            .padding(.vertical, 4)
+        } else if !viewModel.prefetchStatus.errors.isEmpty {
+            Text("Tải trước: \(viewModel.prefetchStatus.errors.count) lỗi")
+                .font(.caption)
+                .foregroundStyle(DesignTokens.error)
+                .accessibilityIdentifier("prefetchStatusError")
+        }
     }
 
     private var footerNav: some View {
