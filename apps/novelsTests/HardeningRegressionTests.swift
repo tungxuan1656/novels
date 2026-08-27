@@ -1,3 +1,4 @@
+// swiftlint:disable file_length
 @testable import novels
 import XCTest
 
@@ -27,14 +28,41 @@ final class HardeningRegressionTests: XCTestCase {
         let pbxPath = FileManager.default.fileExists(atPath: pbxURL.path)
             ? pbxURL.path : "apps/novels.xcodeproj/project.pbxproj"
         let pbx = try String(contentsOfFile: pbxPath, encoding: .utf8)
-        // must be iPhone only, not 1,2
-        XCTAssertTrue(pbx.contains("TARGETED_DEVICE_FAMILY = 1;"))
+        // 3 targets (novels, novelsTests, novelsUITests) × 2 configs (Debug/Release) = 6 occurrences.
+        let familyCount = pbx.components(separatedBy: "TARGETED_DEVICE_FAMILY = 1;").count - 1
+        XCTAssertEqual(familyCount, 6, "Expected 6 TARGETED_DEVICE_FAMILY = 1; got \(familyCount)")
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = \"1,2\""))
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = 1,2"))
-        XCTAssertTrue(pbx.contains("IPHONEOS_DEPLOYMENT_TARGET = 26.5;"))
+        XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = \"1, 2\""))
+        let deploymentCount = pbx.components(separatedBy: "IPHONEOS_DEPLOYMENT_TARGET = 26.5;").count - 1
+        XCTAssertEqual(deploymentCount, 6, "Expected 6 IPHONEOS_DEPLOYMENT_TARGET = 26.5; got \(deploymentCount)")
         XCTAssertTrue(pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J;") || pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J"))
-        XCTAssertFalse(pbx.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"))
-        XCTAssertFalse(pbx.lowercased().contains("~ipad"))
+        // Vector 1: pbxproj build setting insertion (case-sensitive, underscore, not tilde)
+        XCTAssertFalse(
+            pbx.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"),
+            "pbx must not contain INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"
+        )
+        XCTAssertFalse(
+            pbx.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations~iPad"),
+            "pbx must not contain tilde iPad variant"
+        )
+        // Vector 2: Info.plist ~ipad key insertion — check file directly
+        let plistCandidate = root.appendingPathComponent("apps/novels/Info.plist")
+        let plistURL = FileManager.default.fileExists(atPath: plistCandidate.path)
+            ? plistCandidate : URL(fileURLWithPath: "apps/novels/Info.plist")
+        let plistText = try String(contentsOf: plistURL, encoding: .utf8)
+        XCTAssertFalse(
+            plistText.contains("UISupportedInterfaceOrientations~ipad"),
+            "Info.plist must not contain ~ipad orientation"
+        )
+        XCTAssertFalse(
+            plistText.contains("UISupportedInterfaceOrientations~iPad"),
+            "Info.plist must not contain ~iPad case variant"
+        )
+        XCTAssertFalse(
+            plistText.contains("INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad"),
+            "Info.plist text must not contain iPad orientation build key"
+        )
     }
 
     func testInfoPlistATSAndLaunch() throws {
@@ -60,6 +88,7 @@ final class HardeningRegressionTests: XCTestCase {
         // iPhone-only: should not contain iPad-only interface orientation when family=1
         let text = try String(contentsOf: url, encoding: .utf8)
         XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~ipad"))
+        XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~iPad"))
     }
 }
 
@@ -88,47 +117,90 @@ final class HardeningA11yTests: XCTestCase {
         return try String(contentsOfFile: path, encoding: .utf8)
     }
 
+    private func stripped(_ source: String) -> String {
+        var result = source
+        if let regex = try? NSRegularExpression(
+            pattern: "/\\*.*?\\*/",
+            options: [.dotMatchesLineSeparators]
+        ) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: ""
+            )
+        }
+        let lines = result.components(separatedBy: "\n")
+        let withoutLineComments = lines.map { line -> String in
+            if let range = line.range(of: "//") {
+                return String(line[..<range.lowerBound])
+            }
+            return line
+        }
+        return withoutLineComments.joined(separator: "\n")
+    }
+
     @MainActor
     func testLibraryRowsHaveIdentifiersAndMinHeight() throws {
         let src = try source("apps/novels/Features/Library/LibraryView.swift")
-        XCTAssertTrue(src.contains("accessibilityIdentifier(\"library.row."))
-        XCTAssertTrue(src.contains("accessibilityLabel(\"Thêm sách\")"))
-        XCTAssertTrue(src.contains("accessibilityLabel(\"Cài đặt\")"))
-        XCTAssertTrue(src.contains("56") || src.contains("44") || src.contains("minHeight"))
+        let code = stripped(src)
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"library.row."))
+        XCTAssertTrue(code.contains("accessibilityLabel(\"Thêm sách\")"))
+        XCTAssertTrue(code.contains("accessibilityLabel(\"Cài đặt\")"))
+        let hasHitTarget = code.contains("a11yHitTarget()")
+        let hasFrame44 = code.contains("frame(minHeight: 44") || code.contains("frame(minHeight:44")
+            || code.contains("frame(minWidth: 44")
+        let hasContentShape = code.contains("contentShape(Rectangle()")
+        XCTAssertTrue(
+            hasHitTarget || (hasFrame44 && hasContentShape),
+            "Toolbar/rows must provide 44pt hit target via a11yHitTarget() or frame(44)+contentShape outside comments"
+        )
     }
 
     @MainActor
     func testReaderControlsA11y() throws {
         let src = try source("apps/novels/Features/Reading/ReaderView.swift")
-        XCTAssertTrue(src.contains("accessibilityIdentifier(\"prevButton\")"))
-        XCTAssertTrue(src.contains("accessibilityLabel(\"Chương trước\")"))
-        XCTAssertTrue(src.contains("accessibilityIdentifier(\"nextButton\")"))
-        XCTAssertTrue(src.contains("accessibilityLabel(\"Chương sau\")"))
-        XCTAssertTrue(src.contains("accessibilityIdentifier(\"typographyButton\")"))
-        XCTAssertTrue(src.contains("accessibilityIdentifier(\"prefetchStatus\")"))
-        XCTAssertTrue(src.contains("44") || src.contains("minHeight"))
+        let code = stripped(src)
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"prevButton\")"))
+        XCTAssertTrue(code.contains("accessibilityLabel(\"Chương trước\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"nextButton\")"))
+        XCTAssertTrue(code.contains("accessibilityLabel(\"Chương sau\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"typographyButton\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"prefetchStatus\")"))
+        let hasHitTarget = code.contains("a11yHitTarget()")
+        let hasFrame44 = code.contains("frame(minHeight: 44") || code.contains("frame(minHeight:44")
+            || code.contains("frame(minWidth: 44")
+        let hasContentShape = code.contains("contentShape(Rectangle()")
+        XCTAssertTrue(
+            hasHitTarget || (hasFrame44 && hasContentShape),
+            "Reader controls must have 44pt hit target via a11yHitTarget() or frame(44)+contentShape outside comments"
+        )
     }
 
     func testContrastTokensUnchanged() throws {
         let src = try source("apps/novels/Resources/DesignTokens.swift")
-        // tokens are defined as hex 0xXXXXXX; accept both #XXXXXX and 0x form
-        XCTAssertTrue(src.contains("111111"))
-        XCTAssertTrue(src.contains("6B7280"))
-        XCTAssertTrue(src.contains("2563EB"))
-        XCTAssertTrue(src.contains("FDFCF8"))
-        XCTAssertTrue(src.contains("FFFFFF"))
+        let code = stripped(src)
+        // Check hex literal with 0x prefix outside comments to avoid comment bypass.
+        XCTAssertTrue(code.contains("0x111111"), "DesignTokens.text 0x111111 missing outside comments")
+        XCTAssertTrue(code.contains("0x6B7280"), "DesignTokens.muted 0x6B7280 missing outside comments")
+        XCTAssertTrue(code.contains("0x2563EB"), "DesignTokens.accent 0x2563EB missing outside comments")
+        XCTAssertTrue(code.contains("0xFDFCF8"), "DesignTokens.backgroundPaper 0xFDFCF8 missing outside comments")
+        XCTAssertTrue(code.contains("0xFFFFFF"), "DesignTokens.backgroundWhite 0xFFFFFF missing outside comments")
     }
 
     func testBottomSheetHandleA11y() throws {
         let src = try source("apps/novels/SharedUI/BottomSheetView.swift")
-        XCTAssertTrue(src.contains("DesignTokens.border") || src.lowercased().contains("handle"))
+        let code = stripped(src)
+        XCTAssertTrue(code.contains("DesignTokens.border"), "Handle should use DesignTokens.border outside comments")
+        XCTAssertTrue(code.contains("Capsule()"), "Handle should be Capsule outside comments")
         // decorative handle should be hidden from VoiceOver
-        XCTAssertTrue(src.contains("accessibilityHidden(true)"))
+        XCTAssertTrue(code.contains("accessibilityHidden(true)"))
     }
 }
 
 // MARK: - Hardening Edge Sweep (Task 3)
 
+// swiftlint:disable:next type_body_length
 final class HardeningEdgeTests: XCTestCase {
     override func tearDown() {
         super.tearDown()
@@ -170,7 +242,27 @@ final class HardeningEdgeTests: XCTestCase {
         let slipData = HardeningEdgeTests.makeZipSlipData()
         let zipURL = tmp.appendingPathComponent("slip.zip")
         try slipData.write(to: zipURL)
-        XCTAssertThrowsError(try FileManager.default.unzipItem(at: zipURL, to: tmp.appendingPathComponent("out")))
+        let outDir = tmp.appendingPathComponent("out")
+        do {
+            try FileManager.default.unzipItem(at: zipURL, to: outDir)
+            XCTFail("Expected zip-slip traversal error for ../evil.txt")
+        } catch {
+            let nsError = error as NSError
+            XCTAssertEqual(nsError.domain, NSCocoaErrorDomain, "Zip-slip must throw CocoaError")
+            XCTAssertEqual(
+                nsError.code,
+                CocoaError.fileReadCorruptFile.rawValue,
+                "Zip-slip must map to fileReadCorruptFile (traversal), not generic error"
+            )
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: outDir.appendingPathComponent("evil.txt").path),
+                "evil.txt must not exist inside out"
+            )
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: tmp.appendingPathComponent("evil.txt").path),
+                "evil.txt must not escape to tmp via traversal"
+            )
+        }
         // valid sample with __MACOSX ignored is tolerated (resolver flattens hygiene)
         let wrapperURL = tmp.appendingPathComponent("wrapper.zip")
         try TolerantFixtures.makeWrapperWithMacOSXAndFlag08(at: wrapperURL, id: "valid", count: 1)
@@ -364,13 +456,28 @@ final class HardeningEdgeTests: XCTestCase {
 
     // MARK: - Helpers
 
+    // swiftlint:disable:next function_body_length
     static func makeZipSlipData() -> Data {
         var data = Data()
-        // Local header with traversal name
+        // Local header with traversal name — use correct CRC so traversal is the only rejection reason.
         let name = "../evil.txt"
         let nameData = name.data(using: .utf8)!
         let content = Data("evil".utf8)
-        let crc: UInt32 = 0 // not validated because we throw before CRC check due to traversal; use 0
+        // Compute correct CRC32 for payload; ensures failure is traversal, not CRC mismatch.
+        let crc: UInt32 = {
+            let table: [UInt32] = (0 ..< 256).map { idx in
+                var crcVal = UInt32(idx)
+                for _ in 0 ..< 8 {
+                    crcVal = (crcVal & 1) != 0 ? (crcVal >> 1) ^ 0xEDB8_8320 : crcVal >> 1
+                }
+                return crcVal
+            }
+            var crcValue: UInt32 = 0xFFFF_FFFF
+            for byte in content {
+                crcValue = (crcValue >> 8) ^ table[Int((crcValue ^ UInt32(byte)) & 0xFF)]
+            }
+            return crcValue ^ 0xFFFF_FFFF
+        }()
         func append16(_ value: UInt16, to target: inout Data) {
             var le = value.littleEndian
             target.append(Data(bytes: &le, count: 2))

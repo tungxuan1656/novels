@@ -29,7 +29,7 @@
 
 **Modified files (expected):**
 - `apps/novels.xcodeproj/project.pbxproj` — Verify `TARGETED_DEVICE_FAMILY=1` on all 6 configs (already 1), `IPHONEOS_DEPLOYMENT_TARGET=26.5`, `GENERATE_INFOPLIST_FILE=NO` already set, `ASSETCATALOG_COMPILER_APPICON_NAME=AppIcon`; no iPad-only target changes otherwise.
-- `apps/novels/Info.plist` — Keep `LSRequiresIPhoneOS true`, `UILaunchScreen dict` (no storyboard), `NSAppTransportSecurity` localhost only; remove `UISupportedInterfaceOrientations~ipad` array if present (iPhone-only per `ios-scope.md`) or document retention with note; keep `UISupportedInterfaceOrientations` + `~iphone` both portrait/landscape per current file (iPhone family only).
+ - `apps/novels/Info.plist` — Keep `LSRequiresIPhoneOS true`, `UILaunchScreen dict` (no storyboard), `NSAppTransportSecurity` localhost only; authoritative `UISupportedInterfaceOrientations` only (`Portrait`, `LandscapeLeft`, `LandscapeRight`) — both `UISupportedInterfaceOrientations~ipad` and redundant `UISupportedInterfaceOrientations~iphone` removed when `TARGETED_DEVICE_FAMILY=1` + `LSRequiresIPhoneOS=true` (single key avoids divergence; see `docs/decisions/ios-scope.md` Implementation note). `GENERATE_INFOPLIST_FILE=NO` so `INFOPLIST_KEY_…` build settings are ineffective.
 - `apps/novels/Assets.xcassets/AppIcon.appiconset/Contents.json` — Verify 3 `universal/ios/1024` entries (light/dark/tinted) present — no change unless missing role.
 - `apps/novels/Features/Library/LibraryView.swift` — Add/verify `accessibilityLabel`/`accessibilityIdentifier` on row/container, ensure empty state `ContentUnavailable` labels, minimum 44 row height, swipe actions reachable.
 - `apps/novels/Features/Reading/ReaderView.swift` — Ensure `prevButton`/`nextButton` 44×44, disabled at bounds, `accessibilityLabel` `"Chương trước"`/`"Chương sau"` already present + verify, `typographyButton`, `toBottomButton`, `prefetchStatus`.
@@ -108,11 +108,16 @@ In `apps/novels/Info.plist` remove block:
     <string>UIInterfaceOrientationLandscapeRight</string>
 </array>
 ```
-Keep:
+Keep single authoritative key (remove the `~iphone` duplicate — redundant when `TARGETED_DEVICE_FAMILY=1` + `LSRequiresIPhoneOS=true`):
 ```xml
-<key>UISupportedInterfaceOrientations</key> + <key>UISupportedInterfaceOrientations~iphone</key>
+<key>UISupportedInterfaceOrientations</key>
+<array>
+    <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationLandscapeLeft</string>
+    <string>UIInterfaceOrientationLandscapeRight</string>
+</array>
 ```
-with portrait/landscapeLeft/landscapeRight (upsideDown intentionally excluded on iPhone). Verify `UILaunchScreen` remains `<dict/>` (no storyboard), `LSRequiresIPhoneOS <true/>`, ATS localhost-only unchanged.
+(`UISupportedInterfaceOrientations~iphone` removed; `~ipad` already removed. No `~ipad`/`~iphone` keys remain. UpsideDown intentionally excluded on iPhone.) Verify `UILaunchScreen` remains `<dict/>` (no storyboard), `LSRequiresIPhoneOS <true/>`, ATS localhost-only unchanged. Note: `GENERATE_INFOPLIST_FILE=NO` so `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad`/`_iPhone` in `project.pbxproj` is ineffective; authoritative gate is this `Info.plist` (see `docs/decisions/ios-scope.md` Implementation note).
 
 - [x] **Step 4: Verify project.pbxproj family count (already 1)**
 

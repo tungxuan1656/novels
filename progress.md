@@ -102,14 +102,6 @@
 
 ## 2026-08-27 — feat-008
 
-**State**: active
-**Done**: Plan `docs/plans/feat-008.md` created (4 tasks: config/ATS+AppIcon, a11y 44pt/labels, 7-edge regression sweep, final verify + checklist) and feat-008 activated (feature_index.json todo→active, feature handoff active)
-**Evidence**: `docs/plans/feat-008.md` 4 tasks, `feature_index.json` feat-008 active zero other active, `features/feat-008.md` plan linked, `init.sh --quick` PASS (0/87 format, 0 lint, drift PASS) at activation
-**Blockers**: none
-**Next**: Execute docs/plans/feat-008.md Task 1 → Task 4; then `./init.sh` full + mark done
-
-## 2026-08-27 — feat-008
-
 **State**: done
 **Done**: Hardening + Release Readiness — iPhone-only config verified (TARGETED_DEVICE_FAMILY=1 ×6, 26.5, AppIcon 1024×3, launch + ATS localhost-only, ~ipad pruned), a11y 4.5:1/3:1 + 44pt + VoiceOver/Dynamic Type sweep with labels, 7-edge regression recorded (offline scan, invalid ZIP still rejected, missing chapter error no crash, invalid JSON headers/body ignored verbatim, cache clear immediate, prefetch cancel on change, kill-on-Reading resume via UserDefaults)
 **Evidence**: `docs/plans/feat-008.md`, `apps/novels/Info.plist` (LSRequiresIPhoneOS true + UILaunchScreen dict + ATS localhost-only, ~ipad 0), `project.pbxproj` TARGETED_DEVICE_FAMILY=1 ×6 IPHONEOS_DEPLOYMENT_TARGET=26.5 ×6 DEVELOPMENT_TEAM M5U4E4H84J ×8, `Assets.xcassets/AppIcon` 3×1024, a11y 44pt/labels/Dynamic Type/VoiceOver (ReaderView 12 identifiers, ToastView 1 label, Library 3), `apps/novelsTests/HardeningRegressionTests` 2 + `HardeningA11yTests` 4 + `HardeningEdgeTests` 7 PASS, `xcodebuild build` PASS, `swiftformat` 0/88, `swiftlint` 0 violations in 88 files, `./init.sh` PASS [format] PASS [lint] PASS [build] PASS [test] PASS [drift] (21 siblings, total 22)

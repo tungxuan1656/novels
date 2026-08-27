@@ -117,16 +117,13 @@ struct CacheManagerView: View {
                     showClearAllConfirm = true
                 } label: {
                     Label("Xóa tất cả", systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 44)
+                        .frame(maxWidth: .infinity, minHeight: 44)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignTokens.error)
                 .disabled(total == 0)
                 .opacity(total == 0 ? 0.4 : 1)
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
                 .accessibilityIdentifier("clearAllButton")
                 .accessibilityLabel("Xóa tất cả")
             }
@@ -154,8 +151,7 @@ struct CacheManagerView: View {
                         }
                         .accessibilityIdentifier("clear-\(row.slug)")
                         .accessibilityLabel("Xóa \(row.slug)")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
+                        .a11yHitTarget()
                     }
                     .frame(minHeight: 44)
                     .contentShape(Rectangle())

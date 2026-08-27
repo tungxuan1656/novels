@@ -133,11 +133,8 @@ struct ReaderView: View {
                         Image(systemName: "chevron.left")
                         Text("Thư viện")
                     }
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
                 }
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+                .a11yHitTarget()
                 .accessibilityLabel("Quay lại Thư viện")
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -145,12 +142,9 @@ struct ReaderView: View {
                     showSheet = true
                 } label: {
                     Image(systemName: "textformat.size")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("typographyButton")
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+                .a11yHitTarget()
             }
         }
         .interactiveDismissDisabled(true)
@@ -330,12 +324,9 @@ struct ReaderView: View {
                 .foregroundStyle(.white)
                 .clipShape(Circle())
                 .shadow(radius: 4)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
         }
         .padding()
-        .frame(minWidth: 44, minHeight: 44)
-        .contentShape(Rectangle())
+        .a11yHitTarget()
         .accessibilityIdentifier("toBottomButton")
     }
 

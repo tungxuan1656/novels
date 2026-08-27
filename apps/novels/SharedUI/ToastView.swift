@@ -1,5 +1,8 @@
 import Observation
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum ToastType: Equatable {
     case success
@@ -56,6 +59,9 @@ final class ToastCenter {
         }
         task?.cancel()
         current = ToastData(message: message, type: type)
+        #if canImport(UIKit)
+        UIAccessibility.post(notification: .announcement, argument: message)
+        #endif
         task = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
             guard !Task.isCancelled else { return }
@@ -82,8 +88,14 @@ struct ToastView: View {
             .padding(.vertical, DesignTokens.spacing12)
             .background(data.type.color)
             .clipShape(Capsule())
+            .accessibilityElement(children: .combine)
             .accessibilityLabel(data.message)
             .accessibilityAddTraits(.isStaticText)
+            .onAppear {
+                #if canImport(UIKit)
+                UIAccessibility.post(notification: .announcement, argument: data.message)
+                #endif
+            }
     }
 }
 

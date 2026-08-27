@@ -80,11 +80,8 @@ struct LibraryView: View {
                 } label: {
                     Image(systemName: "plus")
                         .accessibilityLabel("Thêm sách")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
                 }
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+                .a11yHitTarget()
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -92,12 +89,9 @@ struct LibraryView: View {
                 } label: {
                     Image(systemName: "gearshape")
                         .accessibilityLabel("Cài đặt")
-                        .frame(minWidth: 44, minHeight: 44)
-                        .contentShape(Rectangle())
                 }
                 .accessibilityIdentifier("settingsButton")
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
+                .a11yHitTarget()
             }
         }
         .loadingOverlay(isLoading: viewModel.isLoading)

@@ -22,12 +22,9 @@ struct ReaderBottomSheet: View {
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundStyle(DesignTokens.muted)
-                            .frame(minWidth: 44, minHeight: 44)
-                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Đóng")
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+                    .a11yHitTarget()
                     Button {
                         withAnimation { showGearToast = true }
                         Task {
@@ -37,12 +34,9 @@ struct ReaderBottomSheet: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .foregroundStyle(DesignTokens.muted)
-                            .frame(minWidth: 44, minHeight: 44)
-                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Cài đặt")
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
+                    .a11yHitTarget()
                 }
                 Divider()
                 if let viewModel {
@@ -165,8 +159,9 @@ struct ReaderBottomSheet: View {
                     .foregroundStyle(DesignTokens.text)
             }
             .labelsHidden()
-            .frame(minWidth: 44, minHeight: 44)
-            .contentShape(Rectangle())
+            .accessibilityLabel(title)
+            .accessibilityValue(String(format: format, value.wrappedValue))
+            .a11yHitTarget()
             Text(String(format: format, value.wrappedValue))
                 .monospacedDigit()
                 .foregroundStyle(DesignTokens.text)
