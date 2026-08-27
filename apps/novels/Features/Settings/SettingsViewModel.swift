@@ -74,6 +74,9 @@ struct SettingDescriptor {
                     return nil
                 }
                 return "1.2..2.0"
+            case "font":
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty ? "Phông chữ không được để trống" : nil
             case "letterSpacing":
                 if let number = Double(value), (0 ... 1.0).contains(number) {
                     return nil

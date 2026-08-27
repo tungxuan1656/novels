@@ -19,9 +19,7 @@ struct CacheManagerView: View {
         } else if let mem = try? SQLiteProcessedChapterCache.inMemory() {
             self.cache = mem
         } else {
-            // swiftlint:disable force_try
-            self.cache = try! SQLiteProcessedChapterCache.inMemory()
-            // swiftlint:enable force_try
+            fatalError("Unable to initialize cache — inMemory should always succeed")
         }
     }
 

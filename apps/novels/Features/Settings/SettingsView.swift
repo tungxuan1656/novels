@@ -34,17 +34,19 @@ struct SettingsView: View {
                     value: "\(settings.aiMinChunkSize)"
                 )
             }
-            Section("Tải trước & Kiểu chữ") {
+            Section("Tải trước") {
                 row(
                     key: "PREFETCH_COUNT",
                     label: "Số chương tải trước",
                     value: "\(settings.prefetchCount)"
                 )
+            }
+            Section("Kiểu chữ") {
                 row(key: "font", label: "Phông chữ", value: settings.typography.font)
                 row(
                     key: "fontSize",
                     label: "Cỡ chữ",
-                    value: "\(Int(settings.typography.fontSize))"
+                    value: String(format: "%g", settings.typography.fontSize)
                 )
                 row(
                     key: "lineHeight",
