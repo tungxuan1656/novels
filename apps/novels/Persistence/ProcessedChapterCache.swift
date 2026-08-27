@@ -37,6 +37,9 @@ protocol ProcessedChapterCaching {
     func upsert(_ pc: ProcessedChapter) throws
     func clearAll() throws
     func clear(bookId: String) throws
+    func countAll() throws -> Int
+    func count(bookId: String) throws -> Int
+    func allBookIds() throws -> [String]
 }
 
 final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
@@ -274,32 +277,47 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
             throw SQLiteError.step(message: String(cString: sqlite3_errmsg(handle)))
         }
     }
-}
 
-actor ProcessedChapterStore {
-    private let cache: SQLiteProcessedChapterCache
-
-    init(cache: SQLiteProcessedChapterCache) {
-        self.cache = cache
+    func countAll() throws -> Int {
+        let sql = "SELECT count(*) FROM processed_chapters;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepare(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        defer { sqlite3_finalize(stmt) }
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            throw SQLiteError.step(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        return Int(sqlite3_column_int(stmt, 0))
     }
 
-    func get(bookId: String, chapterNumber: Int, mode: AIMode) async throws -> ProcessedChapter? {
-        try await MainActor.run { try cache.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode) }
+    func count(bookId: String) throws -> Int {
+        let sql = "SELECT count(*) FROM processed_chapters WHERE book_id=?;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepare(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        defer { sqlite3_finalize(stmt) }
+        try bindText(stmt, index: 1, value: bookId)
+        guard sqlite3_step(stmt) == SQLITE_ROW else {
+            throw SQLiteError.step(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        return Int(sqlite3_column_int(stmt, 0))
     }
 
-    func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) async throws -> Set<Int> {
-        try await MainActor.run { try cache.batchStatus(bookId: bookId, mode: mode, numbers: numbers) }
-    }
-
-    func upsert(_ pc: ProcessedChapter) async throws {
-        try await MainActor.run { try cache.upsert(pc) }
-    }
-
-    func clearAll() async throws {
-        try await MainActor.run { try cache.clearAll() }
-    }
-
-    func clear(bookId: String) async throws {
-        try await MainActor.run { try cache.clear(bookId: bookId) }
+    func allBookIds() throws -> [String] {
+        let sql = "SELECT DISTINCT book_id FROM processed_chapters;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepare(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        defer { sqlite3_finalize(stmt) }
+        var ids: [String] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let cString = sqlite3_column_text(stmt, 0) {
+                ids.append(String(cString: cString))
+            }
+        }
+        return ids
     }
 }

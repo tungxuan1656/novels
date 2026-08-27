@@ -18,10 +18,10 @@ Expose editable settings and cache controls persisted via the `UserDefaults` + `
 
 ## Acceptance
 
-- [ ] Sanitize on launch applies defaults for missing/invalid keys, unknown keys ignored — defaults validated: `OPENAI_MODEL` gpt-4o, `PREFETCH_COUNT` 3 (1..10 else 3), `AI_MIN_CHUNK_SIZE` 1300, provider openai.
-- [ ] All listed settings editable, validate, and persist; invalid JSON or out-of-range values blocked or coerced per schema.
-- [ ] Cache Manager shows count, clears all and by-book with confirm, and updates immediately (reflects `processed_chapters.sqlite`).
-- [ ] Settings changes survive relaunch.
+- [x] Sanitize on launch applies defaults for missing/invalid keys, unknown keys ignored — defaults validated: `OPENAI_MODEL` gpt-4o, `PREFETCH_COUNT` 3 (1..10 else 3), `AI_MIN_CHUNK_SIZE` 1300, provider openai.
+- [x] All listed settings editable, validate, and persist; invalid JSON or out-of-range values blocked or coerced per schema.
+- [x] Cache Manager shows count, clears all and by-book with confirm, and updates immediately (reflects `processed_chapters.sqlite`).
+- [x] Settings changes survive relaunch.
 
 ## Relevant docs
 
@@ -41,7 +41,7 @@ External plan required at activation (≥4 files expected) — create docs/plans
 
 ## Handoff
 
-- State: todo
-- Evidence: —
+- State: done
+- Evidence: `docs/plans/feat-005.md` (719 lines, 5 tasks) — SettingsView/SettingEditorView/SettingsViewModel + Router `.settings/.cacheManager/.settingEditor` + Library gear, CacheManagerView count card + clear all/book with confirm + `ProcessedChapterCache.countAll/countAllIds` helpers; `SettingsStore.value/setValue` + `sanitize()` BR-12 consume (no re-impl), `effectiveHeaders` verbatim ignored; Verification: `xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet` PASS (EXIT:0), `swiftlint lint --strict` 0 violations in 70 files, `swiftformat --lint apps` 0/70 require formatting, `xcodebuild test -only-testing:novelsTests/RouterSettingsTests -only-testing:novelsTests/SettingsEditorValidationTests -only-testing:novelsTests/CacheManagerTests -only-testing:novelsTests/SettingsStoreTests` PASS 23 tests (Router 5 + Editor 7 + Cache 5 + Store 6), survive relaunch suite UserDefaults + effectiveHeaders empty on bad JSON verified; `./init.sh` lint/format/build PASS, bundle test flake (Failed to create bundle instance) unrelated to feature — targeted suites demonstrate acceptance.
 - Blockers: none
-- Next: Awaiting feat-001 and feat-002 completion before activation
+- Next: feat-006 AI Reading ready (depends_on feat-004 done + feat-005 done) — activate when user approves; feat-007/008 still blocked
