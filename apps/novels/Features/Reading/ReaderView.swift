@@ -231,12 +231,18 @@ struct ReaderView: View {
     }
 
     private var topHeader: some View {
-        VStack(spacing: 6) {
-            Text(topChapterTitleText)
-                .font(.system(size: 10, weight: .regular))
-                .foregroundStyle(DesignTokens.text)
-                .lineLimit(1)
-                .accessibilityIdentifier("chapterText")
+        VStack(spacing: 0) {
+            HStack {
+                Text(topChapterTitleText)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(DesignTokens.muted)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("chapterText")
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 2)
+            .background(DesignTokens.backgroundPaper)
 
             HStack {
                 Button {
@@ -244,9 +250,9 @@ struct ReaderView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(DesignTokens.text)
+                        .foregroundStyle(DesignTokens.muted)
                         .frame(width: 30, height: 30)
-                        .background(Color(uiColor: .systemGray5).opacity(0.85))
+                        .background(Color(uiColor: .systemGray5).opacity(0.9))
                         .clipShape(Circle())
                 }
                 .a11yHitTarget()
@@ -256,7 +262,7 @@ struct ReaderView: View {
                 Spacer()
 
                 HStack(spacing: 4) {
-                    HStack(spacing: 0) {
+                    HStack(spacing: 2) {
                         Button {
                             debounceTask?.cancel()
                             debounceTask = nil
@@ -270,12 +276,13 @@ struct ReaderView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(
                                     viewModel.canGoPrev
-                                        ? DesignTokens.text
-                                        : DesignTokens.muted.opacity(0.4)
+                                        ? DesignTokens.muted
+                                        : DesignTokens.muted.opacity(0.3)
                                 )
+                                .frame(width: 22, height: 28)
+                                .contentShape(Rectangle())
                         }
                         .disabled(!viewModel.canGoPrev)
-                        .a11yHitTarget()
                         .accessibilityIdentifier("prevButton")
                         .accessibilityLabel("Chương trước")
 
@@ -292,17 +299,19 @@ struct ReaderView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(
                                     viewModel.canGoNext
-                                        ? DesignTokens.text
-                                        : DesignTokens.muted.opacity(0.4)
+                                        ? DesignTokens.muted
+                                        : DesignTokens.muted.opacity(0.3)
                                 )
+                                .frame(width: 22, height: 28)
+                                .contentShape(Rectangle())
                         }
                         .disabled(!viewModel.canGoNext)
-                        .a11yHitTarget()
                         .accessibilityIdentifier("nextButton")
                         .accessibilityLabel("Chương sau")
                     }
-                    .frame(height: 32)
-                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .padding(.horizontal, 2)
+                    .frame(height: 28)
+                    .background(Color(uiColor: .systemGray5).opacity(0.9))
                     .clipShape(Capsule())
 
                     Button {
@@ -310,9 +319,9 @@ struct ReaderView: View {
                     } label: {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(DesignTokens.text)
-                            .frame(width: 32, height: 32)
-                            .background(Color(uiColor: .systemGray5).opacity(0.85))
+                            .foregroundStyle(DesignTokens.muted)
+                            .frame(width: 28, height: 28)
+                            .background(Color(uiColor: .systemGray5).opacity(0.9))
                             .clipShape(Circle())
                     }
                     .a11yHitTarget()
@@ -320,9 +329,8 @@ struct ReaderView: View {
                     .accessibilityLabel("Mục lục")
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 8)
         }
-        .padding(.top, 0)
         .accessibilityIdentifier("header")
     }
 
@@ -359,11 +367,11 @@ struct ReaderView: View {
                     proxy.scrollTo("bottom", anchor: .bottom)
                 }
             } label: {
-                Image(systemName: "arrow.down.to.line")
+                Image(systemName: "arrow.down")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DesignTokens.text)
-                    .frame(width: 30, height: 30)
-                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .foregroundStyle(DesignTokens.muted)
+                    .frame(width: 28, height: 28)
+                    .background(Color(uiColor: .systemGray5).opacity(0.9))
                     .clipShape(Circle())
             }
             .a11yHitTarget()
@@ -378,9 +386,9 @@ struct ReaderView: View {
             } label: {
                 Image(systemName: "textformat.size")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DesignTokens.text)
-                    .frame(width: 30, height: 30)
-                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .foregroundStyle(DesignTokens.muted)
+                    .frame(width: 28, height: 28)
+                    .background(Color(uiColor: .systemGray5).opacity(0.9))
                     .clipShape(Circle())
             }
             .a11yHitTarget()
@@ -388,7 +396,7 @@ struct ReaderView: View {
             .accessibilityLabel("Cài đặt phông chữ")
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 12)
+        .padding(.bottom, -6)
     }
 
     private func handleOffset(_ value: CGFloat) {
