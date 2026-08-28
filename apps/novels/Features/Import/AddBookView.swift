@@ -7,59 +7,40 @@ struct AddBookView: View {
 
     var body: some View {
         @Bindable var bindable = viewModel
-        VStack(spacing: 0) {
-            HStack {
-                Button("Thư viện") {
-                    router.pop()
-                }
-                .foregroundStyle(DesignTokens.accent)
-                .frame(minWidth: 44, minHeight: 44)
-                .contentShape(Rectangle())
-                .accessibilityLabel("Thư viện")
-                Spacer()
-                Text("Thêm sách")
-                    .font(.headline)
-                    .foregroundStyle(DesignTokens.text)
-                Spacer()
-                Picker("Sắp xếp", selection: $bindable.sortOption) {
-                    Text("Tên A→Z").tag(ImportViewModel.SortOption.nameAZ)
-                    Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
-                }
-                .pickerStyle(.menu)
-                .tint(DesignTokens.text)
-                .frame(minHeight: 44)
-                .contentShape(Rectangle())
-                .accessibilityLabel("Sắp xếp")
-            }
-            .padding(.horizontal, DesignTokens.sidePadding)
-            .padding(.vertical, DesignTokens.spacing12)
+        contentView
             .background(DesignTokens.backgroundWhite)
-
-            Divider()
-                .background(DesignTokens.border)
-
-            contentView
-                .background(DesignTokens.backgroundWhite)
-        }
-        .background(DesignTokens.backgroundWhite)
-        .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-        .overlay {
-            if viewModel.importState != .idle {
-                LoadingView(
-                    message: viewModel.importState == .downloading
-                        ? "Đang tải..." : "Đang giải nén...",
-                    isBlocking: true
-                )
+            .navigationTitle("Thêm sách")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Picker("Sắp xếp", selection: $bindable.sortOption) {
+                        Text("A→Z").tag(ImportViewModel.SortOption.nameAZ)
+                        Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
+                    }
+                    .pickerStyle(.menu)
+                    .controlSize(.mini)
+                    .tint(DesignTokens.text)
+                    .a11yHitTarget()
+                    .accessibilityLabel("Sắp xếp")
+                    .fixedSize()
+                }
             }
-        }
-        .disabled(viewModel.importState != .idle)
-        .task {
-            await viewModel.loadCatalog()
-        }
-        .refreshable {
-            await viewModel.loadCatalog()
-        }
+            .overlay {
+                if viewModel.importState != .idle {
+                    LoadingView(
+                        message: viewModel.importState == .downloading
+                            ? "Đang tải..." : "Đang giải nén...",
+                        isBlocking: true
+                    )
+                }
+            }
+            .disabled(viewModel.importState != .idle)
+            .task {
+                await viewModel.loadCatalog()
+            }
+            .refreshable {
+                await viewModel.loadCatalog()
+            }
     }
 
     @ViewBuilder

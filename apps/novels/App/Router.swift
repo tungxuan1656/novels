@@ -30,6 +30,11 @@ final class Router {
     }
 
     func restoreInitialRoute() {
+        if CommandLine.arguments.contains("--reset-session") {
+            settingsStore.session = nil
+            settingsStore.save()
+            return
+        }
         settingsStore.load()
         settingsStore.sanitize()
         guard let session = settingsStore.session, session.onScreen else { return }

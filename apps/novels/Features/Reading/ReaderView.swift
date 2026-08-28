@@ -41,59 +41,68 @@ struct ReaderView: View {
     var body: some View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
-                        header
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else if viewModel.aiMode != .none {
-                            aiSection
-                        } else if viewModel.blocks.isEmpty {
-                            Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                                .foregroundStyle(DesignTokens.muted)
-                        } else {
-                            content
+                ZStack(alignment: .top) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
+                            Color.clear.frame(height: 54)
+
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                            } else if viewModel.aiMode != .none {
+                                aiSection
+                            } else if viewModel.blocks.isEmpty {
+                                Text(viewModel.errorMessage ?? "Không tìm thấy chương")
+                                    .foregroundStyle(DesignTokens.muted)
+                            } else {
+                                content
+                            }
+                            prefetchIndicator
+                            Color.clear
+                                .frame(height: 1)
+                                .id("bottom")
                         }
-                        prefetchIndicator
-                        footerNav
-                        Color.clear
-                            .frame(height: 1)
-                            .id("bottom")
+                        .padding(DesignTokens.spacing16)
+                        .background(
+                            GeometryReader { geometry in
+                                Color.clear.preference(
+                                    key: ContentHeightKey.self,
+                                    value: geometry.size.height
+                                )
+                            }
+                        )
+                        .background(
+                            GeometryReader { geometry in
+                                Color.clear.preference(
+                                    key: ScrollOffsetKey.self,
+                                    value: geometry.frame(in: .named("reader")).minY
+                                )
+                            }
+                        )
+                        .id("top")
                     }
-                    .padding(DesignTokens.spacing16)
+                    .coordinateSpace(name: "reader")
+                    .scrollPosition($scrollPosition)
+                    .onPreferenceChange(ScrollOffsetKey.self) { value in
+                        handleOffset(value)
+                    }
+                    .onPreferenceChange(ContentHeightKey.self) { value in
+                        contentHeight = value
+                    }
+                    .onPreferenceChange(ViewportHeightKey.self) { value in
+                        viewportHeight = value
+                    }
                     .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ContentHeightKey.self,
-                                value: geometry.size.height
-                            )
-                        }
+                        Color.clear.preference(key: ViewportHeightKey.self, value: outer.size.height)
                     )
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ScrollOffsetKey.self,
-                                value: geometry.frame(in: .named("reader")).minY
-                            )
-                        }
-                    )
-                    .id("top")
+
+                    topHeader
+
+                    VStack {
+                        Spacer()
+                        bottomFloatingBar(proxy)
+                    }
                 }
-                .coordinateSpace(name: "reader")
-                .scrollPosition($scrollPosition)
-                .onPreferenceChange(ScrollOffsetKey.self) { value in
-                    handleOffset(value)
-                }
-                .onPreferenceChange(ContentHeightKey.self) { value in
-                    contentHeight = value
-                }
-                .onPreferenceChange(ViewportHeightKey.self) { value in
-                    viewportHeight = value
-                }
-                .background(
-                    Color.clear.preference(key: ViewportHeightKey.self, value: outer.size.height)
-                )
                 .onAppear {
                     scrollProxy = proxy
                     viewportHeight = outer.size.height
@@ -115,42 +124,16 @@ struct ReaderView: View {
                 .onChange(of: outer.size.height) { _, newValue in
                     viewportHeight = newValue
                 }
-                .overlay(alignment: .bottomTrailing) {
-                    toBottomButton(proxy)
-                }
             }
         }
         .background(DesignTokens.backgroundPaper)
-        .navigationTitle(viewModel.book?.name ?? "Đọc sách")
-        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    router.popReading()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Thư viện")
-                    }
-                }
-                .a11yHitTarget()
-                .accessibilityLabel("Quay lại Thư viện")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSheet = true
-                } label: {
-                    Image(systemName: "textformat.size")
-                }
-                .accessibilityIdentifier("typographyButton")
-                .a11yHitTarget()
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
                 .presentationDetents([.medium])
+                .presentationBackground(.ultraThinMaterial)
         }
     }
 
@@ -235,20 +218,111 @@ struct ReaderView: View {
         return .system(size: base, design: design)
     }
 
-    private var header: some View {
-        HStack {
-            Text("Chương \(viewModel.chapterNumber)/\(viewModel.book?.count ?? 0)")
-                .font(.caption)
-                .foregroundStyle(DesignTokens.muted)
-                .accessibilityIdentifier("chapterText")
-            Spacer()
-            Button("Mục lục") {
-                router.push(.references(bookId: bookId))
-            }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("tocButton")
+    private var topChapterTitleText: String {
+        let num = viewModel.chapterNumber
+        let headingBlock = viewModel.blocks.first(where: { $0.isHeading })
+        if let headingText = headingBlock?.spans.first?.text, !headingText.isEmpty {
+            return "【\(num)】 \(headingText)"
         }
+        if let bookName = viewModel.book?.name, !bookName.isEmpty {
+            return "【\(num)】 Chương \(num): \(bookName)"
+        }
+        return "【\(num)】 Chương \(num)"
+    }
+
+    private var topHeader: some View {
+        VStack(spacing: 6) {
+            Text(topChapterTitleText)
+                .font(.system(size: 10, weight: .regular))
+                .foregroundStyle(DesignTokens.text)
+                .lineLimit(1)
+                .accessibilityIdentifier("chapterText")
+
+            HStack {
+                Button {
+                    router.popReading()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.text)
+                        .frame(width: 30, height: 30)
+                        .background(Color(uiColor: .systemGray5).opacity(0.85))
+                        .clipShape(Circle())
+                }
+                .a11yHitTarget()
+                .accessibilityIdentifier("backButton")
+                .accessibilityLabel("Quay lại Thư viện")
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    HStack(spacing: 0) {
+                        Button {
+                            debounceTask?.cancel()
+                            debounceTask = nil
+                            beginProgrammaticScrolling()
+                            Task {
+                                await viewModel.goPrev()
+                                scrollToTop()
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(
+                                    viewModel.canGoPrev
+                                        ? DesignTokens.text
+                                        : DesignTokens.muted.opacity(0.4)
+                                )
+                        }
+                        .disabled(!viewModel.canGoPrev)
+                        .a11yHitTarget()
+                        .accessibilityIdentifier("prevButton")
+                        .accessibilityLabel("Chương trước")
+
+                        Button {
+                            debounceTask?.cancel()
+                            debounceTask = nil
+                            beginProgrammaticScrolling()
+                            Task {
+                                await viewModel.goNext()
+                                scrollToTop()
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(
+                                    viewModel.canGoNext
+                                        ? DesignTokens.text
+                                        : DesignTokens.muted.opacity(0.4)
+                                )
+                        }
+                        .disabled(!viewModel.canGoNext)
+                        .a11yHitTarget()
+                        .accessibilityIdentifier("nextButton")
+                        .accessibilityLabel("Chương sau")
+                    }
+                    .frame(height: 32)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .clipShape(Capsule())
+
+                    Button {
+                        router.push(.references(bookId: bookId))
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(DesignTokens.text)
+                            .frame(width: 32, height: 32)
+                            .background(Color(uiColor: .systemGray5).opacity(0.85))
+                            .clipShape(Circle())
+                    }
+                    .a11yHitTarget()
+                    .accessibilityIdentifier("tocButton")
+                    .accessibilityLabel("Mục lục")
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.top, 0)
         .accessibilityIdentifier("header")
     }
 
@@ -273,61 +347,48 @@ struct ReaderView: View {
         }
     }
 
-    private var footerNav: some View {
+    private func bottomFloatingBar(_ proxy: ScrollViewProxy) -> some View {
         HStack {
-            Button("Trước") {
-                debounceTask?.cancel()
-                debounceTask = nil
-                beginProgrammaticScrolling()
-                Task {
-                    await viewModel.goPrev()
-                    scrollToTop()
-                }
-            }
-            .disabled(!viewModel.canGoPrev)
-            .opacity(viewModel.canGoPrev ? 1 : 0.4)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("prevButton")
-            .accessibilityLabel("Chương trước")
             Spacer()
-            Button("Sau") {
+
+            Button {
                 debounceTask?.cancel()
                 debounceTask = nil
                 beginProgrammaticScrolling()
-                Task {
-                    await viewModel.goNext()
-                    scrollToTop()
+                withAnimation {
+                    proxy.scrollTo("bottom", anchor: .bottom)
                 }
+            } label: {
+                Image(systemName: "arrow.down.to.line")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DesignTokens.text)
+                    .frame(width: 30, height: 30)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .clipShape(Circle())
             }
-            .disabled(!viewModel.canGoNext)
-            .opacity(viewModel.canGoNext ? 1 : 0.4)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("nextButton")
-            .accessibilityLabel("Chương sau")
-        }
-    }
+            .a11yHitTarget()
+            .accessibilityIdentifier("toBottomButton")
+            .accessibilityLabel("Cuộn xuống cuối")
 
-    private func toBottomButton(_ proxy: ScrollViewProxy) -> some View {
-        Button {
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            withAnimation {
-                proxy.scrollTo("bottom", anchor: .bottom)
-            }
-        } label: {
-            Image(systemName: "arrow.down.to.line")
-                .padding(12)
-                .background(DesignTokens.accent)
-                .foregroundStyle(.white)
-                .clipShape(Circle())
-                .shadow(radius: 4)
+            Spacer()
         }
-        .padding()
-        .a11yHitTarget()
-        .accessibilityIdentifier("toBottomButton")
+        .overlay(alignment: .trailing) {
+            Button {
+                showSheet = true
+            } label: {
+                Image(systemName: "textformat.size")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DesignTokens.text)
+                    .frame(width: 30, height: 30)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .clipShape(Circle())
+            }
+            .a11yHitTarget()
+            .accessibilityIdentifier("typographyButton")
+            .accessibilityLabel("Cài đặt phông chữ")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 12)
     }
 
     private func handleOffset(_ value: CGFloat) {

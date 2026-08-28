@@ -7,7 +7,7 @@ struct LoadingView: View {
     var body: some View {
         ZStack {
             if isBlocking {
-                Color.black.opacity(0.25)
+                Color.black.opacity(0.1)
                     .ignoresSafeArea()
             }
             VStack(spacing: DesignTokens.spacing12) {
@@ -21,7 +21,7 @@ struct LoadingView: View {
             .padding(DesignTokens.spacing24)
             .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusLarge))
-            .shadow(radius: 8)
+            .shadow(color: .black.opacity(0.1), radius: 12)
         }
         .accessibilityLabel(message)
     }

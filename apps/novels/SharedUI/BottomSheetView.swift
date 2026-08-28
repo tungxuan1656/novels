@@ -16,7 +16,7 @@ struct BottomSheetView<Content: View>: View {
                 .padding(.horizontal, DesignTokens.spacing16)
                 .padding(.bottom, DesignTokens.spacing16)
         }
-        .background(DesignTokens.surface)
+        .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusSheet, style: .continuous))
     }
 }
