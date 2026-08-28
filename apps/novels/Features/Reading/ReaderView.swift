@@ -195,11 +195,12 @@ struct ReaderView: View {
     }
 
     private func aiProcessedContent(_ text: String) -> some View {
-        Text(text)
-            .font(.system(
-                size: CGFloat(settingsStore.typography.fontSize),
-                design: ReaderFontDesign.design(for: settingsStore.typography.font)
-            ))
+        let base = CGFloat(settingsStore.typography.fontSize)
+        let fontName = settingsStore.typography.font
+        let font = ReaderFontMapper.font(name: fontName, size: base)
+
+        return Text(text)
+            .font(font)
             .foregroundStyle(DesignTokens.text)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
             .kerning(CGFloat(settingsStore.typography.letterSpacing))
@@ -210,12 +211,14 @@ struct ReaderView: View {
 
     private func fontFor(block: TextBlock, span: TextSpan) -> Font {
         let base = CGFloat(settingsStore.typography.fontSize)
-        let design = ReaderFontDesign.design(for: settingsStore.typography.font)
+        let fontName = settingsStore.typography.font
+
         if block.isHeading {
             let level = CGFloat(block.headingLevel ?? 3)
-            return .system(size: base + CGFloat(7 - level) * 2, weight: .bold, design: design)
+            let size = base + CGFloat(7 - level) * 2
+            return ReaderFontMapper.font(name: fontName, size: size, weight: .bold)
         }
-        return .system(size: base, design: design)
+        return ReaderFontMapper.font(name: fontName, size: base)
     }
 
     private var topChapterTitleText: String {

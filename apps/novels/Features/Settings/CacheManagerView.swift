@@ -52,8 +52,6 @@ struct CacheManagerView: View {
                     countCard
                     bookSection
                 }
-                .scrollContentBackground(.hidden)
-                .background(DesignTokens.backgroundPaper)
                 .refreshable { await load() }
             }
         }

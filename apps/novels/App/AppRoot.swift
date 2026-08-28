@@ -20,6 +20,7 @@ struct AppRoot: View {
                     switch route {
                         case let .reading(bookId):
                             ReaderView(bookId: bookId, router: router)
+                                .toolbar(.hidden, for: .navigationBar)
                         case let .references(bookId):
                             let repo = router.repository
                             if let book = try? repo.book(slug: bookId) {

@@ -144,13 +144,13 @@ import Observation
         if typography.font.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             typography.font = TypographySetting.default.font
         }
-        if !(12 ... 24).contains(typography.fontSize) {
+        if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
-        if !(1.2 ... 2.0).contains(typography.lineHeight) {
+        if !(1.0 ... 5.0).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
-        if !(0 ... 1.0).contains(typography.letterSpacing) {
+        if !(0 ... 3.0).contains(typography.letterSpacing) {
             typography.letterSpacing = TypographySetting.default.letterSpacing
         }
         if let session, !SlugValidator.isValid(session.bookId) {

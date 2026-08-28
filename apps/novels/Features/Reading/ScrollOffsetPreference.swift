@@ -60,6 +60,82 @@ enum ReaderFontDesign {
     }
 }
 
+/// Helper for custom font mapping to PostScript names
+enum ReaderFontMapper {
+    // swiftlint:disable trailing_comma
+    static let fonts = [
+        "System",
+        "Serif",
+        "Mono",
+        "Arial",
+        "Be Vietnam Pro",
+        "Georgia",
+        "Google Sans",
+        "Inter",
+        "Lato",
+        "Lora",
+        "Merriweather",
+        "Montserrat",
+        "Montserrat Alternates",
+        "Noto Sans",
+        "Noto Serif",
+        "Open Sans",
+        "PT Sans",
+        "PT Serif",
+        "Raleway",
+        "Roboto",
+        "Space Mono",
+        "Times New Roman",
+        "Verdana",
+        "Work Sans",
+    ]
+    // swiftlint:enable trailing_comma
+
+    // swiftlint:disable switch_case_alignment
+    static func font(name: String, size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        switch name {
+            case "Serif":
+                return .system(size: size, weight: weight, design: .serif)
+            case "Mono":
+                return .system(size: size, weight: weight, design: .monospaced)
+            case "System":
+                return .system(size: size, weight: weight, design: .default)
+            default:
+                let psName = postScriptName(for: name)
+                return .custom(psName, size: size)
+        }
+    }
+
+    // swiftlint:disable cyclomatic_complexity
+    private static func postScriptName(for displayName: String) -> String {
+        switch displayName {
+            case "Arial": return "ArialMT"
+            case "Be Vietnam Pro", "BeVietnamPro": return "BeVietnamPro-Regular"
+            case "Georgia": return "Georgia"
+            case "Google Sans", "GoogleSans": return "GoogleSans-Regular"
+            case "Inter": return "Inter-Regular"
+            case "Lato": return "Lato-Regular"
+            case "Lora": return "Lora-Regular"
+            case "Merriweather": return "Merriweather24pt-Regular"
+            case "Montserrat": return "Montserrat-Regular"
+            case "Montserrat Alternates", "MontserratAlternates": return "MontserratAlternates-Regular"
+            case "Noto Sans", "NotoSans": return "NotoSans-Regular"
+            case "Noto Serif", "NotoSerif": return "NotoSerif-Regular"
+            case "Open Sans", "OpenSans": return "OpenSans-Regular"
+            case "PT Sans", "PTSans": return "PTSans-Regular"
+            case "PT Serif", "PTSerif": return "PTSerif-Regular"
+            case "Raleway": return "Raleway-Regular"
+            case "Roboto": return "Roboto-Regular"
+            case "Space Mono", "SpaceMono": return "SpaceMono-Regular"
+            case "Times New Roman", "TimesNewRoman": return "TimesNewRomanPSMT"
+            case "Verdana": return "Verdana"
+            case "Work Sans", "WorkSans": return "WorkSans-Regular"
+            default: return displayName
+        }
+    }
+    // swiftlint:enable cyclomatic_complexity switch_case_alignment
+}
+
 /// Helper for offset restore decision — testable without importing domain types
 enum ReaderOffsetRestore {
     static func offsetToRestore(

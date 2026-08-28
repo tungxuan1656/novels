@@ -4,12 +4,24 @@ import XCTest
 
 final class HardeningRegressionTests: XCTestCase {
     private func repoRoot() -> URL {
+        let pwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let appsPbx = pwd.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj").path
+        if FileManager.default.fileExists(atPath: appsPbx) {
+            return pwd
+        }
+        if FileManager.default.fileExists(atPath: pwd.appendingPathComponent("novels.xcodeproj/project.pbxproj").path) {
+            return pwd.deletingLastPathComponent()
+        }
         let fileURL = URL(fileURLWithPath: #filePath)
         var current = fileURL.deletingLastPathComponent()
-        for _ in 0 ..< 6 {
+        for _ in 0 ..< 8 {
             let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
             if FileManager.default.fileExists(atPath: candidate.path) {
                 return current
+            }
+            let directCandidate = current.appendingPathComponent("novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: directCandidate.path) {
+                return current.deletingLastPathComponent()
             }
             let parent = current.deletingLastPathComponent()
             if parent.path == current.path {
@@ -17,9 +29,7 @@ final class HardeningRegressionTests: XCTestCase {
             }
             current = parent
         }
-        return fileURL.deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        return pwd
     }
 
     func testProjectConfigIsIPhoneOnly() throws {
@@ -184,7 +194,7 @@ final class HardeningA11yTests: XCTestCase {
         XCTAssertTrue(code.contains("0x111111"), "DesignTokens.text 0x111111 missing outside comments")
         XCTAssertTrue(code.contains("0x6B7280"), "DesignTokens.muted 0x6B7280 missing outside comments")
         XCTAssertTrue(code.contains("0x2563EB"), "DesignTokens.accent 0x2563EB missing outside comments")
-        XCTAssertTrue(code.contains("0xFDFCF8"), "DesignTokens.backgroundPaper 0xFDFCF8 missing outside comments")
+        XCTAssertTrue(code.contains("0xF5F1E5"), "DesignTokens.backgroundPaper 0xF5F1E5 missing outside comments")
         XCTAssertTrue(code.contains("0xFFFFFF"), "DesignTokens.backgroundWhite 0xFFFFFF missing outside comments")
     }
 
