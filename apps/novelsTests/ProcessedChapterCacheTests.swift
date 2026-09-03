@@ -7,19 +7,19 @@ final class ProcessedChapterCacheTests: XCTestCase {
         let pc = ProcessedChapter(
             bookId: "test-slug",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "<p>hi</p>",
             contentHash: SHA256.hex("<p>hi</p>"),
             createdAt: Date(),
             updatedAt: Date()
         )
         try cache.upsert(pc)
-        XCTAssertNotNil(try cache.get(bookId: "test-slug", chapterNumber: 1, mode: .translate))
-        XCTAssertNil(try cache.get(bookId: "test-slug", chapterNumber: 1, mode: .summary))
-        XCTAssertNil(try cache.get(bookId: "test-slug", chapterNumber: 2, mode: .translate))
-        XCTAssertEqual(try cache.batchStatus(bookId: "test-slug", mode: .translate, numbers: [1, 2]), [1])
-        XCTAssertEqual(try cache.batchStatus(bookId: "test-slug", mode: .summary, numbers: [1, 2]), [])
-        XCTAssertTrue(try cache.batchStatus(bookId: "test-slug", mode: .translate, numbers: []).isEmpty)
+        XCTAssertNotNil(try cache.get(bookId: "test-slug", chapterNumber: 1, mode: .rewrite))
+        XCTAssertNil(try cache.get(bookId: "test-slug", chapterNumber: 1, mode: .none))
+        XCTAssertNil(try cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite))
+        XCTAssertEqual(try cache.batchStatus(bookId: "test-slug", mode: .rewrite, numbers: [1, 2]), [1])
+        XCTAssertEqual(try cache.batchStatus(bookId: "test-slug", mode: .none, numbers: [1, 2]), [])
+        XCTAssertTrue(try cache.batchStatus(bookId: "test-slug", mode: .rewrite, numbers: []).isEmpty)
     }
 
     func testUpsertOverwrites() throws {
@@ -28,7 +28,7 @@ final class ProcessedChapterCacheTests: XCTestCase {
         var first = ProcessedChapter(
             bookId: "s",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "a",
             contentHash: "a",
             createdAt: now,
@@ -38,15 +38,15 @@ final class ProcessedChapterCacheTests: XCTestCase {
         first = ProcessedChapter(
             bookId: "s",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "b",
             contentHash: "b",
             createdAt: Date(),
             updatedAt: Date()
         )
         try cache.upsert(first)
-        XCTAssertEqual(try cache.get(bookId: "s", chapterNumber: 1, mode: .translate)?.content, "b")
-        XCTAssertEqual(try cache.get(bookId: "s", chapterNumber: 1, mode: .translate)?.contentHash, "b")
+        XCTAssertEqual(try cache.get(bookId: "s", chapterNumber: 1, mode: .rewrite)?.content, "b")
+        XCTAssertEqual(try cache.get(bookId: "s", chapterNumber: 1, mode: .rewrite)?.contentHash, "b")
     }
 
     func testClear() throws {
@@ -55,7 +55,7 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "s",
             chapterNumber: 1,
-            mode: .summary,
+            mode: .rewrite,
             content: "x",
             contentHash: "x",
             createdAt: now,
@@ -64,15 +64,15 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "other",
             chapterNumber: 1,
-            mode: .summary,
+            mode: .rewrite,
             content: "y",
             contentHash: "y",
             createdAt: now,
             updatedAt: now
         ))
         try cache.clear(bookId: "s")
-        XCTAssertNil(try cache.get(bookId: "s", chapterNumber: 1, mode: .summary))
-        XCTAssertNotNil(try cache.get(bookId: "other", chapterNumber: 1, mode: .summary))
+        XCTAssertNil(try cache.get(bookId: "s", chapterNumber: 1, mode: .rewrite))
+        XCTAssertNotNil(try cache.get(bookId: "other", chapterNumber: 1, mode: .rewrite))
     }
 
     func testClearAll() throws {
@@ -81,7 +81,7 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "a",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "x",
             contentHash: "x",
             createdAt: now,
@@ -90,16 +90,16 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "b",
             chapterNumber: 2,
-            mode: .summary,
+            mode: .rewrite,
             content: "y",
             contentHash: "y",
             createdAt: now,
             updatedAt: now
         ))
         try cache.clearAll()
-        XCTAssertNil(try cache.get(bookId: "a", chapterNumber: 1, mode: .translate))
-        XCTAssertNil(try cache.get(bookId: "b", chapterNumber: 2, mode: .summary))
-        XCTAssertTrue(try cache.batchStatus(bookId: "a", mode: .translate, numbers: [1]).isEmpty)
+        XCTAssertNil(try cache.get(bookId: "a", chapterNumber: 1, mode: .rewrite))
+        XCTAssertNil(try cache.get(bookId: "b", chapterNumber: 2, mode: .rewrite))
+        XCTAssertTrue(try cache.batchStatus(bookId: "a", mode: .rewrite, numbers: [1]).isEmpty)
     }
 
     func testNoneNeverWritten() throws {
@@ -120,13 +120,13 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "s",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "ok",
             contentHash: "ok",
             createdAt: now,
             updatedAt: now
         ))
-        XCTAssertNotNil(try cache.get(bookId: "s", chapterNumber: 1, mode: .translate))
+        XCTAssertNotNil(try cache.get(bookId: "s", chapterNumber: 1, mode: .rewrite))
     }
 
     func testInMemoryIsolation() throws {
@@ -136,13 +136,13 @@ final class ProcessedChapterCacheTests: XCTestCase {
         try first.upsert(ProcessedChapter(
             bookId: "iso",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "only-first",
             contentHash: "h",
             createdAt: now,
             updatedAt: now
         ))
-        XCTAssertNotNil(try first.get(bookId: "iso", chapterNumber: 1, mode: .translate))
-        XCTAssertNil(try second.get(bookId: "iso", chapterNumber: 1, mode: .translate))
+        XCTAssertNotNil(try first.get(bookId: "iso", chapterNumber: 1, mode: .rewrite))
+        XCTAssertNil(try second.get(bookId: "iso", chapterNumber: 1, mode: .rewrite))
     }
 }

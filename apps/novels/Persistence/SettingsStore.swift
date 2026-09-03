@@ -24,7 +24,7 @@ import Observation
     var aiCustomHeadersJSON: String
     var aiExtraBodyJSON: String
     var aiProvider: String
-    var aiProcessActionsJSON: String
+    var aiPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
     var typography: TypographySetting
@@ -40,7 +40,7 @@ import Observation
         aiCustomHeadersJSON = Defaults.aiCustomHeadersJSON
         aiExtraBodyJSON = Defaults.aiExtraBodyJSON
         aiProvider = Defaults.aiProvider
-        aiProcessActionsJSON = SettingsDefaults.defaultActionsJSON
+        aiPrompt = SettingsDefaults.defaultPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
         typography = .default
@@ -81,8 +81,8 @@ import Observation
         } else if userDefaults.object(forKey: DefaultsKeys.aiProvider) != nil {
             aiProvider = Defaults.aiProvider
         }
-        if userDefaults.object(forKey: DefaultsKeys.aiProcessActionsJSON) != nil, let value = userDefaults.string(forKey: DefaultsKeys.aiProcessActionsJSON) { // swiftlint:disable:this line_length
-            aiProcessActionsJSON = value
+        if let value = userDefaults.string(forKey: DefaultsKeys.aiPrompt) {
+            aiPrompt = value
         }
         if let value = intValue(forKey: DefaultsKeys.prefetchCount) {
             prefetchCount = value
@@ -135,11 +135,8 @@ import Observation
         } else {
             aiProvider = "openai"
         }
-        let allowedKeys: Set = ["translate", "summary"]
-        if let data = aiProcessActionsJSON.data(using: .utf8), let actions = try? JSONDecoder().decode([AIAction].self, from: data), !actions.isEmpty, actions.allSatisfy({ allowedKeys.contains($0.key) }) { // swiftlint:disable:this line_length
-            // valid
-        } else {
-            aiProcessActionsJSON = SettingsDefaults.defaultActionsJSON
+        if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            aiPrompt = SettingsDefaults.defaultPrompt
         }
         if typography.font.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             typography.font = TypographySetting.default.font
@@ -172,8 +169,8 @@ import Observation
             return aiExtraBodyJSON
         case "AI_PROVIDER":
             return aiProvider
-        case "AI_PROCESS_ACTIONS":
-            return aiProcessActionsJSON
+        case "AI_PROMPT":
+            return aiPrompt
         case "PREFETCH_COUNT":
             return "\(prefetchCount)"
         case "AI_MIN_CHUNK_SIZE":
@@ -206,8 +203,8 @@ import Observation
             aiExtraBodyJSON = value
         case "AI_PROVIDER":
             aiProvider = value
-        case "AI_PROCESS_ACTIONS":
-            aiProcessActionsJSON = value
+        case "AI_PROMPT":
+            aiPrompt = value
         case "PREFETCH_COUNT":
             if let intValue = Int(value) {
                 prefetchCount = intValue
@@ -243,7 +240,7 @@ import Observation
         userDefaults.set(aiCustomHeadersJSON, forKey: DefaultsKeys.aiCustomHeadersJSON)
         userDefaults.set(aiExtraBodyJSON, forKey: DefaultsKeys.aiExtraBodyJSON)
         userDefaults.set(aiProvider, forKey: DefaultsKeys.aiProvider)
-        userDefaults.set(aiProcessActionsJSON, forKey: DefaultsKeys.aiProcessActionsJSON)
+        userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)

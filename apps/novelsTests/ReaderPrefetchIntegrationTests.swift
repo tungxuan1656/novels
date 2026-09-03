@@ -13,7 +13,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
 
     func makeVM(
         prefetchCount: Int = 3,
-        mode: AIMode = .translate,
+        mode: AIMode = .rewrite,
         total: Int = 10
     ) throws -> (ReaderViewModel, SQLiteProcessedChapterCache, SettingsStore, TrackingAIClient, URL) {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -57,7 +57,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     func testPrefetchTriggeredAfterLoadWhenEligible() async throws {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         await vm.load()
         try await Task.sleep(nanoseconds: 800_000_000)
         XCTAssertTrue(client.calls.contains(2) || client.calls.contains(3), "calls \(client.calls)")
@@ -68,10 +68,10 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 5, total: 10)
         defer { try? FileManager.default.removeItem(at: tmp) }
         client.delayPerCall = 300_000_000
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         await vm.load()
         try await Task.sleep(nanoseconds: 200_000_000)
-        await vm.setAIMode(.summary)
+        await vm.setAIMode(.none)
         try await Task.sleep(nanoseconds: 400_000_000)
         XCTAssertTrue(client.calls.count < 10, "should have cancelled, got \(client.calls.count)")
     }
@@ -80,7 +80,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         let (vm, _, settings, client, tmp) = try makeVM(prefetchCount: 99, total: 10)
         defer { try? FileManager.default.removeItem(at: tmp) }
         await MainActor.run { settings.prefetchCount = 99; settings.save() }
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         await vm.load()
         try await Task.sleep(nanoseconds: 800_000_000)
         // vm.load triggers AI for current chapter (1) plus prefetch 2,3,4 when coerced to 3
@@ -92,7 +92,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     func testPrefetchStatusRuntimeOnlyNotPersisted() async throws {
         let (vm, _, _, _, tmp) = try makeVM()
         defer { try? FileManager.default.removeItem(at: tmp) }
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         await vm.load()
         try await Task.sleep(nanoseconds: 500_000_000)
         XCTAssertNil(UserDefaults.standard.object(forKey: "PrefetchStatus"))

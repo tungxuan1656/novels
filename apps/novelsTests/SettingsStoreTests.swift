@@ -64,28 +64,20 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.aiMinChunkSize, 2000)
     }
 
-    func testProviderFallbackAndActionsReset() throws {
+    func testProviderFallbackAndPromptReset() throws {
         let suite = UUID().uuidString
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let store = SettingsStore(userDefaults: userDefaults)
         store.load()
         store.aiProvider = "DEEPSEEK"
-        store.aiProcessActionsJSON = "not json"
+        store.aiPrompt = "   "
         store.sanitize()
         XCTAssertEqual(store.aiProvider, "openai")
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
+        XCTAssertEqual(store.aiPrompt, SettingsDefaults.defaultPrompt)
 
         store.aiProvider = "OpenAI"
         store.sanitize()
         XCTAssertEqual(store.aiProvider, "openai")
-
-        store.aiProcessActionsJSON = #"[{"key":"bad","name":"x","prompt":"y"}]"#
-        store.sanitize()
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
-
-        store.aiProcessActionsJSON = "[]"
-        store.sanitize()
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
     }
 
     func testValidHeadersAndBodyParsed() throws {

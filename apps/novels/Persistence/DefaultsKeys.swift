@@ -8,7 +8,7 @@ enum DefaultsKeys {
     static let aiCustomHeadersJSON = "AI_CUSTOM_HEADERS"
     static let aiExtraBodyJSON = "AI_EXTRA_BODY"
     static let aiProvider = "AI_PROVIDER"
-    static let aiProcessActionsJSON = "AI_PROCESS_ACTIONS"
+    static let aiPrompt = "AI_PROMPT"
     static let aiMinChunkSize = "AI_MIN_CHUNK_SIZE"
     static let prefetchCount = "PREFETCH_COUNT"
     static let font = "font"
@@ -24,7 +24,7 @@ enum DefaultsKeys {
         aiCustomHeadersJSON,
         aiExtraBodyJSON,
         aiProvider,
-        aiProcessActionsJSON,
+        aiPrompt,
         aiMinChunkSize,
         prefetchCount,
         font,

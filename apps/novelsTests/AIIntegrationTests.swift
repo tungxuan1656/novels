@@ -35,7 +35,7 @@ final class AIIntegrationTests: XCTestCase {
         let output = try await service.processedContent(
             bookId: "b",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "hello world this is a test"
         )
         XCTAssertEqual(output, "ok")

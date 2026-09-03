@@ -8,7 +8,7 @@ struct SettingDescriptor {
     let defaultValue: String
     let allowsVerbatimSave: Bool
 
-    // swiftlint:disable cyclomatic_complexity function_body_length switch_case_alignment
+    // swiftlint:disable cyclomatic_complexity switch_case_alignment
     func validate(_ value: String) -> String? {
         switch key {
             case "BOOKS_API_URL", "OPENAI_API_URL":
@@ -32,21 +32,9 @@ struct SettingDescriptor {
                     return "JSON phải là object, ví dụ {\"Authorization\":\"Bearer ...\"}"
                 }
                 return nil
-            case "AI_PROCESS_ACTIONS":
+            case "AI_PROMPT":
                 if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return "Rỗng sẽ về mặc định, dùng Xóa để khôi phục"
-                }
-                guard let data = value.data(using: .utf8),
-                      let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-                else {
-                    return "JSON phải là mảng [{key,name,prompt}]"
-                }
-                for item in arr {
-                    guard let keyValue = item["key"] as? String,
-                          keyValue == "translate" || keyValue == "summary"
-                    else {
-                        return "key chỉ translate/summary"
-                    }
                 }
                 return nil
             case "PREFETCH_COUNT":
@@ -81,7 +69,7 @@ struct SettingDescriptor {
                 return nil
         }
     }
-    // swiftlint:enable cyclomatic_complexity function_body_length switch_case_alignment
+    // swiftlint:enable cyclomatic_complexity switch_case_alignment
 }
 
 enum SettingsViewModel {
@@ -135,12 +123,12 @@ enum SettingsViewModel {
             defaultValue: "",
             allowsVerbatimSave: true
         ),
-        "AI_PROCESS_ACTIONS": SettingDescriptor(
-            key: "AI_PROCESS_ACTIONS",
-            label: "Hành động AI (JSON)",
-            placeholder: "[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",
-            description: "Mảng translate/summary, rỗng sẽ về mặc định 2 action",
-            defaultValue: SettingsDefaults.defaultActionsJSON,
+        "AI_PROMPT": SettingDescriptor(
+            key: "AI_PROMPT",
+            label: "Prompt",
+            placeholder: "Dịch truyện sang...",
+            description: "Prompt hệ thống cho AI Rewrite (dịch, tóm tắt, viết lại)",
+            defaultValue: SettingsDefaults.defaultPrompt,
             allowsVerbatimSave: false
         ),
         "PREFETCH_COUNT": SettingDescriptor(

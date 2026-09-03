@@ -32,7 +32,7 @@ actor AIReadingService {
             let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
             let size = (500 ... 5000).contains(chunkSize) ? chunkSize : 1300
             let prompt: String = await MainActor.run {
-                AIPromptBuilder.prompt(for: mode, actionsJSON: settings.aiProcessActionsJSON)
+                AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
             }
             let chunks = AIChunker.chunk(text: rawText, size: size)
             if chunks.isEmpty {
@@ -79,7 +79,7 @@ actor AIReadingService {
         let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
         let size = (500 ... 5000).contains(chunkSize) ? chunkSize : 1300
         let prompt: String = await MainActor.run {
-            AIPromptBuilder.prompt(for: mode, actionsJSON: settings.aiProcessActionsJSON)
+            AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
         }
         let chunks = AIChunker.chunk(text: rawText, size: size)
         if chunks.isEmpty {

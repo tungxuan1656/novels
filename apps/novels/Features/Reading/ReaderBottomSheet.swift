@@ -98,36 +98,38 @@ struct ReaderBottomSheet: View {
 
     private func aiModeSection(viewModel: ReaderViewModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Chế độ AI")
+            Text("AI Rewrite")
                 .font(.subheadline)
                 .foregroundStyle(DesignTokens.text)
-            Picker(
-                "Chế độ AI",
-                selection: Binding(
-                    get: { viewModel.aiMode },
-                    set: { newValue in
-                        viewModel.aiMode = newValue
-                        Task { await viewModel.setAIMode(newValue) }
+
+            HStack(spacing: 12) {
+                Picker(
+                    "AI Rewrite",
+                    selection: Binding(
+                        get: { viewModel.aiMode },
+                        set: { newValue in
+                            viewModel.aiMode = newValue
+                            Task { await viewModel.setAIMode(newValue) }
+                        }
+                    )
+                ) {
+                    ForEach(AIMode.allCases) { mode in
+                        Text(mode.title).tag(mode)
                     }
-                )
-            ) {
-                Text("Gốc").tag(AIMode.none)
-                Text("Dịch").tag(AIMode.translate)
-                Text("Tóm tắt").tag(AIMode.summary)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("aiModePicker")
+
+                Button("Xử lý lại") {
+                    Task { await viewModel.reprocess() }
+                }
+                .buttonStyle(.bordered)
+                .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
+                .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
+                .accessibilityIdentifier("reprocessButton")
             }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("aiModePicker")
             .frame(minHeight: 44)
             .contentShape(Rectangle())
-
-            Button("Xử lý lại") {
-                Task { await viewModel.reprocess() }
-            }
-            .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
-            .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
-            .frame(minHeight: 36)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("reprocessButton")
 
             if viewModel.isAIProcessing {
                 ProgressView("Đang xử lý...")

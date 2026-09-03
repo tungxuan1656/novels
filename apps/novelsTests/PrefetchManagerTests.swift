@@ -137,7 +137,7 @@ final class PrefetchManagerTests: XCTestCase {
     func makeManagerEnv(
         prefetchCount: Int = 3,
         totalChapters: Int = 10,
-        mode: AIMode = .translate
+        mode: AIMode = .rewrite
     ) throws -> (PrefetchManager, SQLiteProcessedChapterCache, SettingsStore, MockBookRepo, TrackingAIClient) {
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let suite = UserDefaults(suiteName: "pref.\(UUID().uuidString)")!
@@ -175,7 +175,7 @@ final class PrefetchManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "book-slug",
             chapterNumber: 2,
-            mode: .translate,
+            mode: .rewrite,
             content: "cached2",
             contentHash: "h2",
             createdAt: now,
@@ -184,7 +184,7 @@ final class PrefetchManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "book-slug",
             chapterNumber: 3,
-            mode: .translate,
+            mode: .rewrite,
             content: "cached3",
             contentHash: "h3",
             createdAt: now,
@@ -195,7 +195,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -217,7 +217,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 5,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -235,7 +235,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -257,7 +257,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 5,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -268,12 +268,12 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertEqual(status.errors.count, 1, "errors \(status.errors) calls \(client.calls)")
         XCTAssertTrue(client.calls.contains(2), "should contain 2, got \(client.calls)")
         XCTAssertTrue(client.calls.contains(4), "should contain 4, got \(client.calls)")
-        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 2, mode: .translate), "2 should be cached")
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 2, mode: .rewrite), "2 should be cached")
         XCTAssertNil(
-            try cache.get(bookId: "book-slug", chapterNumber: 3, mode: .translate),
+            try cache.get(bookId: "book-slug", chapterNumber: 3, mode: .rewrite),
             "3 should not be cached, calls \(client.calls)"
         )
-        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 4, mode: .translate), "4 should be cached")
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 4, mode: .rewrite), "4 should be cached")
     }
 
     func testInvalidPrefetchCountCoercedTo3() async throws {
@@ -283,7 +283,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -308,7 +308,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "s",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings2,
             cache: cache,
             aiService: svc2,
@@ -354,7 +354,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,

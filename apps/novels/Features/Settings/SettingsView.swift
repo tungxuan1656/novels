@@ -23,9 +23,9 @@ struct SettingsView: View {
                     value: settings.aiExtraBodyJSON
                 )
                 row(
-                    key: "AI_PROCESS_ACTIONS",
-                    label: "Hành động AI (JSON)",
-                    value: settings.aiProcessActionsJSON
+                    key: "AI_PROMPT",
+                    label: "Prompt",
+                    value: settings.aiPrompt
                 )
                 row(
                     key: "AI_MIN_CHUNK_SIZE",

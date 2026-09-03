@@ -64,6 +64,12 @@
       "title": "Tolerant ZIP Ingestion Hotfix",
       "status": "done",
       "depends_on": ["feat-003"]
+    },
+    {
+      "id": "feat-011",
+      "title": "AI Prompt Setting & Inline Rewrite Reading Sheet",
+      "status": "done",
+      "depends_on": ["feat-005", "feat-006"]
     }
   ]
 }

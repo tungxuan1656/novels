@@ -44,7 +44,7 @@ final class RouterSettingsTests: XCTestCase {
             "AI_CUSTOM_HEADERS": "Headers tùy chỉnh (JSON)",
             "AI_EXTRA_BODY": "Body bổ sung (JSON)",
             "AI_PROVIDER": "Nhà cung cấp",
-            "AI_PROCESS_ACTIONS": "Hành động AI (JSON)",
+            "AI_PROMPT": "Prompt",
             "PREFETCH_COUNT": "Số chương tải trước",
             "AI_MIN_CHUNK_SIZE": "Kích thước chunk",
         ]

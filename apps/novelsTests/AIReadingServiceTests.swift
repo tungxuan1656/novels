@@ -39,7 +39,7 @@ final class AIReadingServiceTests: XCTestCase {
         let cached = ProcessedChapter(
             bookId: "slug",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "cached",
             contentHash: SHA256.hex("cached"),
             createdAt: now,
@@ -58,7 +58,7 @@ final class AIReadingServiceTests: XCTestCase {
         let output = try await service.processedContent(
             bookId: "slug",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "raw"
         )
         XCTAssertEqual(output, "cached")
@@ -87,12 +87,12 @@ final class AIReadingServiceTests: XCTestCase {
         let output = try await service.processedContent(
             bookId: "slug",
             chapterNumber: 2,
-            mode: .translate,
+            mode: .rewrite,
             rawText: raw
         )
         XCTAssertEqual(output, "part-one\npart-two")
         XCTAssertEqual(callCount, 2)
-        let stored = try cache.get(bookId: "slug", chapterNumber: 2, mode: .translate)
+        let stored = try cache.get(bookId: "slug", chapterNumber: 2, mode: .rewrite)
         XCTAssertEqual(stored?.content, "part-one\npart-two")
         XCTAssertEqual(stored?.contentHash, SHA256.hex("part-one\npart-two"))
     }
@@ -119,13 +119,13 @@ final class AIReadingServiceTests: XCTestCase {
         async let first = service.processedContent(
             bookId: "slug",
             chapterNumber: 3,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "hello world"
         )
         async let second = service.processedContent(
             bookId: "slug",
             chapterNumber: 3,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "hello world"
         )
         let results = try await[first, second]
@@ -159,7 +159,7 @@ final class AIReadingServiceTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "slug",
             chapterNumber: 4,
-            mode: .translate,
+            mode: .rewrite,
             content: "old",
             contentHash: SHA256.hex("old"),
             createdAt: now,
@@ -181,11 +181,11 @@ final class AIReadingServiceTests: XCTestCase {
         let output = try await service.reprocess(
             bookId: "slug",
             chapterNumber: 4,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "raw for reprocess"
         )
         XCTAssertEqual(output, "new")
-        let stored = try cache.get(bookId: "slug", chapterNumber: 4, mode: .translate)
+        let stored = try cache.get(bookId: "slug", chapterNumber: 4, mode: .rewrite)
         XCTAssertEqual(stored?.content, "new")
         XCTAssertEqual(stored?.contentHash, SHA256.hex("new"))
     }
@@ -214,7 +214,7 @@ final class AIReadingServiceTests: XCTestCase {
         let output = try await service.processedContent(
             bookId: "b",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             rawText: "hello world this is a test"
         )
         XCTAssertEqual(output, "ok")

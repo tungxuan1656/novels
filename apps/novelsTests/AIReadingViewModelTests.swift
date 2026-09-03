@@ -81,9 +81,9 @@ final class AIReadingViewModelTests: XCTestCase {
         await vm.load()
         XCTAssertEqual(vm.aiMode, .none)
         XCTAssertNil(vm.processedContent)
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         XCTAssertEqual(vm.processedContent, "DỊCH")
-        XCTAssertEqual(try cache.get(bookId: slug, chapterNumber: 1, mode: .translate)?.content, "DỊCH")
+        XCTAssertEqual(try cache.get(bookId: slug, chapterNumber: 1, mode: .rewrite)?.content, "DỊCH")
         // Second switch should hit cache without network
         AIMockURLProtocol.handler = { _ in
             XCTFail("should not hit network on cache hit")
@@ -97,7 +97,7 @@ final class AIReadingViewModelTests: XCTestCase {
             aiService: service
         )
         await vm2.load()
-        await vm2.setAIMode(.translate)
+        await vm2.setAIMode(.rewrite)
         XCTAssertEqual(vm2.processedContent, "DỊCH")
     }
 
@@ -109,7 +109,7 @@ final class AIReadingViewModelTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: slug,
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "old",
             contentHash: SHA256.hex("old"),
             createdAt: now,
@@ -130,13 +130,13 @@ final class AIReadingViewModelTests: XCTestCase {
             aiService: service
         )
         await vm.load()
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         // Should have returned cached "old" initially
         XCTAssertEqual(vm.processedContent, "old")
         // Now reprocess should overwrite with "new"
         await vm.reprocess()
         XCTAssertEqual(vm.processedContent, "new")
-        XCTAssertEqual(try cache.get(bookId: slug, chapterNumber: 1, mode: .translate)?.content, "new")
+        XCTAssertEqual(try cache.get(bookId: slug, chapterNumber: 1, mode: .rewrite)?.content, "new")
     }
 
     func testModeNoneNeverCached() async throws {
@@ -168,7 +168,7 @@ final class AIReadingViewModelTests: XCTestCase {
             let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (response, json.data(using: .utf8)!)
         }
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         XCTAssertEqual(vm.processedContent, "cached-translate")
         XCTAssertEqual(try cache.countAll(), 1)
         await vm.setAIMode(.none)
@@ -200,7 +200,7 @@ final class AIReadingViewModelTests: XCTestCase {
             aiService: service
         )
         await vm.load()
-        await vm.setAIMode(.translate)
+        await vm.setAIMode(.rewrite)
         XCTAssertEqual(vm.processedContent, "DỊCH 1")
         // goNext should auto trigger AI for chapter 2
         await vm.goNext()

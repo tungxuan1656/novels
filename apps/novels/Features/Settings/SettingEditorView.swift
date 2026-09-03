@@ -21,7 +21,7 @@ struct SettingEditorView: View {
             Section("Giá trị") {
                 if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
-                    || descriptor.key == "AI_PROCESS_ACTIONS"
+                    || descriptor.key == "AI_PROMPT"
                 // swiftlint:disable:next opening_brace
                 {
                     TextEditor(text: $draft)

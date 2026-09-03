@@ -8,7 +8,7 @@ final class CacheManagerTests: XCTestCase {
         let ch1 = ProcessedChapter(
             bookId: "slug-a",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "hi",
             contentHash: "h",
             createdAt: base,
@@ -18,7 +18,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "slug-a",
             chapterNumber: 2,
-            mode: .translate,
+            mode: .rewrite,
             content: "hi2",
             contentHash: "h2",
             createdAt: base,
@@ -27,7 +27,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "slug-b",
             chapterNumber: 1,
-            mode: .summary,
+            mode: .rewrite,
             content: "x",
             contentHash: "hx",
             createdAt: base,
@@ -48,7 +48,7 @@ final class CacheManagerTests: XCTestCase {
             try cache.upsert(ProcessedChapter(
                 bookId: "s1",
                 chapterNumber: num,
-                mode: .translate,
+                mode: .rewrite,
                 content: "c\(num)",
                 contentHash: "h\(num)",
                 createdAt: base,
@@ -58,7 +58,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "s2",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "c",
             contentHash: "h",
             createdAt: base,
@@ -78,7 +78,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "alpha",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "a",
             contentHash: "ha",
             createdAt: base,
@@ -87,7 +87,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "alpha",
             chapterNumber: 2,
-            mode: .summary,
+            mode: .rewrite,
             content: "b",
             contentHash: "hb",
             createdAt: base,
@@ -96,7 +96,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "beta",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "c",
             contentHash: "hc",
             createdAt: base,
@@ -113,7 +113,7 @@ final class CacheManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "b1",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "a",
             contentHash: "h",
             createdAt: base,

@@ -48,35 +48,23 @@ final class SettingsStoreCoercionTests: XCTestCase {
         }
     }
 
-    func testProcessActionsSanitizeAndDescriptor() throws {
-        let suite = "test.actions.\(UUID().uuidString)"
+    func testAIPromptSanitizeAndDescriptor() throws {
+        let suite = "test.prompt.\(UUID().uuidString)"
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        let descriptor = SettingsViewModel.descriptor(for: "AI_PROCESS_ACTIONS")
+        let descriptor = SettingsViewModel.descriptor(for: "AI_PROMPT")
         XCTAssertNotNil(descriptor.validate(""))
         XCTAssertEqual(descriptor.validate(""), "Rỗng sẽ về mặc định, dùng Xóa để khôi phục")
         let store = SettingsStore(userDefaults: userDefaults)
-        store.aiProcessActionsJSON = "bad json"
+        store.aiPrompt = "   "
         store.save()
         XCTAssertEqual(
-            SettingsStore(userDefaults: userDefaults).aiProcessActionsJSON,
-            SettingsDefaults.defaultActionsJSON
+            SettingsStore(userDefaults: userDefaults).aiPrompt,
+            SettingsDefaults.defaultPrompt
         )
-        store.aiProcessActionsJSON = "[{\"key\":\"invalid\",\"name\":\"x\",\"prompt\":\"y\"}]"
+        let valid = "Custom prompt text"
+        store.aiPrompt = valid
         store.save()
-        XCTAssertEqual(
-            SettingsStore(userDefaults: userDefaults).aiProcessActionsJSON,
-            SettingsDefaults.defaultActionsJSON
-        )
-        store.aiProcessActionsJSON = ""
-        store.save()
-        XCTAssertEqual(
-            SettingsStore(userDefaults: userDefaults).aiProcessActionsJSON,
-            SettingsDefaults.defaultActionsJSON
-        )
-        let valid = "[{\"key\":\"translate\",\"name\":\"Dịch\",\"prompt\":\"Translate\"}]"
-        store.aiProcessActionsJSON = valid
-        store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiProcessActionsJSON, valid)
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiPrompt, valid)
     }
 
     func testUnknownLegacyKeyIgnored() throws {

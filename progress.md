@@ -107,3 +107,12 @@
 **Evidence**: `docs/plans/feat-008.md`, `apps/novels/Info.plist` (LSRequiresIPhoneOS true + UILaunchScreen dict + ATS localhost-only, ~ipad 0), `project.pbxproj` TARGETED_DEVICE_FAMILY=1 ×6 IPHONEOS_DEPLOYMENT_TARGET=26.5 ×6 DEVELOPMENT_TEAM M5U4E4H84J ×8, `Assets.xcassets/AppIcon` 3×1024, a11y 44pt/labels/Dynamic Type/VoiceOver (ReaderView 12 identifiers, ToastView 1 label, Library 3), `apps/novelsTests/HardeningRegressionTests` 2 + `HardeningA11yTests` 4 + `HardeningEdgeTests` 7 PASS, `xcodebuild build` PASS, `swiftformat` 0/88, `swiftlint` 0 violations in 88 files, `./init.sh` PASS [format] PASS [lint] PASS [build] PASS [test] PASS [drift] (21 siblings, total 22)
 **Blockers**: none
 **Next**: Release ready — no active feature; repo idle per Harness Slim
+
+## 2026-08-28 — feat-011
+
+**State**: done
+**Done**: AI Prompt Setting & Inline Rewrite Reading Sheet — Replaced `AI_PROCESS_ACTIONS` JSON setting with single `AI_PROMPT` key ("Prompt", multiline editor, default natural Vietnamese translate/rewrite prompt). Simplified `AIMode` enum to `.none` ("Không") and `.rewrite` ("Rewrite"). Updated `AIPromptBuilder` and `AIReadingService` to utilize single `aiPrompt`. Refactored `ReaderBottomSheet` UI to display "AI Rewrite" with an inline segmented picker ("Không" / "Rewrite") and side-by-side "Xử lý lại" reprocess button. Updated all test suites and full `./init.sh` harness.
+**Evidence**: `docs/plans/feat-011.md`, `features/feat-011.md`, `feature_index.json`, `apps/novels/Domain/AIMode.swift`, `apps/novels/Persistence/DefaultsKeys.swift`, `apps/novels/Domain/SettingsModels.swift`, `apps/novels/Persistence/SettingsStore.swift`, `apps/novels/Services/AIPromptBuilder.swift`, `apps/novels/Services/AIReadingService.swift`, `apps/novels/Features/Settings/SettingsView.swift`, `apps/novels/Features/Settings/SettingsViewModel.swift`, `apps/novels/Features/Settings/SettingEditorView.swift`, `apps/novels/Features/Reading/ReaderBottomSheet.swift`, `apps/novelsTests/` 12 updated test suites (DomainCodableTests, SettingsStoreTests, SettingsStoreCoercionTests, SettingsEditorValidationTests, RouterSettingsTests, AIPromptBuilderTests, AIReadingServiceTests, AIReadingViewModelTests, CacheManagerTests, ProcessedChapterCacheTests, PrefetchManagerTests, ReaderPrefetchIntegrationTests, AIIntegrationTests, HardeningRegressionTests); `./init.sh` full verification PASS 100% (format PASS, lint PASS, build/test PASS, drift PASS).
+**Blockers**: none
+**Next**: All features complete, repository idle per Harness Slim.
+
