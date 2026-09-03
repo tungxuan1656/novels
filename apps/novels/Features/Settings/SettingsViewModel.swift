@@ -43,20 +43,20 @@ struct SettingDescriptor {
                 }
                 return "1..10, ngoài khoảng sẽ về 3"
             case "AI_MIN_CHUNK_SIZE":
-                if let number = Int(value), (500 ... 5000).contains(number) {
+                if let number = Int(value), (500 ... 10000).contains(number) {
                     return nil
                 }
-                return "500..5000, ngoài khoảng sẽ về 1300"
+                return "500..10000, ngoài khoảng sẽ về 1300"
             case "fontSize":
                 if let number = Double(value), (12 ... 24).contains(number) {
                     return nil
                 }
                 return "12..24"
             case "lineHeight":
-                if let number = Double(value), (1.2 ... 2.0).contains(number) {
+                if let number = Double(value), (1.0 ... 10).contains(number) {
                     return nil
                 }
-                return "1.2..2.0"
+                return "1.0..10"
             case "font":
                 return Self.fontError(value)
             case "letterSpacing":
@@ -152,7 +152,7 @@ enum SettingsViewModel {
             key: "AI_MIN_CHUNK_SIZE",
             label: "Kích thước chunk",
             placeholder: "1300",
-            description: "500..5000, ngoài khoảng về 1300",
+            description: "500..10000, ngoài khoảng về 1300",
             defaultValue: "1300",
             allowsVerbatimSave: false
         ),
@@ -176,7 +176,7 @@ enum SettingsViewModel {
             key: "lineHeight",
             label: "Giãn dòng",
             placeholder: "1.5",
-            description: "1.2..2.0, bước 0.1",
+            description: "1.0..10, bước 0.2",
             defaultValue: "1.5",
             allowsVerbatimSave: false
         ),

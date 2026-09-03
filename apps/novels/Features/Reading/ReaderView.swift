@@ -59,7 +59,7 @@ struct ReaderView: View {
                             }
                             prefetchIndicator
                             Color.clear
-                                .frame(height: 1)
+                                .frame(height: 120)
                                 .id("bottom")
                         }
                         .padding(DesignTokens.spacing16)
@@ -238,7 +238,7 @@ struct ReaderView: View {
             HStack {
                 Text(topChapterTitleText)
                     .font(.system(size: 10, weight: .regular))
-                    .foregroundStyle(DesignTokens.muted)
+                    .foregroundStyle(DesignTokens.text)
                     .lineLimit(1)
                     .accessibilityIdentifier("chapterText")
                 Spacer(minLength: 0)
@@ -255,7 +255,7 @@ struct ReaderView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(DesignTokens.muted)
                         .frame(width: 30, height: 30)
-                        .background(Color(uiColor: .systemGray5).opacity(0.9))
+                        .background(Color(uiColor: .systemGray5).opacity(0.85))
                         .clipShape(Circle())
                 }
                 .a11yHitTarget()
@@ -314,7 +314,7 @@ struct ReaderView: View {
                     }
                     .padding(.horizontal, 2)
                     .frame(height: 28)
-                    .background(Color(uiColor: .systemGray5).opacity(0.9))
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
                     .clipShape(Capsule())
 
                     Button {
@@ -324,7 +324,7 @@ struct ReaderView: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(DesignTokens.muted)
                             .frame(width: 28, height: 28)
-                            .background(Color(uiColor: .systemGray5).opacity(0.9))
+                            .background(Color(uiColor: .systemGray5).opacity(0.85))
                             .clipShape(Circle())
                     }
                     .a11yHitTarget()
@@ -373,13 +373,14 @@ struct ReaderView: View {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(DesignTokens.muted)
-                    .frame(width: 28, height: 28)
-                    .background(Color(uiColor: .systemGray5).opacity(0.9))
+                    .frame(width: 24, height: 24)
+                    .background(Color(uiColor: .systemGray5).opacity(0.7))
                     .clipShape(Circle())
             }
             .a11yHitTarget()
             .accessibilityIdentifier("toBottomButton")
             .accessibilityLabel("Cuộn xuống cuối")
+            .offset(y: 12)
 
             Spacer()
         }
@@ -388,10 +389,10 @@ struct ReaderView: View {
                 showSheet = true
             } label: {
                 Image(systemName: "textformat.size")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DesignTokens.muted)
-                    .frame(width: 28, height: 28)
-                    .background(Color(uiColor: .systemGray5).opacity(0.9))
+                    .frame(width: 32, height: 32)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
                     .clipShape(Circle())
             }
             .a11yHitTarget()

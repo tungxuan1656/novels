@@ -10,9 +10,12 @@ final class SettingsStoreCoercionTests: XCTestCase {
         store.aiMinChunkSize = 0
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMinChunkSize, 1300)
-        store.aiMinChunkSize = 9999
+        store.aiMinChunkSize = 15000
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMinChunkSize, 1300)
+        store.aiMinChunkSize = 9999
+        store.save()
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMinChunkSize, 9999)
         store.aiMinChunkSize = 2000
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMinChunkSize, 2000)

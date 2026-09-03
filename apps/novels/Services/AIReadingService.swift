@@ -30,7 +30,7 @@ actor AIReadingService {
         }
         let task = Task<String, Error> {
             let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
-            let size = (500 ... 5000).contains(chunkSize) ? chunkSize : 1300
+            let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
             let prompt: String = await MainActor.run {
                 AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
             }
@@ -77,7 +77,7 @@ actor AIReadingService {
             inFlight[cacheKey] = nil
         }
         let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
-        let size = (500 ... 5000).contains(chunkSize) ? chunkSize : 1300
+        let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
         let prompt: String = await MainActor.run {
             AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
         }

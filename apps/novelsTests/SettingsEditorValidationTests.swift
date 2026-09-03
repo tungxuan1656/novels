@@ -69,7 +69,7 @@ final class SettingsEditorValidationTests: XCTestCase {
         }
         let store = SettingsStore(userDefaults: userDefaults)
         store.typography.fontSize = 99
-        store.typography.lineHeight = 9
+        store.typography.lineHeight = 99
         store.typography.letterSpacing = 5
         store.save()
         let reloaded = SettingsStore(userDefaults: userDefaults)

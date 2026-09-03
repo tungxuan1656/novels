@@ -127,7 +127,7 @@ import Observation
             openaiModel = Defaults.openaiModel
         }
         prefetchCount = clampedPrefetchCount(prefetchCount)
-        if !(500 ... 5000).contains(aiMinChunkSize) {
+        if !(500 ... 10000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
         }
         if aiProvider.lowercased() != "openai" {
@@ -142,7 +142,7 @@ import Observation
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
-        if !(1.0 ... 5.0).contains(typography.lineHeight) {
+        if !(1.0 ... 10).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
         if !(0 ... 3.0).contains(typography.letterSpacing) {
