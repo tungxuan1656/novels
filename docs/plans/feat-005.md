@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- iPhone only, iOS 26+, Vietnamese UI — `TARGETED_DEVICE_FAMILY=1`, `IPHONEOS_DEPLOYMENT_TARGET=26.5`, copy in Vietnamese (`Cài đặt`, `Quản lý bộ nhớ đệm`, `Xóa tất cả`, `Đã xóa`, etc.) per `docs/design/screens.md:25`.
+- iPhone only, iOS 26+, Vietnamese UI — `TARGETED_DEVICE_FAMILY=1`, `IPHONEOS_DEPLOYMENT_TARGET=26.5`, copy in Vietnamese (`Cài đặt`, `Cache Manager`, `Clear All`, `Cleared`, etc.) per `docs/design/screens.md:25`.
 - `DEVELOPMENT_TEAM M5U4E4H84J`, Swift 5.0, single module `apps/novels`, no SwiftPM packages — native only (`FileManager`, `libsqlite3`, `UserDefaults`, `URLSession` actor, `Foundation` HTML).
 - No `SwiftData`, `Core Data`, `Keychain`, `BGTaskScheduler`, WebKit, or second AI cache per `docs/decisions/local-persistence.md`.
 - `book.json.id` string slug is sole local identity; remote numeric `ExportedBook.id` never used as folder/cache key; do not coerce per `docs/decisions/book-identity.md`.
@@ -29,7 +29,7 @@
 **New files (this feature owns):**
 - `apps/novels/Features/Settings/SettingsView.swift` — Grouped Settings list: sections Catalog (BOOKS_API_URL), AI (OPENAI_API_URL, OPENAI_MODEL, AI_PROVIDER, AI_CUSTOM_HEADERS, AI_EXTRA_BODY, AI_PROCESS_ACTIONS, AI_MIN_CHUNK_SIZE), Prefetch (PREFETCH_COUNT), Typography (font, fontSize, lineHeight, letterSpacing), Data (Cache Manager row). Each row is `NavigationLink` to `SettingEditorView` or `CacheManagerView`. Reads `@Bindable settingsStore: SettingsStore`, shows current value truncated, uses `DesignTokens`. Vietnamese labels.
 - `apps/novels/Features/Settings/SettingEditorView.swift` — Single-value editor: `init(settingKey:String, label:String, placeholder:String, description:String, isJSON:Bool, isNumeric:Bool, allowMultiline:Bool)`. Binds `@State draft:String`, validates on `Save` per schema (URLs non-empty, JSON objects valid, provider == openai, prefetch 1..10, chunk 500..5000, actions JSON array), shows inline `errorMessage` in `error` color, blocks save if invalid (except headers/body where error shown but Save still persists verbatim and effectiveHeaders returns [:]). `Clear` resets to default for key. On `Save` writes to `settingsStore` via `settingsStore.setValue(draft, forKey:settingKey)` + `settingsStore.save()`, shows Toast success, pops via `router.pop()`.
-- `apps/novels/Features/Settings/CacheManagerView.swift` — Count card + actions: shows `@State count:Int` + `@State perBook:[(slug:String,count:Int)]` loaded via `ProcessedChapterCaching.batchStatus` or `SELECT count(*)`. Buttons: `Xóa tất cả` (confirm `Alert`/`confirmationDialog` "Xác nhận xóa?") → `cache.clearAll()` → reload counts, show Toast "Đã xóa"; per-book `Xóa` → `cache.clear(bookId:)` → reload. Uses `actor ProcessedChapterStore` or injected `SQLiteProcessedChapterCache`. Background `ProgressView` while loading, `DesignTokens` card radius 12.
+- `apps/novels/Features/Settings/CacheManagerView.swift` — Count card + actions: shows `@State count:Int` + `@State perBook:[(slug:String,count:Int)]` loaded via `ProcessedChapterCaching.batchStatus` or `SELECT count(*)`. Buttons: `Clear All` (confirm `Alert`/`confirmationDialog` "Xác nhận xóa?") → `cache.clearAll()` → reload counts, show Toast "Cleared"; per-book `Xóa` → `cache.clear(bookId:)` → reload. Uses `actor ProcessedChapterStore` or injected `SQLiteProcessedChapterCache`. Background `ProgressView` while loading, `DesignTokens` card radius 12.
 - `apps/novels/Features/Settings/SettingsViewModel.swift` (optional, lightweight) — If needed to isolate validation: `enum SettingKey: String { case booksAPIURL="BOOKS_API_URL", ... }` + `struct SettingDescriptor { let key:String; let label:String; let placeholder:String; let description:String; let defaultValue:String; func validate(_ value:String)->String? }`. Used by `SettingsView` to build sections and by `SettingEditorView` for validate. If not needed, inline in views — keep file if it keeps View thin.
 - `apps/novelsTests/SettingsEditorValidationTests.swift` — Unit tests for `SettingDescriptor.validate` + `SettingsStore` sanitize/headers/extraBody typography clamps and UserDefaults survive-relaunch.
 - `apps/novelsTests/CacheManagerTests.swift` — Unit tests for `SQLiteProcessedChapterCache` count/clearAll/clear(bookId) via `inMemory()` (`:memory:`) and via `AppPaths` temp, plus `effectiveHeaders` handling.
@@ -116,25 +116,25 @@ struct SettingsView: View {
     @Environment(SettingsStore.self) private var settings
     var body: some View {
         List {
-            Section("Danh mục") { row(key: "BOOKS_API_URL", label: "URL Danh mục", value: settings.booksAPIURL) }
+            Section("Catalog") { row(key: "BOOKS_API_URL", label: "URL Catalog", value: settings.booksAPIURL) }
             Section("AI") {
                 row(key: "OPENAI_API_URL", label: "URL OpenAI", value: settings.openaiAPIURL)
-                row(key: "OPENAI_MODEL", label: "Mô hình", value: settings.openaiModel)
-                row(key: "AI_PROVIDER", label: "Nhà cung cấp", value: settings.aiProvider)
-                row(key: "AI_CUSTOM_HEADERS", label: "Headers tùy chỉnh (JSON)", value: settings.aiCustomHeadersJSON)
-                row(key: "AI_EXTRA_BODY", label: "Body bổ sung (JSON)", value: settings.aiExtraBodyJSON)
-                row(key: "AI_PROCESS_ACTIONS", label: "Hành động AI (JSON)", value: settings.aiProcessActionsJSON)
-                row(key: "AI_MIN_CHUNK_SIZE", label: "Kích thước chunk", value: "\(settings.aiMinChunkSize)")
+                row(key: "OPENAI_MODEL", label: "Model", value: settings.openaiModel)
+                row(key: "AI_PROVIDER", label: "Provider", value: settings.aiProvider)
+                row(key: "AI_CUSTOM_HEADERS", label: "Custom Headers (JSON)", value: settings.aiCustomHeadersJSON)
+                row(key: "AI_EXTRA_BODY", label: "Extra Body (JSON)", value: settings.aiExtraBodyJSON)
+                row(key: "AI_PROCESS_ACTIONS", label: "AI Actions (JSON)", value: settings.aiProcessActionsJSON)
+                row(key: "AI_MIN_CHUNK_SIZE", label: "Chunk Size", value: "\(settings.aiMinChunkSize)")
             }
-            Section("Tải trước & Kiểu chữ") {
-                row(key: "PREFETCH_COUNT", label: "Số chương tải trước", value: "\(settings.prefetchCount)")
-                row(key: "font", label: "Phông chữ", value: settings.typography.font)
-                row(key: "fontSize", label: "Cỡ chữ", value: "\(Int(settings.typography.fontSize))")
-                row(key: "lineHeight", label: "Giãn dòng", value: String(format: "%.1f", settings.typography.lineHeight))
-                row(key: "letterSpacing", label: "Giãn chữ", value: String(format: "%.1f", settings.typography.letterSpacing))
+            Section("Prefetch & Typography") {
+                row(key: "PREFETCH_COUNT", label: "Prefetch Count", value: "\(settings.prefetchCount)")
+                row(key: "font", label: "Font", value: settings.typography.font)
+                row(key: "fontSize", label: "Font Size", value: "\(Int(settings.typography.fontSize))")
+                row(key: "lineHeight", label: "Line Height", value: String(format: "%.1f", settings.typography.lineHeight))
+                row(key: "letterSpacing", label: "Letter Spacing", value: String(format: "%.1f", settings.typography.letterSpacing))
             }
-            Section("Dữ liệu") {
-                NavigationLink(value: Router.Route.cacheManager) { Label("Quản lý bộ nhớ đệm", systemImage: "internaldrive") }
+            Section("Data") {
+                NavigationLink(value: Router.Route.cacheManager) { Label("Cache Manager", systemImage: "internaldrive") }
                     .accessibilityIdentifier("settings-CACHE")
             }
         }
@@ -194,7 +194,7 @@ git commit -m "feat(settings): add grouped Settings list with Router routes and 
 
 **Interfaces:**
 - Consumes: `SettingsStore` (`booksAPIURL`…`typography`), `Router` (`pop()`, `toast`), `SettingDescriptor.validate(_:)`.
-- Produces: `struct SettingEditorView: View { let settingKey:String; @Environment(SettingsStore.self) var settings; @Environment(Router.self) var router; @State private var draft:String; @State private var error:String? }` with `Clear` → default, `Save` → `validate() ?? settings.setValue(draft, forKey:settingKey); settings.save(); toast("Đã lưu"); router.pop()`; shows `errorMessage` in `DesignTokens.error` and blocks save except for `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` where error shown but Save still persists verbatim (and `effectiveHeaders` returns `[:]` at runtime).
+- Produces: `struct SettingEditorView: View { let settingKey:String; @Environment(SettingsStore.self) var settings; @Environment(Router.self) var router; @State private var draft:String; @State private var error:String? }` with `Clear` → default, `Save` → `validate() ?? settings.setValue(draft, forKey:settingKey); settings.save(); toast("Saved"); router.pop()`; shows `errorMessage` in `DesignTokens.error` and blocks save except for `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` where error shown but Save still persists verbatim (and `effectiveHeaders` returns `[:]` at runtime).
 - Helper: `SettingsViewModel.descriptor(for key:String) -> SettingDescriptor` and `SettingsStore.setValue(_:forKey:)` + `value(forKey:)->String`. Default values from `SettingsDefaults`/`settings-schema`.
 
 - [ ] **Step 1: Write failing validation tests**
@@ -279,20 +279,20 @@ struct SettingDescriptor {
     let key:String; let label:String; let placeholder:String; let description:String; let defaultValue:String; let allowsVerbatimSave:Bool
     func validate(_ v:String)->String? {
         switch key {
-        case "BOOKS_API_URL","OPENAI_API_URL": return v.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "URL không được để trống" : nil
-        case "OPENAI_MODEL": return v.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Mô hình không được để trống" : nil
-        case "AI_PROVIDER": let l=v.lowercased(); return (l=="openai"||l.isEmpty) ? nil : "Chỉ hỗ trợ openai"
+        case "BOOKS_API_URL","OPENAI_API_URL": return v.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "URL must not be empty" : nil
+        case "OPENAI_MODEL": return v.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty ? "Model must not be empty" : nil
+        case "AI_PROVIDER": let l=v.lowercased(); return (l=="openai"||l.isEmpty) ? nil : "Only openai is supported"
         case "AI_CUSTOM_HEADERS","AI_EXTRA_BODY":
             if v.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { return nil }
-            guard let d=v.data(using:.utf8), let obj=try? JSONSerialization.jsonObject(with: d), obj is [String:Any] else { return "JSON phải là object, ví dụ {\"Authorization\":\"Bearer ...\"}" }
+            guard let d=v.data(using:.utf8), let obj=try? JSONSerialization.jsonObject(with: d), obj is [String:Any] else { return "JSON must be an object, e.g. {\"Authorization\":\"Bearer ...\"}" }
             return nil
         case "AI_PROCESS_ACTIONS":
             if v.isEmpty { return nil }
-            guard let d=v.data(using:.utf8), let arr=try? JSONSerialization.jsonObject(with: d) as? [[String:Any]] else { return "JSON phải là mảng [{key,name,prompt}]" }
-            for it in arr { if let k=it["key"] as? String, k=="translate"||k=="summary" {} else { return "key chỉ translate/summary" } }
+            guard let d=v.data(using:.utf8), let arr=try? JSONSerialization.jsonObject(with: d) as? [[String:Any]] else { return "JSON must be an array [{key,name,prompt}]" }
+            for it in arr { if let k=it["key"] as? String, k=="translate"||k=="summary" {} else { return "key must be translate/summary" } }
             return nil
-        case "PREFETCH_COUNT": if let n=Int(v), (1...10).contains(n) { return nil }; return "1..10, ngoài khoảng sẽ về 3"
-        case "AI_MIN_CHUNK_SIZE": if let n=Int(v), (500...5000).contains(n) { return nil }; return "500..5000, ngoài khoảng sẽ về 1300"
+        case "PREFETCH_COUNT": if let n=Int(v), (1...10).contains(n) { return nil }; return "1..10, out of range returns 3"
+        case "AI_MIN_CHUNK_SIZE": if let n=Int(v), (500...5000).contains(n) { return nil }; return "500..5000, out of range returns 1300"
         case "fontSize": if let d=Double(v), (12...24).contains(d) { return nil }; return "12..24"
         case "lineHeight": if let d=Double(v), (1.2...2.0).contains(d) { return nil }; return "1.2..2.0"
         case "letterSpacing": if let d=Double(v), (0...1.0).contains(d) { return nil }; return "0..1.0"
@@ -303,16 +303,16 @@ struct SettingDescriptor {
 enum SettingsViewModel {
     static func descriptor(for key:String)->SettingDescriptor {
         switch key {
-        case "BOOKS_API_URL": return .init(key:key,label:"URL Danh mục",placeholder:"https://...",description:"Endpoint Supabase get-exported-books",defaultValue:"https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books",allowsVerbatimSave:false)
-        case "OPENAI_API_URL": return .init(key:key,label:"URL OpenAI",placeholder:"http://localhost:8317/v1/chat/completions",description:"Endpoint chat/completions (ATS cho phép localhost)",defaultValue:"http://localhost:8317/v1/chat/completions",allowsVerbatimSave:false)
-        case "OPENAI_MODEL": return .init(key:key,label:"Mô hình",placeholder:"gpt-4o",description:"Tên model, mặc định gpt-4o",defaultValue:"gpt-4o",allowsVerbatimSave:false)
-        case "AI_PROVIDER": return .init(key:key,label:"Nhà cung cấp",placeholder:"openai",description:"Chỉ openai, không phân biệt hoa thường",defaultValue:"openai",allowsVerbatimSave:false)
-        case "AI_CUSTOM_HEADERS": return .init(key:key,label:"Headers tùy chỉnh (JSON)",placeholder:"{\"Authorization\":\"Bearer ...\"}",description:"JSON object, sai cú pháp sẽ được lưu nguyên văn nhưng bỏ qua khi gửi",defaultValue:"",allowsVerbatimSave:true)
-        case "AI_EXTRA_BODY": return .init(key:key,label:"Body bổ sung (JSON)",placeholder:"{\"temperature\":0.7}",description:"JSON object trộn shallow vào body, sai sẽ bỏ qua",defaultValue:"",allowsVerbatimSave:true)
-        case "AI_PROCESS_ACTIONS": return .init(key:key,label:"Hành động AI (JSON)",placeholder:"[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",description:"Mảng translate/summary, rỗng sẽ về mặc định 2 action",defaultValue:SettingsDefaults.defaultActionsJSON,allowsVerbatimSave:false)
-        case "PREFETCH_COUNT": return .init(key:key,label:"Số chương tải trước",placeholder:"3",description:"1..10, ngoài khoảng về 3 (BR-08)",defaultValue:"3",allowsVerbatimSave:false)
-        case "AI_MIN_CHUNK_SIZE": return .init(key:key,label:"Kích thước chunk",placeholder:"1300",description:"500..5000, ngoài khoảng về 1300",defaultValue:"1300",allowsVerbatimSave:false)
-        case "font": return .init(key:key,label:"Phông chữ",placeholder:"System",description:"System/Serif/Mono",defaultValue:"System",allowsVerbatimSave:false)
+        case "BOOKS_API_URL": return .init(key:key,label:"URL Catalog",placeholder:"https://...",description:"Endpoint Supabase get-exported-books",defaultValue:"https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books",allowsVerbatimSave:false)
+        case "OPENAI_API_URL": return .init(key:key,label:"URL OpenAI",placeholder:"http://localhost:8317/v1/chat/completions",description:"Endpoint chat/completions (ATS allows localhost)",defaultValue:"http://localhost:8317/v1/chat/completions",allowsVerbatimSave:false)
+        case "OPENAI_MODEL": return .init(key:key,label:"Model",placeholder:"gpt-4o",description:"Model Name, default gpt-4o",defaultValue:"gpt-4o",allowsVerbatimSave:false)
+        case "AI_PROVIDER": return .init(key:key,label:"Provider",placeholder:"openai",description:"Only openai, case-insensitive",defaultValue:"openai",allowsVerbatimSave:false)
+        case "AI_CUSTOM_HEADERS": return .init(key:key,label:"Custom Headers (JSON)",placeholder:"{\"Authorization\":\"Bearer ...\"}",description:"JSON object, sai cú pháp will is lưu nguyên văn nhưng bỏ qua khi gửi",defaultValue:"",allowsVerbatimSave:true)
+        case "AI_EXTRA_BODY": return .init(key:key,label:"Extra Body (JSON)",placeholder:"{\"temperature\":0.7}",description:"JSON object trộn shallow vào body, sai will bỏ qua",defaultValue:"",allowsVerbatimSave:true)
+        case "AI_PROCESS_ACTIONS": return .init(key:key,label:"AI Actions (JSON)",placeholder:"[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",description:"Mảng translate/summary, rỗng returns mặc định 2 action",defaultValue:SettingsDefaults.defaultActionsJSON,allowsVerbatimSave:false)
+        case "PREFETCH_COUNT": return .init(key:key,label:"Prefetch Count",placeholder:"3",description:"1..10, out of range về 3 (BR-08)",defaultValue:"3",allowsVerbatimSave:false)
+        case "AI_MIN_CHUNK_SIZE": return .init(key:key,label:"Chunk Size",placeholder:"1300",description:"500..5000, out of range về 1300",defaultValue:"1300",allowsVerbatimSave:false)
+        case "font": return .init(key:key,label:"Font",placeholder:"System",description:"System/Serif/Mono",defaultValue:"System",allowsVerbatimSave:false)
         default: return .init(key:key,label:key,placeholder:"",description:"",defaultValue:"",allowsVerbatimSave:false)
         }
     }
@@ -394,7 +394,7 @@ struct SettingEditorView: View {
         error=msg // for headers/body show but still save
         settings.setValue(draft, forKey: settingKey)
         settings.save()
-        router.toast.show("Đã lưu", type:.success)
+        router.toast.show("Saved", type:.success)
         router.pop()
     }
 }
@@ -427,7 +427,7 @@ git commit -m "feat(settings): add SettingEditor validation, verbatim JSON handl
 
 **Interfaces:**
 - Consumes: `ProcessedChapterCaching` (`clearAll() throws`, `clear(bookId:String) throws`, plus `countAll() -> Int` via `SELECT count(*) FROM processed_chapters` or `batchStatus`, and `count(bookId:String)` via helper), `Router.toast`, `DesignTokens`.
-- Produces: `struct CacheManagerView: View { @Environment(Router.self) var router; @State var total:Int; @State var perBook:[CacheRow]; @State var isLoading; @State var showClearAllConfirm }` + `struct CacheRow: Identifiable { let slug:String; let count:Int }`. Loads on `.task`, shows card `Tổng số bản đã xử lý: \(total)` + `List` per-book with swipe/clear button, `Xóa tất cả` with `confirmationDialog("Xác nhận xóa tất cả cache?")`.
+- Produces: `struct CacheManagerView: View { @Environment(Router.self) var router; @State var total:Int; @State var perBook:[CacheRow]; @State var isLoading; @State var showClearAllConfirm }` + `struct CacheRow: Identifiable { let slug:String; let count:Int }`. Loads on `.task`, shows card `Tổng số bản already xử lý: \(total)` + `List` per-book with swipe/clear button, `Clear All` with `confirmationDialog("Xác nhận xóa tất cả cache?")`.
 
 - [ ] **Step 1: Write failing Cache tests**
 
@@ -511,22 +511,22 @@ struct CacheManagerView: View {
         List {
             Section {
                 VStack(alignment:.leading, spacing:8) {
-                    Text("Tổng số bản đã xử lý: \(total)").font(.headline)
-                    Text("Lưu trong processed_chapters.sqlite — xóa sẽ trống ngay").font(.caption).foregroundStyle(DesignTokens.muted)
-                    Button(role:.destructive){ showClearAllConfirm=true } label:{ Label("Xóa tất cả", systemImage:"trash").frame(maxWidth:.infinity) }.buttonStyle(.borderedProminent).tint(DesignTokens.error).disabled(total==0)
+                    Text("Tổng số bản already xử lý: \(total)").font(.headline)
+                    Text("Lưu in processed_chapters.sqlite — xóa will trống ngay").font(.caption).foregroundStyle(DesignTokens.muted)
+                    Button(role:.destructive){ showClearAllConfirm=true } label:{ Label("Clear All", systemImage:"trash").frame(maxWidth:.infinity) }.buttonStyle(.borderedProminent).tint(DesignTokens.error).disabled(total==0)
                 }.padding(.vertical,4).listRowBackground(DesignTokens.surface)
             }
             Section("Theo sách") {
                 if isLoading { ProgressView().frame(maxWidth:.infinity) }
-                else if rows.isEmpty { Text("Chưa có dữ liệu đệm").foregroundStyle(DesignTokens.muted) }
+                else if rows.isEmpty { Text("No cached data").foregroundStyle(DesignTokens.muted) }
                 else { ForEach(rows, id:\.slug){ r in HStack{ Text(r.slug).lineLimit(1); Spacer(); Text("\(r.count)").foregroundStyle(DesignTokens.muted); Button("Xóa", role:.destructive){ showClearBookConfirm=r.slug }}.accessibilityIdentifier("cache-\(r.slug)") } }
             }
         }
-        .navigationTitle("Quản lý bộ nhớ đệm").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Cache Manager").navigationBarTitleDisplayMode(.inline)
         .task { await load() }
         .refreshable { await load() }
-        .confirmationDialog("Xác nhận xóa tất cả?", isPresented: $showClearAllConfirm, titleVisibility:.visible){ Button("Xóa tất cả", role:.destructive){ Task{ await clearAll()} } ; Button("Hủy", role:.cancel){} } message:{ Text("Hành động không thể hoàn tác.") }
-        .confirmationDialog("Xóa cache cho \(showClearBookConfirm ?? "")?", isPresented: Binding(get:{showClearBookConfirm != nil}, set:{ if !$0 { showClearBookConfirm=nil }}), titleVisibility:.visible){ Button("Xóa", role:.destructive){ if let s=showClearBookConfirm { Task{ await clearBook(s)} } } ; Button("Hủy", role:.cancel){ showClearBookConfirm=nil } }
+        .confirmationDialog("Confirm clear all?", isPresented: $showClearAllConfirm, titleVisibility:.visible){ Button("Clear All", role:.destructive){ Task{ await clearAll()} } ; Button("Hủy", role:.cancel){} } message:{ Text("This action cannot be undone.") }
+        .confirmationDialog("Xóa cache for \(showClearBookConfirm ?? "")?", isPresented: Binding(get:{showClearBookConfirm != nil}, set:{ if !$0 { showClearBookConfirm=nil }}), titleVisibility:.visible){ Button("Xóa", role:.destructive){ if let s=showClearBookConfirm { Task{ await clearBook(s)} } } ; Button("Hủy", role:.cancel){ showClearBookConfirm=nil } }
     }
     private func load() async {
         isLoading=true
@@ -535,8 +535,8 @@ struct CacheManagerView: View {
         } catch { total=0; rows=[] }
         isLoading=false
     }
-    private func clearAll() async { try? (cache as? SQLiteProcessedChapterCache)?.clearAll(); await load(); router.toast.show("Đã xóa tất cả", type:.success) }
-    private func clearBook(_ slug:String) async { try? (cache as? SQLiteProcessedChapterCache)?.clear(bookId: slug); await load(); router.toast.show("Đã xóa \(slug)", type:.success) }
+    private func clearAll() async { try? (cache as? SQLiteProcessedChapterCache)?.clearAll(); await load(); router.toast.show("Cleared tất cả", type:.success) }
+    private func clearBook(_ slug:String) async { try? (cache as? SQLiteProcessedChapterCache)?.clear(bookId: slug); await load(); router.toast.show("Cleared \(slug)", type:.success) }
 }
 ```
 
@@ -609,7 +609,7 @@ Add typography handling in `SettingsViewModel` default for `font` row to use pic
 
 Build + `RouterSettingsTests` → PASS.
 
-Manual verification step: In Simulator, change `Cỡ chữ` 16→20, open Reader, verify larger font without restart; change back.
+Manual verification step: In Simulator, change `Font Size` 16→20, open Reader, verify larger font without restart; change back.
 
 - [ ] **Step 5: Commit**
 
@@ -684,7 +684,7 @@ Expected: PASS (all `Settings*`, `Cache*`, `Router*`).
 - Run: `swiftformat --lint apps --verbose` → check no untracked formatting issues after new views.
 - Run: `swiftlint lint --strict` → 0 violations.
 - Run: `xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet` → PASS.
-- Simulator manual: Launch → Settings → change `Mô hình` to `gpt-4.1` → kill app → relaunch → verify persisted; Headers `{bad}` saved verbatim but `effectiveHeaders` empty (check via debugger); Cache Manager count matches sqlite, `Xóa tất cả` confirms and toasts, per-book `Xóa` updates immediately; Prefetch `99` coerces to 3 after save+relaunch.
+- Simulator manual: Launch → Settings → change `Model` to `gpt-4.1` → kill app → relaunch → verify persisted; Headers `{bad}` saved verbatim but `effectiveHeaders` empty (check via debugger); Cache Manager count matches sqlite, `Clear All` confirms and toasts, per-book `Xóa` updates immediately; Prefetch `99` coerces to 3 after save+relaunch.
 
 - [ ] **Step 4: Run init.sh**
 

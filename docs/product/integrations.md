@@ -24,7 +24,7 @@
 
 ## 2. AI Processing Service (OpenAI-Compatible)
 
-**Purpose:** Transform raw chapter text into natural Vietnamese (translate) or a shorter faithful version (summary) using a configurable prompt.
+**Purpose:** Transform raw chapter text via single Prompt (`AI_PROMPT`, modes `none`/`rewrite` — the prompt text determines the transformation) using a configurable prompt, one chunk per request.
 
 **Business request:** App sends the active prompt and one chunk of chapter text. Long chapters are split into chunks; each chunk is one request.
 

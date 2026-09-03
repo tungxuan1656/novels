@@ -2,33 +2,33 @@
 
 ## Goal
 
-Sửa lỗi "Gói sách không hợp lệ" với ZIP tải về hợp lệ dạng samples (outer-folder + `__MACOSX`/`.DS_Store` + flag data-descriptor `0x08`), giữ an toàn zip-slip/CRC/bomb/method.
+Fix error "Gói sách không hợp lệ" for valid downloaded ZIPs that match sample shape (outer-folder + `__MACOSX`/`.DS_Store` + data-descriptor flag `0x08`), while keeping zip-slip/CRC/bomb/method security checks.
 
 ## Scope
 
-- `FileManagerZIP.unzipItem` hỗ trợ data-descriptor (flag 0x08) via trailing descriptor parsing, lọc hygiene `__MACOSX/`, `.DS_Store`, `._*` thay vì throw, giữ whitelist STORE(0)/DEFLATE(8), CRC32, 100MB cap, zip-slip prefix check
-- Resolver `resolveCanonicalRoot` phát hiện single outer-folder duy nhất chứa `book.json`+`chapters/` và flatten về canonical root
-- `ZipValidator.isValidRoot` tolerant ignore hygiene khi enumerate top/chapters
-- `Book` decode fallback derive `id` slug từ `name` khi thiếu `id` (sample cũ)
-- `ImportViewModel.importBook` gọi resolver sau unzip trước validator/save
-- Cập nhật contracts/docs: `docs/contracts/book-package.md`, `docs/decisions/book-package-shape.md` (Amendment 2026-08-26), `ARCHITECTURE.md:14`, `docs/contracts/local-data.md`
+- `FileManagerZIP.unzipItem` supports data-descriptor (flag 0x08) via trailing descriptor parsing, filters hygiene entries `__MACOSX/`, `.DS_Store`, `._*` instead of throwing, keeps whitelist STORE(0)/DEFLATE(8), CRC32, 100MB cap, and zip-slip prefix check
+- Resolver `resolveCanonicalRoot` detects a single outer-folder that contains `book.json`+`chapters/` and flattens it to the canonical root
+- `ZipValidator.isValidRoot` tolerantly ignores hygiene entries when enumerating top level and chapters
+- `Book` decode fallback derives `id` slug from `name` when `id` is missing (legacy sample)
+- `ImportViewModel.importBook` calls the resolver after unzip and before validator/save
+- Update contracts/docs: `docs/contracts/book-package.md`, `docs/decisions/book-package-shape.md` (Amendment 2026-08-26), `ARCHITECTURE.md:14`, `docs/contracts/local-data.md`
 
 ## Non-goals
 
-- Không đổi API catalog, không đổi UI Library/AddBook/Reader, không đổi SQLite cache hay Settings schema
-- Không nới lỏng bảo mật: vẫn reject `..`, `/`, `C:`, bomb >100MB, CRC mismatch, method khác 0/8, missing chapter, `count != references.length`
-- Không hỗ trợ ZIP64/encryption, không xử lý multi outer-folder (chỉ single wrapper)
+- No catalog API change, no Library/AddBook/Reader UI change, no SQLite cache or Settings schema change
+- No security relaxation: still reject `..`, `/`, `C:`, bomb >100MB, CRC mismatch, method other than 0/8, missing chapter, `count != references.length`
+- No ZIP64/encryption support, no handling for multi outer-folder (single wrapper only)
 
 ## Acceptance
 
-- [x] ZIP DEFLATE với flag `0x08` (Finder/macOS/Python zipfile) giải nén thành công và pass CRC/size
-- [x] ZIP có `__MACOSX/._*` và `.DS_Store` ở root/chapters được bỏ qua, không tạo `__MACOSX/` trong đích, valid content vẫn import
-- [x] ZIP bọc single outer-folder `wrapper/book.json` + `wrapper/chapters/` được flatten và import thành công (cả khi kèm `__MACOSX`)
-- [x] Sample thực `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` (outer-folder + __MACOSX + flag 0x08, 743 chapters) import được qua `ImportViewModel` và hiện đủ 743 chapters trong Library
-- [x] Validator vẫn ignore hygiene nhưng vẫn reject: missing `book.json`, missing chapter, extra file thực sự ngoài hygiene, `count != references.length`
-- [x] Bảo mật: zip-slip (`../evil`), bomb >100MB, CRC mismatch, method !=0/8 vẫn báo `invalidPackage`, không tạo folder
-- [x] `book.json` thiếu `id` vẫn decode với id derived slug từ `name` và save thành công
-- [x] `./init.sh` PASS (format 0, lint 0, build PASS, test PASS với cases mới)
+- [x] ZIP DEFLATE with flag `0x08` (Finder/macOS/Python zipfile) extracts successfully and passes CRC/size
+- [x] ZIP that contains `__MACOSX/._*` and `.DS_Store` at root/chapters is ignored, does not create `__MACOSX/` in destination, valid content still imports
+- [x] ZIP wrapped in a single outer-folder `wrapper/book.json` + `wrapper/chapters/` is flattened and imports successfully (even with `__MACOSX`)
+- [x] Real sample `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` (outer-folder + __MACOSX + flag 0x08, 743 chapters) imports via `ImportViewModel` and shows 743 chapters in Library
+- [x] Validator still ignores hygiene but still rejects: missing `book.json`, missing chapter, real extra file beyond hygiene, `count != references.length`
+- [x] Security: zip-slip (`../evil`), bomb >100MB, CRC mismatch, method !=0/8 still report `invalidPackage`, no folder created
+- [x] `book.json` missing `id` still decodes with derived slug id from `name` and saves successfully
+- [x] `./init.sh` PASS (format 0, lint 0, build PASS, test PASS with new cases)
 
 ## Relevant docs
 
@@ -40,7 +40,7 @@ Sửa lỗi "Gói sách không hợp lệ" với ZIP tải về hợp lệ dạn
 
 ## Plan
 
-Substantial: >=4 files, cần phases — external plan `docs/plans/feat-010.md` (6 tasks, mỗi task TDD: test fail → implement → pass → commit).
+Substantial: >=4 files, needs phases — external plan `docs/plans/feat-010.md` (6 tasks, each task TDD: test fail → implement → pass → commit).
 
 - Link: `docs/plans/feat-010.md` (accepted design 2026-08-26 — tolerant wrapper+hygiene+flag08)
 

@@ -10,7 +10,7 @@ Book 1──* Chapter
 Book 1──* Reference (ordered chapter index)
 Book 1──* ProcessedChapter
 Book 1──* ReadingSession (one active per book)
-AIAction *──* ProcessedChapter (via mode key)
+AI_PROMPT 1──* ProcessedChapter (via mode rewrite)
 ReadingSession *──1 Book
 ReadingSession *──1 Chapter (current)
 TypographySetting 1──* ReadingSession (render)

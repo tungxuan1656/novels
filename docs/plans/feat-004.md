@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- iPhone only, iOS 26+, Vietnamese UI — `TARGETED_DEVICE_FAMILY=1`, `IPHONEOS_DEPLOYMENT_TARGET=26.5`, copy in Vietnamese (`Thư viện`, `Đang đọc`, `Không tìm thấy chương`, etc.).
+- iPhone only, iOS 26+, Vietnamese UI — `TARGETED_DEVICE_FAMILY=1`, `IPHONEOS_DEPLOYMENT_TARGET=26.5`, copy in Vietnamese (`Thư viện`, `Đang đọc`, `Chapter not found`, etc.).
 - `DEVELOPMENT_TEAM M5U4E4H84J`, Swift 5.0, single module `apps/novels`, no SwiftPM packages.
 - No `SwiftData`, `Core Data`, `Keychain`, `BGTaskScheduler`, WebKit, or second AI cache.
 - `book.json.id` string slug is sole local identity; remote numeric `ExportedBook.id`/`bookId` never used as folder/cache key; do not coerce.
@@ -32,7 +32,7 @@
 - `apps/novels/Features/Reading/ReaderViewModel.swift` — `@MainActor @Observable final class ReaderViewModel` orchestrating load: `let bookId:String; var book:Book?; var chapterNumber:Int; var blocks:[TextBlock]; var isLoading:Bool; var errorMessage:String?; var canGoPrev/canGoNext:Bool; var showReferences:Bool`. Uses `FileBookRepository` + `SettingsStore` for offset/session. Methods: `load()`, `goNext()`, `goPrev()`, `goToChapter(_:)`, `saveOffset(_:)`, `onAppear()`, `onDisappear()`.
 - `apps/novels/Features/Reading/ReaderView.swift` — SwiftUI reader: `ScrollViewReader` + `ScrollView` with `VStack` rendering `TextBlock` → `SwiftUI.Text` concatenated spans, applying `SettingsStore.typography`. Toolbar prev/next, header index `Chương N / count`, to-bottom button, bottom-sheet trigger, scroll offset tracking. Replaces/augments `ReadingShellView`.
 - `apps/novels/Features/Reading/ReferencesView.swift` — List of `book.references` with current chapter bold, tap calls `reader.goToChapter(_:)` and `router.pop()`. Receives `book:Book, current:Int, onSelect:(Int)->Void`.
-- `apps/novels/Features/Reading/ReaderBottomSheet.swift` — Sheet content reusing `BottomSheetView`: font picker (System + 2 bundled), steppers for `fontSize/lineHeight/letterSpacing` with clamp and live persist via `SettingsStore.typography` + `settingsStore.save()`, gear button shows no-op toast "Cài đặt sẽ có ở feat-005" and dismisses sheet (Settings route is feat-005), close handling.
+- `apps/novels/Features/Reading/ReaderBottomSheet.swift` — Sheet content reusing `BottomSheetView`: font picker (System + 2 bundled), steppers for `fontSize/lineHeight/letterSpacing` with clamp and live persist via `SettingsStore.typography` + `settingsStore.save()`, gear button shows no-op toast "Cài đặt will có ở feat-005" and dismisses sheet (Settings route is feat-005), close handling.
 - `apps/novels/Features/Reading/ScrollOffsetPreference.swift` — Small helper: `struct ScrollOffsetKey: PreferenceKey` + `ViewModifier` to publish `offsetY: Double` for ReaderView without breaking layering.
 
 **Modified files:**
@@ -217,7 +217,7 @@ final class ReaderViewModelTests: XCTestCase {
         let toast = ToastCenter()
         let vm = ReaderViewModel(bookId: "test-slug", repository: repo, settingsStore: store, toastCenter: toast)
         vm.chapterNumber = 2; await vm.load()
-        XCTAssertEqual(toast.lastMessage, "Không tìm thấy chương")
+        XCTAssertEqual(toast.lastMessage, "Chapter not found")
         XCTAssertNotNil(vm.errorMessage)
     }
 }
@@ -261,7 +261,7 @@ import Observation
     private func persistChapter() { settingsStore.session?.chapterNumber = chapterNumber; settingsStore.session?.offset = 0; settingsStore.save() }
 }
 ```
-Implement `load()` : `isLoading=true; errorMessage=nil` → `book = try? repository.book(slug:bookId)` → clamp `chapterNumber` to `1...book.count` → read file `root/books/<slug>/chapters/chapter-N.html` via `FileManager.default.contents(atPath:)` or `String(contentsOfFile:encoding:)` → if missing → `errorMessage="Không tìm thấy chương"` + `toastCenter?.show("Không tìm thấy chương", type:.error)` + `blocks=[]; isLoading=false; return` → else `blocks=HtmlParser.parse(html:) ; isLoading=false`.
+Implement `load()` : `isLoading=true; errorMessage=nil` → `book = try? repository.book(slug:bookId)` → clamp `chapterNumber` to `1...book.count` → read file `root/books/<slug>/chapters/chapter-N.html` via `FileManager.default.contents(atPath:)` or `String(contentsOfFile:encoding:)` → if missing → `errorMessage="Chapter not found"` + `toastCenter?.show("Chapter not found", type:.error)` + `blocks=[]; isLoading=false; return` → else `blocks=HtmlParser.parse(html:) ; isLoading=false`.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -351,7 +351,7 @@ struct ReaderView: View {
                 VStack(alignment:.leading, spacing: DesignTokens.spacing16) {
                     header
                     if vm.isLoading { ProgressView().frame(maxWidth:.infinity) }
-                    else if vm.blocks.isEmpty { Text(vm.errorMessage ?? "Không tìm thấy chương").foregroundStyle(DesignTokens.muted) }
+                    else if vm.blocks.isEmpty { Text(vm.errorMessage ?? "Chapter not found").foregroundStyle(DesignTokens.muted) }
                     else { content }
                     footerNav
                 }
@@ -555,12 +555,12 @@ struct ReaderBottomSheet: View {
     var body: some View {
         BottomSheetView(isPresented: .constant(true), onDismiss: onClose) {
             VStack(spacing: DesignTokens.spacing16) {
-                HStack{ Text("Cài đặt đọc").font(.headline); Spacer(); Button{ onClose()} label:{Image(systemName:"xmark")}; Button{ /* gear to Settings — push via router if available else dismiss */ } label:{Image(systemName:"gearshape")} }
+                HStack{ Text("Reading Settings").font(.headline); Spacer(); Button{ onClose()} label:{Image(systemName:"xmark")}; Button{ /* gear to Settings — push via router if available else dismiss */ } label:{Image(systemName:"gearshape")} }
                 Divider()
-                Picker("Phông chữ", selection: Binding(get:{settingsStore.typography.font}, set:{settingsStore.typography.font=$0; settingsStore.save()})) { ForEach(fonts, id:\.self){ Text($0).tag($0) } }.pickerStyle(.segmented)
-                stepperRow(title:"Cỡ chữ", value: Binding(get:{settingsStore.typography.fontSize}, set:{ clampAndSaveFontSize($0) }), range:12...24, step:1, format:"%.0f")
-                stepperRow(title:"Giãn dòng", value: Binding(get:{settingsStore.typography.lineHeight}, set:{ clampAndSaveLineHeight($0) }), range:1.2...2.0, step:0.1, format:"%.1f")
-                stepperRow(title:"Giãn chữ", value: Binding(get:{settingsStore.typography.letterSpacing}, set:{ clampAndSaveLetterSpacing($0) }), range:0...1.0, step:0.1, format:"%.1f")
+                Picker("Font", selection: Binding(get:{settingsStore.typography.font}, set:{settingsStore.typography.font=$0; settingsStore.save()})) { ForEach(fonts, id:\.self){ Text($0).tag($0) } }.pickerStyle(.segmented)
+                stepperRow(title:"Font Size", value: Binding(get:{settingsStore.typography.fontSize}, set:{ clampAndSaveFontSize($0) }), range:12...24, step:1, format:"%.0f")
+                stepperRow(title:"Line Height", value: Binding(get:{settingsStore.typography.lineHeight}, set:{ clampAndSaveLineHeight($0) }), range:1.2...2.0, step:0.1, format:"%.1f")
+                stepperRow(title:"Letter Spacing", value: Binding(get:{settingsStore.typography.letterSpacing}, set:{ clampAndSaveLetterSpacing($0) }), range:0...1.0, step:0.1, format:"%.1f")
             }
             .padding(DesignTokens.spacing16)
         }
@@ -649,7 +649,7 @@ In `AppRoot.swift`, add destinations:
     case .references(let bookId):
         if let book = try? repo.book(slug: bookId) {
             ReferencesView(book: book, current: settings.session?.chapterNumber ?? 1, onSelect: { n in settings.session?.chapterNumber = n; settings.save() }, router: router)
-        } else { Text("Không tìm thấy chương") }
+        } else { Text("Chapter not found") }
     case .addBook: AddBookView(...)
     }
 }
@@ -737,7 +737,7 @@ Update `features/feat-004.md` Handoff: Evidence `docs/plans/feat-004.md`, Blocke
 - Overscroll lock, to-bottom, swipe-back disabled → Task 3 + Task 6 (`interactiveDismissDisabled` + `ScrollOffsetKey`).
 - Offset per slug restore/re-entry + `onScreen` → Task 2 + Task 6 (session chapterNumber+offset, `onAppear`/`onDisappear`, per-book check).
 - Bottom sheet typography persist live → Task 5 (`SettingsStore.typography.save()` + steppers).
-- Missing file toast without crash + rapid nav not corrupt → Task 2 + Task 3 (errorMessage + toast "Không tìm thấy chương" + offset reset).
+- Missing file toast without crash + rapid nav not corrupt → Task 2 + Task 3 (errorMessage + toast "Chapter not found" + offset reset).
 - Offline flag, no AI/prefetch → Task 7 grep checks.
 
 **2. Placeholder scan:** No TBD/TODO/incomplete sections; every step has concrete code/tests/expected commands. File paths use actual `apps/novels/**` roots (synced groups). Code blocks compile with known types (`TextSpan.Kind.boldItalic` defined, `DesignTokens` colors exist per feat-002).

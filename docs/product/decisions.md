@@ -43,13 +43,13 @@
 - **Decision:** When chapter is ready and mode != `none`, prefetch next N (default 3, allowed 1..10, invalid → 3). Batch-check cache, skip cached, process missing one by one in order. Cancel if chapter or mode changes. See [business-rules.md](./business-rules.md) BR-08.
 - **Consequence:** Next chapters are often ready; sequential work avoids stale writes; status is runtime-only; per-chapter errors are logged and do not stop batch.
 
-### D5 — Translate Keeps Honorifics + Summary 50–60%
+### D5 — AI Rewrite Preserves Honorifics and Content via Single Prompt
 
 - **Date:** 2026-05-10 — *Reconstructed from BR-03–06*
 - **Status:** Accepted
-- **Context:** Vietnamese readers expect honorifics and names unchanged and a short but faithful summary. Earlier prompts mapped honorifics and lost dialogue.
-- **Decision:** `translate` keeps all honorifics unchanged (ta, nguoi, han...), replaces Sino-Vietnamese syntax with natural Vietnamese, keeps 100% meaning and names. `summary` keeps plot order, key events and key dialogue, cuts only scenery and repeated emotion to 50–60% (short chapters → shortest faithful); never invents. See [business-rules.md](./business-rules.md) BR-03–06.
-- **Consequence:** Output is predictable and reviewable; prompts are configurable actions `translate`/`summary` in settings, so edits need no release.
+- **Context:** Vietnamese readers expect honorifics and names unchanged and faithful content preservation. Earlier prompts mapped honorifics and lost dialogue.
+- **Decision:** `rewrite` uses the single configurable `AI_PROMPT` as system prompt. The default prompt keeps all honorifics unchanged (ta, ngươi, huynh, đệ...), replaces Sino-Vietnamese syntax with natural Vietnamese, and preserves 100% meaning, names, and author style. No hallucination or omission unless the prompt explicitly instructs it. See [business-rules.md](./business-rules.md) BR-03–04.
+- **Consequence:** Output is predictable and reviewable; the prompt is configurable via `AI_PROMPT` in settings, so edits need no release. Mode `none` bypasses AI and `rewrite` checks cache first.
 
 ### D6 — Supersedes D3 Rendering Detail
 

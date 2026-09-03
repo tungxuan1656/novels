@@ -50,7 +50,8 @@ Duration is 3s for <60 chars, 4s for <150 chars, and 5s for long text. Tap to di
 | Case | Result |
 |---|---|
 | ZIP missing files | Fail, no entry, error |
-| Bad JSON for AI Actions | Block save, error |
+| Invalid AI headers/body JSON | Ignored, request proceeds without merge |
+| Empty Prompt | Fallback to default prompt (BR-12) |
 | No network on Add Book | Error, pull to retry |
 | Empty chapters | Empty state, nav disabled |
 

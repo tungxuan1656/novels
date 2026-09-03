@@ -36,7 +36,7 @@
 
 ## Acceptance
 
-- [ ] When mode is translate/summary and chapter is ready, the next N uncached chapters are processed sequentially.
+- [ ] When mode is `rewrite` and the chapter is ready, the next N uncached chapters are processed sequentially.
 - [ ] Cached chapters are skipped without service calls.
 - [ ] Progress shows total, processed, and errors without stopping the batch.
 - [ ] Changing chapter or mode cancels current prefetch and starts a new one when eligible.

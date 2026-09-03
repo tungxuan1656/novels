@@ -32,7 +32,7 @@
 
 **Modified files:**
 - `apps/novels/Features/Reading/ReaderViewModel.swift` — Add `var prefetchStatus: PrefetchStatus` `@MainActor` published via polling or `didSet`, `private let prefetchManager: PrefetchManager` injected via init (default `PrefetchManager()`), trigger `prefetchIfEligible()` after `load()` when `aiMode != .none && errorMessage == nil`, cancel on `goNext/goPrev/goToChapter/setAIMode/reprocess` via `prefetchManager.cancel()`, handle `bookId` mismatch; ensure `onAppear` restores offset unchanged; keep existing `aiMode/processedContent/isAIProcessing/aiError` behavior from feat-006.
-- `apps/novels/Features/Reading/ReaderView.swift` — Optional read-only prefetch indicator: when `viewModel.prefetchStatus.isRunning` show `ProgressView` + text `Đang tải trước \(processed)/\(total)` with `accessibilityIdentifier prefetchStatus`; when `errors` non-empty show `Text` count; never writable controls.
+- `apps/novels/Features/Reading/ReaderView.swift` — Optional read-only prefetch indicator: when `viewModel.prefetchStatus.isRunning` show `ProgressView` + text `Prefetching \(processed)/\(total)` with `accessibilityIdentifier prefetchStatus`; when `errors` non-empty show `Text` count; never writable controls.
 - `apps/novels/Persistence/SettingsStore.swift` — Add helper `func effectivePrefetchCount() -> Int` returning `\(1...10.contains(prefetchCount) ? prefetchCount : 3)` for reuse (keep `sanitize()` as is); no storage change.
 - `apps/novels/Persistence/ProcessedChapterCache.swift` — No schema change; reuse existing `batchStatus(bookId:mode:numbers:) -> Set<Int>` already present; verify `upsert` still guards `mode != .none`.
 - `apps/novels.xcodeproj/project.pbxproj` — Add new files to `novels` target (PBXBuildFile + PBXSources).
@@ -341,17 +341,17 @@ actor PrefetchManager {
         let end = min(currentChapter + n, totalChapters)
         let range: [Int] = (end > currentChapter) ? Array((currentChapter+1)...end) : []
         guard !range.isEmpty else {
-            statusValue = PrefetchStatus(isRunning: false, currentBookId: bookId, totalChapters: n, processedChapters: 0, message: "Đã hoàn tất", errors: [])
+            statusValue = PrefetchStatus(isRunning: false, currentBookId: bookId, totalChapters: n, processedChapters: 0, message: "Done", errors: [])
             return
         }
         // batch check
         let cached: Set<Int> = (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: range)) ?? []
         let misses = range.filter { !cached.contains($0) }
         guard !misses.isEmpty else {
-            statusValue = PrefetchStatus(isRunning: false, currentBookId: bookId, totalChapters: range.count, processedChapters: 0, message: "Đã hoàn tất (đã có cache)", errors: [])
+            statusValue = PrefetchStatus(isRunning: false, currentBookId: bookId, totalChapters: range.count, processedChapters: 0, message: "Done (cached)", errors: [])
             return
         }
-        statusValue = PrefetchStatus(isRunning: true, currentBookId: bookId, totalChapters: misses.count, processedChapters: 0, message: "Đang tải trước...", errors: [])
+        statusValue = PrefetchStatus(isRunning: true, currentBookId: bookId, totalChapters: misses.count, processedChapters: 0, message: "Prefetching...", errors: [])
         // launch sequential task
         let currentTask = Task {
             var processed = 0
@@ -373,7 +373,7 @@ actor PrefetchManager {
                     break
                 }
                 guard let html = try? repository.chapterHTML(slug: bookId, number: number) else {
-                    errors.append("Chương \(number): Không tìm thấy chương")
+                    errors.append("Chương \(number): Chapter not found")
                     // continue per spec log and continue; but missing HTML is not AI error, still continue
                     continue
                 }
@@ -406,13 +406,13 @@ actor PrefetchManager {
     private func updateStatus(processed: Int, errors: [String]) {
         statusValue.processedChapters = processed
         statusValue.errors = errors
-        statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
+        statusValue.message = "Prefetching \(processed)/\(statusValue.totalChapters)"
     }
     private func finish(processed: Int, errors: [String], bookId: String) {
         statusValue.isRunning = false
         statusValue.processedChapters = processed
         statusValue.errors = errors
-        statusValue.message = errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi"
+        statusValue.message = errors.isEmpty ? "Done" : "Hoàn tất with \(errors.count) lỗi"
         task = nil
     }
 }
@@ -659,7 +659,7 @@ In `apps/novels/Features/Reading/ReaderView.swift` add near bottom of VStack aft
 if viewModel.prefetchStatus.isRunning {
     HStack(spacing: 8) {
         ProgressView().scaleEffect(0.8)
-        Text("Đang tải trước \(viewModel.prefetchStatus.processedChapters)/\(viewModel.prefetchStatus.totalChapters)")
+        Text("Prefetching \(viewModel.prefetchStatus.processedChapters)/\(viewModel.prefetchStatus.totalChapters)")
             .font(.caption)
             .foregroundStyle(DesignTokens.secondaryText)
     }

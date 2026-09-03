@@ -117,7 +117,8 @@ struct ReaderBottomSheet: View {
                         Text(mode.title).tag(mode)
                     }
                 }
-                .pickerStyle(.segmented)
+                .pickerStyle(.inline)
+                .labelsHidden()
                 .accessibilityIdentifier("aiModePicker")
 
                 Button("Xử lý lại") {

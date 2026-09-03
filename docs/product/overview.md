@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Novels lets one reader download books once and read offline. Optional AI — translate to natural Vietnamese and faithful summary — uses a configurable OpenAI-compatible service. Catalog and AI need network; reading needs none.
+Novels lets one reader download books once and read offline. Optional AI — rewrite via single Prompt (`AI_PROMPT`, modes `none`/`rewrite`) — uses a configurable OpenAI-compatible service. Catalog and AI need network; reading needs none.
 
 ## Personas
 
@@ -15,7 +15,7 @@ Novels lets one reader download books once and read offline. Optional AI — tra
 
 ## Scope
 
-**In:** discover via catalog, import ZIP, browse library, read HTML with navigation and offset, switch modes `none`/`translate`/`summary` with cache, prefetch next chapters, keep settings and typography.
+**In:** discover via catalog, import ZIP, browse library, read HTML with navigation and offset, switch modes `none`/`rewrite` with cache, prefetch next chapters, keep settings and typography.
 
 **Out:** no multi-user, no cloud sync, no account, no online reading without import, no second AI cache.
 
@@ -24,7 +24,7 @@ Novels lets one reader download books once and read offline. Optional AI — tra
 - **Import** — fetch catalog → ZIP → extract → delete ZIP. [book-import](./functional-specs/book-import.md)
 - **Library** — list local books, swipe Info/Delete. [book-library](./functional-specs/book-library.md)
 - **Reader** — parses HTML → text spans and renders with SwiftUI.Text, Previous/Next, offset per book. [book-reader](./functional-specs/book-reader.md)
-- **AI Reading** — `none` is original; `translate`/`summary` check cache first. [ai-reading](./functional-specs/ai-reading.md)
+- **AI Reading** — `none` is original (Không); `rewrite` (Rewrite) check cache first via AI_PROMPT. [ai-reading](./functional-specs/ai-reading.md)
 - **Prefetch** — next N=3 sequential, cancellable. [chapter-prefetch](./functional-specs/chapter-prefetch.md)
 - **Settings** — catalog, AI, prefetch, typography; sanitize on launch. [settings-management](./functional-specs/settings-management.md)
 

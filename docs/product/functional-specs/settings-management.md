@@ -44,7 +44,7 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (AIAction, TypographySetting)
+- Domain: [domain-model.md](../domain-model.md) (AI_PROMPT, TypographySetting)
 - Flows: [flows.md](../flows.md) §7 Settings
 - Integrations: [integrations.md](../integrations.md) §1 Remote Book Catalog, §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-08, BR-11, BR-12

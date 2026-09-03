@@ -181,7 +181,7 @@ final class HardeningA11yTests: XCTestCase {
         // smoke: LibraryViewModel scanning tested elsewhere; here we check view a11y via ViewInspector alternative: grep source
         let src = try! String(contentsOfFile: "apps/novels/Features/Library/LibraryView.swift", encoding: .utf8)
         XCTAssertTrue(src.contains("accessibilityIdentifier(\"library.row."))
-        XCTAssertTrue(src.contains("accessibilityLabel(\"Thêm sách\")"))
+        XCTAssertTrue(src.contains("accessibilityLabel(\"Add Book\")"))
         XCTAssertTrue(src.contains("accessibilityLabel(\"Cài đặt\")"))
         // ensure row min height token or 56 from design-system
         XCTAssertTrue(src.contains("56") || src.contains("44"))
@@ -224,7 +224,7 @@ Edits (apply only where grep shows gap; many already exist per earlier feat-002/
 
 In `apps/novels/Features/Library/LibraryView.swift`:
 - Each row `HStack` → add `.frame(minHeight: 44)` and `.contentShape(Rectangle())`
-- `Button add` already has `.accessibilityLabel("Thêm sách")` — ensure `.frame(minWidth:44, minHeight:44)`
+- `Button add` already has `.accessibilityLabel("Add Book")` — ensure `.frame(minWidth:44, minHeight:44)`
 - Gear button `"Cài đặt"` same
 - Swipe actions `Info`/`Delete` keep labels, ensure reachable (no extra fix needed)
 
@@ -344,7 +344,7 @@ final class HardeningEdgeTests: XCTestCase {
         let vm = ReaderViewModel(bookId: "miss", repository: repo, settingsStore: store, cache: cache)
         await vm.loadChapter(2)
         XCTAssertNotNil(vm.errorMessage)
-        XCTAssertTrue(vm.errorMessage?.contains("Không tìm thấy chương") ?? vm.errorMessage?.contains("Failed") ?? true)
+        XCTAssertTrue(vm.errorMessage?.contains("Chapter not found") ?? vm.errorMessage?.contains("Failed") ?? true)
         // goNext still works without crash
         await vm.goToChapter(3)
         XCTAssertEqual(vm.chapterNumber, 3)
@@ -454,7 +454,7 @@ Fix: Inspect existing `apps/novels/Persistence/BookRepository.swift` — adapt `
 - [x] **Step 3: Implement minimal fixes to make tests pass**
 
 No new product logic — only ensure existing code handles edges:
-- Missing chapter: `ReaderViewModel.loadChapter(_:)` already sets `errorMessage = "Không tìm thấy chương"` on `catch` and does not crash — verify guard `try repo.chapterHTML` catches and keeps `chapterNumber` clamped.
+- Missing chapter: `ReaderViewModel.loadChapter(_:)` already sets `errorMessage = "Chapter not found"` on `catch` and does not crash — verify guard `try repo.chapterHTML` catches and keeps `chapterNumber` clamped.
 - Invalid JSON: `AIClient` already calls `settingsStore.effectiveHeaders()` which returns `[:]` when `JSONSerialization` fails — stored verbatim path already tested in `AIClientTests` — ensure no throw.
 - Cache clear: `SQLiteProcessedChapterCache.countAll()` uses `SELECT count(*)` already — verify `clear(bookId:)` and `clearAll()` issue `DELETE` + `VACUUM` not needed.
 - Prefetch cancel: already via `PrefetchManager.cancel()` + `Task.isCancelled` per feat-007 — keep.

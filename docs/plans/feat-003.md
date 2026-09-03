@@ -17,7 +17,7 @@
 - Identity: slug `book.json.id` is local folder `Application Support/novels/books/<slug>/` and `processed_chapters.book_id`; remote numeric `ExportedBook.id`/`bookId` never used as folder/cache key per `docs/decisions/book-identity.md`.
 - Settings: read `BOOKS_API_URL` from `SettingsStore` (sanitized BR-12, default `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books`); unknown/legacy keys ignored.
 - Import: download ZIP to `FileManager.temporaryDirectory` → `FileManager.unzipItem` → validate → atomic replace `books/<slug>/` via `FileBookRepository` → delete temp ZIP only on success; re-import same slug overwrites atomically without confirm per clarification 2026-08-25.
-- UI: sort default Tên A→Z, option Mới nhất (lastUpdated desc) local sort; blocking overlay spinner simple (“Đang tải…” / “Đang giải nén…”) no progress %, per clarification; toast chung chung “Gói sách không hợp lệ, không thể nhập” for invalid package, per clarification; success toast “Đã nhập sách” + pop to Library + refresh.
+- UI: sort default Tên A→Z, option Mới nhất (lastUpdated desc) local sort; blocking overlay spinner simple (“Loading...” / “Extracting...”) no progress %, per clarification; toast chung chung “Invalid book package, cannot import” for invalid package, per clarification; success toast “Book imported” + pop to Library + refresh.
 - No reader HTML→Text, no AI/prefetch, no Settings Editor UI beyond reading `BOOKS_API_URL`.
 
 ## File Structure
@@ -165,7 +165,7 @@ actor CatalogService {
     req.timeoutInterval = 15
     let (data, _) = try await session.data(for: req)
     let res = try JSONDecoder().decode(CatalogResponse.self, from: data)
-    if !res.success { throw CatalogError.serverMessage(res.message ?? "Không tải được danh mục, thử lại") }
+    if !res.success { throw CatalogError.serverMessage(res.message ?? "Không tải is danh mục, thử lại") }
     return res.data
   }
 }
@@ -458,7 +458,7 @@ struct AddBookView: View {
   @Environment(ToastCenter.self) var toast
   var body: some View {
     VStack(spacing:0){
-      HStack{ Button("Thư viện"){ router.pop() }; Spacer(); Text("Thêm sách").font(.headline); Spacer(); Picker("Sort", selection: $viewModel.sortOption){ Text("Tên A→Z").tag(ImportViewModel.SortOption.nameAZ); Text("Mới nhất").tag(.updatedNewest) }.pickerStyle(.menu) }
+      HStack{ Button("Thư viện"){ router.pop() }; Spacer(); Text("Add Book").font(.headline); Spacer(); Picker("Sort", selection: $viewModel.sortOption){ Text("Tên A→Z").tag(ImportViewModel.SortOption.nameAZ); Text("Mới nhất").tag(.updatedNewest) }.pickerStyle(.menu) }
         .padding(16).background(Color.white)
       Divider()
       content
@@ -471,7 +471,7 @@ struct AddBookView: View {
   @ViewBuilder var content: some View {
     switch viewModel.catalogState {
     case .idle, .loading: LoadingView(text: "Đang tải...")
-    case .empty: ContentUnavailableView("Chưa có sách", systemImage: "books.vertical")
+    case .empty: ContentUnavailableView("No books", systemImage: "books.vertical")
     case .error(let m): VStack{ Text(m).foregroundStyle(Color(hex:"#DC2626")); Button("Thử lại"){ Task{ await viewModel.loadCatalog() } } }
     case .loaded: List(viewModel.sortedBooks, id:\.id){ exp in
         VStack(alignment:.leading, spacing:4){
@@ -479,14 +479,14 @@ struct AddBookView: View {
           Text(exp.book.author ?? "Không rõ").font(.footnote).foregroundStyle(Color(hex:"#6B7280"))
           Text("\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))").font(.caption).foregroundStyle(Color(hex:"#6B7280"))
           if let syn = exp.book.synopsis { Text(syn).font(.caption).lineLimit(2).foregroundStyle(Color(hex:"#6B7280")) }
-        }.padding(.vertical,8).onTapGesture{ Task{ do{ try await viewModel.importBook(exp); toast.show("Đã nhập sách", type:.success); router.pop() } catch{ toast.show("Gói sách không hợp lệ, không thể nhập", type:.error) } } }
+        }.padding(.vertical,8).onTapGesture{ Task{ do{ try await viewModel.importBook(exp); toast.show("Book imported", type:.success); router.pop() } catch{ toast.show("Invalid book package, cannot import", type:.error) } } }
       }.listStyle(.plain)
     }
   }
 }
 ```
 
-Vietnamese: “Thêm sách”, “Chưa có sách”, “Không tải được danh mục, thử lại”, “Thử lại”, “Đang tải…”, “Đang giải nén…”, “Đã nhập sách”, “Gói sách không hợp lệ, không thể nhập”. Row min 56, side 16, radius 12-16.
+Vietnamese: “Add Book”, “No books”, “Không tải is danh mục, thử lại”, “Thử lại”, “Loading...”, “Extracting...”, “Book imported”, “Invalid book package, cannot import”. Row min 56, side 16, radius 12-16.
 
 - [ ] **Step 7: Wire Library + AppRoot**
 
@@ -540,7 +540,7 @@ Run: `grep -R "Content-Type.*application/json" --include="*.swift" apps/novels/S
 
 - [ ] **Step 4: Manual flow check (simulator)**
 
-Launch iPhone 17 Pro 26.5 → Library empty → tap + → Add Book loading → (mock) list sort Tên A→Z default → switch Mới nhất → reorder → tap row → overlay “Đang tải…” → “Đang giải nén…” → toast “Đã nhập sách” → pop Library → row appears without restart. Kill → relaunch → Library still shows imported book. Test invalid ZIP → toast chung, no folder.
+Launch iPhone 17 Pro 26.5 → Library empty → tap + → Add Book loading → (mock) list sort Tên A→Z default → switch Mới nhất → reorder → tap row → overlay “Loading...” → “Extracting...” → toast “Book imported” → pop Library → row appears without restart. Kill → relaunch → Library still shows imported book. Test invalid ZIP → toast chung, no folder.
 
 - [ ] **Step 5: Update feature handoff**
 

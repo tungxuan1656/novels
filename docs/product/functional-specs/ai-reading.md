@@ -43,7 +43,7 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (ProcessedChapter, AIAction, AI Mode) — `ProcessedChapter.bookId` is slug `book.json.id`
+- Domain: [domain-model.md](../domain-model.md) (ProcessedChapter, AI_PROMPT, AI Mode) — `ProcessedChapter.bookId` is slug `book.json.id`
 - Flows: [flows.md](../flows.md) §5 AI Mode with Cache
 - Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-03, BR-04, BR-05, BR-06, BR-07

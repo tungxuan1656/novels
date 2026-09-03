@@ -70,6 +70,12 @@
       "title": "AI Prompt Setting & Inline Rewrite Reading Sheet",
       "status": "done",
       "depends_on": ["feat-005", "feat-006"]
+    },
+    {
+      "id": "feat-012",
+      "title": "Prompt Sync & Inline AI Rewrite Picker",
+      "status": "done",
+      "depends_on": ["feat-011"]
     }
   ]
 }

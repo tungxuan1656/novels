@@ -16,7 +16,7 @@
 - Startup restore offline only: `SettingsStore.load()+sanitize()` then route `onScreen && valid bookId ? Reading : Library`; invalid `bookId` toasts “Không tìm thấy sách” and stays on Library.
 - Library lists only folders with valid `book.json` via `FileBookRepository.listBooks()`; empty state when zero; pull-to-refresh reloads; Info sheet shows `name`/`author`/`count`/`references`; swipe-to-delete confirms then `deleteBook(slug:)` removes folder and refreshes.
 - Loading/Toast/BottomSheet primitives are reusable across features; toast colors green/red/blue/orange per `screens.md` §3 with 3s/4s/5s durations; loading is blocking overlay for download/AI/clear + inline spinner for lists; bottom sheet uses native `.sheet` with drag/backdrop dismiss.
-- Vietnamese copy from docs/design: “Thư viện”, “Chưa có sách”, “Nhấn + để thêm sách”, “Thông tin sách”, “Tác giả”, “Số chương”, “Danh mục chương”, “Xóa sách?”, “Bạn có chắc muốn xóa “{name}” không?”, “Hủy”, “Xóa”, “Đã xóa “{name}””, “Không thể xóa sách”, “Không tìm thấy sách”, “Đang tải...”.
+- Vietnamese copy from docs/design: “Thư viện”, “No books”, “Nhấn + to thêm sách”, “Thông tin sách”, “Tác giả”, “Số chương”, “Catalog chương”, “Xóa sách?”, “Bạn có chắc muốn xóa “{name}” không?”, “Hủy”, “Xóa”, “Cleared “{name}””, “Không thể xóa sách”, “Không tìm thấy sách”, “Đang tải...”.
 - Design tokens per `design-system.md` §2-4: background `#FDFCF8`/`#FFFFFF`, surface `#FFFFFF`, text `#111111`, muted `#6B7280`, accent `#2563EB`, success `#16A34A`, warning `#EA580C`, error `#DC2626`, border `#E5E7EB`, radius 12-16, spacing 4/8/12/16/24/32, row min 56, side padding 16.
 - Navigation rules per `navigation.md`: Home tap row → `Reading(bookId)` sets `onScreen=true`; Reading back → `Home` sets `onScreen=false` and saves offset; back at root does not crash; Reading disables swipe-back; rapid double push ignored.
 - Tests isolated via `FileManager.temporaryDirectory` and `UserDefaults(suiteName: UUID().uuidString)`; never touch real `Application Support/novels`.
@@ -55,7 +55,7 @@ final class ToastCenterTests: XCTestCase {
     }
     func testDismissClears() {
         let center = ToastCenter()
-        center.show("Đã xóa", type: .success)
+        center.show("Cleared", type: .success)
         center.dismiss()
         XCTAssertNil(center.current)
     }
@@ -438,7 +438,7 @@ import Observation
         guard let book = showDeleteConfirm else { return }
         do {
             try repository.deleteBook(slug: book.id)
-            toast.show("Đã xóa “\(book.name)”", type: .success)
+            toast.show("Cleared “\(book.name)”", type: .success)
             showDeleteConfirm = nil
             load()
         } catch {
@@ -459,11 +459,11 @@ struct LibraryView: View {
         Group {
             if vm.books.isEmpty && !vm.isLoading {
                 ContentUnavailableView {
-                    Label("Chưa có sách", systemImage: "books.vertical")
+                    Label("No books", systemImage: "books.vertical")
                 } description: {
-                    Text("Nhấn + để thêm sách")
+                    Text("Nhấn + to thêm sách")
                 } actions: {
-                    Button("Thêm sách") {} // feat-003 will wire
+                    Button("Add Book") {} // feat-003 will wire
                 }
                 .accessibilityIdentifier("library.empty")
             } else {
@@ -492,7 +492,7 @@ struct LibraryView: View {
         .navigationTitle("Thư viện").navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { /* feat-003: open Add Book */ } label: { Image(systemName: "plus").accessibilityLabel("Thêm sách") }
+                Button { /* feat-003: open Add Book */ } label: { Image(systemName: "plus").accessibilityLabel("Add Book") }
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { /* feat-005: open Settings */ } label: { Image(systemName: "gearshape").accessibilityLabel("Cài đặt") }
@@ -604,7 +604,7 @@ struct BookInfoSheet: View {
                         Label("\(book.count) chương", systemImage: "list.number").font(.subheadline).foregroundStyle(Color(hex: 0x6B7280))
                     }.padding(16).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(Color(hex: 0xE5E7EB), lineWidth: 1))
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Danh mục chương").font(.headline).foregroundStyle(Color(hex: 0x111111))
+                        Text("Catalog chương").font(.headline).foregroundStyle(Color(hex: 0x111111))
                         ForEach(Array(book.references.enumerated()), id: \.offset) { idx, title in
                             HStack {
                                 Text("\(idx + 1)").font(.footnote).foregroundStyle(Color(hex: 0x6B7280)).frame(width: 28, alignment: .leading)
@@ -716,7 +716,7 @@ struct ReadingShellView: View {
         ScrollView {
             VStack(spacing: 16) {
                 Text("Đang đọc: \(bookId)").font(.headline).foregroundStyle(Color(hex: 0x111111))
-                Text("Nội dung sẽ hiển thị ở feat-004 (HTML → SwiftUI.Text)").font(.body).foregroundStyle(Color(hex: 0x6B7280)).multilineTextAlignment(.center).padding()
+                Text("Nội dung will hiển thị ở feat-004 (HTML → SwiftUI.Text)").font(.body).foregroundStyle(Color(hex: 0x6B7280)).multilineTextAlignment(.center).padding()
                 Button("Tài liệu tham khảo") { router.push(.references) }.buttonStyle(.bordered).tint(Color(hex: 0x2563EB))
                 Spacer(minLength: 200)
             }.padding(16)
@@ -784,7 +784,7 @@ Expected: PASS — format `swiftformat --lint` 0/XX require formatting, lint `sw
 - [ ] **Step 3: Verify iPhone-only + Vietnamese copy + no forbidden imports**
 
 Run: `grep -R "TARGETED_DEVICE_FAMILY" apps/novels.xcodeproj/project.pbxproj | grep "\"1\""` → should show `TARGETED_DEVICE_FAMILY = "1";`
-Run: `grep -R "Thư viện\|Chưa có sách\|Thông tin sách\|Xóa sách\|Không tìm thấy sách" --include="*.swift" apps/novels`
+Run: `grep -R "Thư viện\|No books\|Thông tin sách\|Xóa sách\|Không tìm thấy sách" --include="*.swift" apps/novels`
 Expected: hits in `LibraryView.swift`/`BookInfoSheet.swift`/`Router.swift`/`Toast`.
 
 Run: `grep -R "SwiftData\|Core Data\|Keychain\|BGTaskScheduler\|WebKit" --include="*.swift" apps/novels/App apps/novels/Features apps/novels/SharedUI`

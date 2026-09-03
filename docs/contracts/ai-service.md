@@ -1,6 +1,6 @@
 # Contract — AI Processing Service (OpenAI-Compatible)
 
-> Canonical wire contract for AI translate/summary. Business view: `../../docs/product/integrations.md` §2. Consumers: `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `../../ARCHITECTURE.md`.
+> Canonical wire contract for AI rewrite (single prompt). Business view: `../../docs/product/integrations.md` §2. Consumers: `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `../../ARCHITECTURE.md`.
 
 ## Endpoint
 

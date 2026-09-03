@@ -125,12 +125,12 @@ else
   else
     echo "PASS [drift] skill catalog claims ${CLAIMED} siblings, found $((SKILL_TOTAL-1)) siblings (total $SKILL_TOTAL)"
   fi
-  if grep -q "Tham chiếu nhanh.*alphabet" .agents/skills/using-skills/SKILL.md; then
-    echo "FAIL [drift] duplicate section Tham chiếu nhanh still present" >&2
+  if grep -q "Tham chieu nhanh.*alphabet" .agents/skills/using-skills/SKILL.md; then
+    echo "FAIL [drift] duplicate section Tham chieu nhanh still present" >&2
     STATUS=1
   fi
-  if grep -q "Khi nào cần skill mới" .agents/skills/using-skills/SKILL.md; then
-    echo "FAIL [drift] duplicate section Khi nào cần skill mới still present" >&2
+  if grep -q "Khi.*skill.*moi" .agents/skills/using-skills/SKILL.md; then
+    echo "FAIL [drift] duplicate section Khi.*skill.*moi still present" >&2
     STATUS=1
   fi
 fi
