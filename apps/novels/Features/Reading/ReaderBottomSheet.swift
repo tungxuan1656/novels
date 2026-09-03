@@ -44,8 +44,11 @@ struct ReaderBottomSheet: View {
                     Picker(
                         "Phông chữ",
                         selection: Binding(
-                            get: { settingsStore.typography.font },
-                            set: { settingsStore.typography.font = $0; settingsStore.save() }
+                            get: { ReaderFontMapper.normalizedFontName(settingsStore.typography.font) },
+                            set: {
+                                settingsStore.typography.font = ReaderFontMapper.normalizedFontName($0)
+                                settingsStore.save()
+                            }
                         )
                     ) {
                         ForEach(fonts, id: \.self) { font in
@@ -117,19 +120,19 @@ struct ReaderBottomSheet: View {
                         Text(mode.title).tag(mode)
                     }
                 }
-                .pickerStyle(.inline)
+                .pickerStyle(.segmented)
                 .labelsHidden()
                 .accessibilityIdentifier("aiModePicker")
 
                 Button("Xử lý lại") {
                     Task { await viewModel.reprocess() }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderless)
                 .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
                 .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
                 .accessibilityIdentifier("reprocessButton")
             }
-            .frame(minHeight: 44)
+            .frame(minHeight: 40)
             .contentShape(Rectangle())
 
             if viewModel.isAIProcessing {

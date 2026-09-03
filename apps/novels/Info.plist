@@ -54,9 +54,7 @@
 	</array>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Arial.ttf</string>
 		<string>BeVietnamPro.ttf</string>
-		<string>Georgia.ttf</string>
 		<string>GoogleSans.ttf</string>
 		<string>Inter.ttf</string>
 		<string>Lato.ttf</string>
@@ -72,8 +70,6 @@
 		<string>Raleway.ttf</string>
 		<string>Roboto.ttf</string>
 		<string>SpaceMono.ttf</string>
-		<string>TimesNewRoman.ttf</string>
-		<string>Verdana.ttf</string>
 		<string>WorkSans.ttf</string>
 	</array>
 </dict>

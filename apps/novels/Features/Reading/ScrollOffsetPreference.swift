@@ -91,6 +91,25 @@ enum ReaderFontMapper {
     ]
     // swiftlint:enable trailing_comma
 
+    /// Normalize a stored/raw font value to its canonical display name.
+    /// Trims whitespace, resolves spaceless aliases (e.g. "GoogleSans" -> "Google Sans")
+    /// via case- and whitespace-insensitive match, falls back to "System" if invalid.
+    static func normalizedFontName(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if fonts.contains(trimmed) {
+            return trimmed
+        }
+        let compacted = trimmed.lowercased().filter { !$0.isWhitespace }
+        guard !compacted.isEmpty else { return "System" }
+        for canonical in fonts {
+            let canonicalCompacted = canonical.lowercased().filter { !$0.isWhitespace }
+            if canonicalCompacted == compacted {
+                return canonical
+            }
+        }
+        return "System"
+    }
+
     // swiftlint:disable switch_case_alignment
     static func font(name: String, size: CGFloat, weight: Font.Weight = .regular) -> Font {
         switch name {

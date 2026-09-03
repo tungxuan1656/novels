@@ -91,7 +91,7 @@ import Observation
             aiMinChunkSize = value
         }
         if let value = userDefaults.string(forKey: DefaultsKeys.font) {
-            typography.font = value
+            typography.font = ReaderFontMapper.normalizedFontName(value)
         }
         if let value = doubleValue(forKey: DefaultsKeys.fontSize) {
             typography.fontSize = value
@@ -138,9 +138,7 @@ import Observation
         if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             aiPrompt = SettingsDefaults.defaultPrompt
         }
-        if typography.font.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            typography.font = TypographySetting.default.font
-        }
+        typography.font = ReaderFontMapper.normalizedFontName(typography.font)
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
@@ -214,7 +212,7 @@ import Observation
                 aiMinChunkSize = intValue
             } // keep prior valid value on parse failure
         case "font":
-            typography.font = value
+            typography.font = ReaderFontMapper.normalizedFontName(value)
         case "fontSize":
             if let doubleValue = Double(value) {
                 typography.fontSize = doubleValue

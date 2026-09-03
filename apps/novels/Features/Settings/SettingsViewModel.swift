@@ -58,8 +58,7 @@ struct SettingDescriptor {
                 }
                 return "1.2..2.0"
             case "font":
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? "Phông chữ không được để trống" : nil
+                return Self.fontError(value)
             case "letterSpacing":
                 if let number = Double(value), (0 ... 1.0).contains(number) {
                     return nil
@@ -69,7 +68,17 @@ struct SettingDescriptor {
                 return nil
         }
     }
+
     // swiftlint:enable cyclomatic_complexity switch_case_alignment
+
+    private static func fontError(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "Phông chữ không được để trống"
+        }
+        let normalized = ReaderFontMapper.normalizedFontName(value)
+        return normalized == "System" && trimmed.lowercased() != "system" ? "Phông chữ không hợp lệ" : nil
+    }
 }
 
 enum SettingsViewModel {
