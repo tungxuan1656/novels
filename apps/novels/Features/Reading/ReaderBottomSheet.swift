@@ -144,7 +144,32 @@ struct ReaderBottomSheet: View {
                     .foregroundStyle(DesignTokens.error)
                     .font(.caption)
             }
+
+            apiLogButton(viewModel: viewModel)
         }
+    }
+
+    private func apiLogButton(viewModel: ReaderViewModel) -> some View {
+        Button {
+            onClose()
+            router?.push(.apiLog(bookId: viewModel.bookId))
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .foregroundStyle(DesignTokens.muted)
+                Text("Nhật ký")
+                    .font(.subheadline)
+                    .foregroundStyle(DesignTokens.text)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(DesignTokens.muted)
+            }
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .accessibilityIdentifier("apiLogButton")
+        .accessibilityLabel("Nhật ký chẩn đoán")
     }
 
     private func stepperRow(

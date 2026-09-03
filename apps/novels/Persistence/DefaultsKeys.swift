@@ -16,6 +16,7 @@ enum DefaultsKeys {
     static let lineHeight = "lineHeight"
     static let letterSpacing = "letterSpacing"
     static let readingSession = "ReadingSession"
+    static let diagnosticsVerbose = "DIAGNOSTICS_VERBOSE"
 
     static let allCurrent: [String] = [
         booksAPIURL,
@@ -31,6 +32,7 @@ enum DefaultsKeys {
         fontSize,
         lineHeight,
         letterSpacing,
-        readingSession
+        readingSession,
+        diagnosticsVerbose
     ]
 }

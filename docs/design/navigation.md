@@ -12,6 +12,7 @@ Home Library --> Add Book
 Home Library --> Reading (bookId)
 Home Library --> Settings
 Reading --> References
+Reading --> Log (diagnostic timeline, in-session only)
 Reading --> Settings (via sheet shortcut)
 Settings --> Cache Manager
 Settings --> Setting Editor (settingKey)
@@ -32,7 +33,7 @@ Startup restores session and settings from local store. Show splash while fonts 
 Abstract stack:
 
 - Root: Home Library. Back at root exits app.
-- Push: Add Book, Reading, References, Settings, Cache Manager, Setting Editor.
+- Push: Add Book, Reading, References, Settings, Cache Manager, Setting Editor, Log (diagnostic timeline from Reading).
 - Pop: header back or system back goes one level up. Reading back clears `onScreen`.
 - Reading disables swipe-back to avoid loss of position. Others allow it.
 - Bottom sheet is not a route. It is an overlay that expands over Home or Reading.

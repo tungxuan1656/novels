@@ -17,6 +17,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 | **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
+| **Log** | Diagnose AI/prefetch timeline | Header; filter chips; group toggle; expandable rows | Content, Empty, No-match | Reading sheet → Log → back |
 
 ## 3. Shared Patterns
 
@@ -24,6 +25,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Font picker
 - Inline AI Rewrite picker ("AI Rewrite": Không / Rewrite) with Reprocess button ("Xử lý lại") positioned right beside it in the same row
 - Steppers for size, line height, and letter spacing
+- Log button ("Nhật ký") below AI section → push Log timeline
 Gear opens Settings.
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.

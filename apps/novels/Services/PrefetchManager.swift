@@ -1,6 +1,10 @@
 import Foundation
 
+// swiftlint:disable:next type_body_length
 actor PrefetchManager {
+    static let perChapterBudget: TimeInterval = 600
+    static let globalBudget: TimeInterval = 1800
+
     private var task: Task<Void, Never>?
     private var generation = 0
     private var statusValue: PrefetchStatus = .idle
@@ -9,12 +13,38 @@ actor PrefetchManager {
         statusValue
     }
 
-    func cancel() {
+    func cancel(reason: String = "manual") async {
         generation += 1
         task?.cancel()
         task = nil
         statusValue.isRunning = false
         statusValue.message = "Đã hủy"
+        await DiagnosticsLog.shared.append(LogEntry(
+            requestId: UUID(),
+            sessionId: DiagnosticsLog.sessionId,
+            kind: .event,
+            event: "prefetch.cancel",
+            detail: "reason=\(reason)"
+        ))
+    }
+
+    private func logPrefetch(
+        event: String,
+        bookId: String,
+        chapterNumber: Int,
+        mode: String,
+        detail: String
+    ) async {
+        await DiagnosticsLog.shared.append(LogEntry(
+            requestId: UUID(),
+            sessionId: DiagnosticsLog.sessionId,
+            kind: .event,
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode,
+            event: event,
+            detail: detail
+        ))
     }
 
     // swiftlint:disable:next function_parameter_count function_body_length
@@ -32,10 +62,24 @@ actor PrefetchManager {
         task = nil
         guard mode != .none else {
             statusValue = .idle
+            await logPrefetch(
+                event: "prefetch.skip",
+                bookId: bookId,
+                chapterNumber: currentChapter,
+                mode: mode.rawValue,
+                detail: "reason=modeNone"
+            )
             return
         }
         guard totalChapters > 0, currentChapter >= 1, currentChapter <= totalChapters else {
             statusValue = .idle
+            await logPrefetch(
+                event: "prefetch.skip",
+                bookId: bookId,
+                chapterNumber: currentChapter,
+                mode: mode.rawValue,
+                detail: "reason=invalidRange"
+            )
             return
         }
         let effectiveN: Int = await MainActor.run { settings.effectivePrefetchCount() }
@@ -50,10 +94,24 @@ actor PrefetchManager {
                 message: "Đã hoàn tất",
                 errors: []
             )
+            await logPrefetch(
+                event: "prefetch.skip",
+                bookId: bookId,
+                chapterNumber: currentChapter,
+                mode: mode.rawValue,
+                detail: "reason=emptyRange"
+            )
             return
         }
         let cached: Set<Int> = (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: range)) ?? []
         let misses = range.filter { !cached.contains($0) }
+        await logPrefetch(
+            event: "prefetch.batchCheck",
+            bookId: bookId,
+            chapterNumber: currentChapter,
+            mode: mode.rawValue,
+            detail: "rangeFrom=\(range.first ?? 0) rangeTo=\(range.last ?? 0) hit=\(range.count - misses.count) miss=\(misses.count)"
+        )
         guard !misses.isEmpty else {
             statusValue = PrefetchStatus(
                 isRunning: false,
@@ -62,6 +120,13 @@ actor PrefetchManager {
                 processedChapters: 0,
                 message: "Đã hoàn tất (đã có cache)",
                 errors: []
+            )
+            await logPrefetch(
+                event: "prefetch.skip",
+                bookId: bookId,
+                chapterNumber: currentChapter,
+                mode: mode.rawValue,
+                detail: "reason=allCached hit=\(range.count)"
             )
             return
         }
@@ -77,20 +142,53 @@ actor PrefetchManager {
         let currentGeneration = generation
         var createdTask: Task<Void, Never>!
         createdTask = Task {
+            let batchStart = Date()
             var processed = 0
             var errors: [String] = []
             for number in misses {
                 if Task.isCancelled {
+                    await self.logCancel(
+                        bookId: bookId,
+                        chapterNumber: currentChapter,
+                        mode: mode,
+                        currentGeneration: currentGeneration,
+                        reason: "chapterChange"
+                    )
                     break
                 }
+                let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
+                if !bookExists {
+                    await self.logPrefetch(
+                        event: "prefetch.cancel",
+                        bookId: bookId,
+                        chapterNumber: number,
+                        mode: mode.rawValue,
+                        detail: "reason=bookDeleted"
+                    )
+                    break
+                }
+                if Date().timeIntervalSince(batchStart) > Self.globalBudget {
+                    await self.logPrefetch(
+                        event: "prefetch.cancel",
+                        bookId: bookId,
+                        chapterNumber: number,
+                        mode: mode.rawValue,
+                        detail: "reason=budgetExhausted scope=global"
+                    )
+                    break
+                }
+                let itemStart = Date()
                 let htmlResult: String? = try? repository.chapterHTML(slug: bookId, number: number)
                 guard let html = htmlResult else {
-                    let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
-                    if !bookExists {
-                        break
-                    }
                     errors.append("Chương \(number): Không tìm thấy chương")
                     await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    await self.logPrefetch(
+                        event: "prefetch.error-continue",
+                        bookId: bookId,
+                        chapterNumber: number,
+                        mode: mode.rawValue,
+                        detail: "reason=missingChapter"
+                    )
                     continue
                 }
                 let parsed: [TextBlock] = HtmlParser.parse(html: html)
@@ -99,9 +197,23 @@ actor PrefetchManager {
                 guard !raw.isEmpty else {
                     errors.append("Chương \(number): Nội dung rỗng")
                     await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    await self.logPrefetch(
+                        event: "prefetch.error-continue",
+                        bookId: bookId,
+                        chapterNumber: number,
+                        mode: mode.rawValue,
+                        detail: "reason=emptyContent"
+                    )
                     continue
                 }
                 if Task.isCancelled {
+                    await self.logCancel(
+                        bookId: bookId,
+                        chapterNumber: currentChapter,
+                        mode: mode,
+                        currentGeneration: currentGeneration,
+                        reason: "chapterChange"
+                    )
                     break
                 }
                 do {
@@ -111,16 +223,47 @@ actor PrefetchManager {
                         mode: mode,
                         rawText: raw
                     )
+                    if Date().timeIntervalSince(itemStart) > Self.perChapterBudget {
+                        await self.logPrefetch(
+                            event: "prefetch.cancel",
+                            bookId: bookId,
+                            chapterNumber: number,
+                            mode: mode.rawValue,
+                            detail: "reason=budgetExhausted scope=perChapter"
+                        )
+                        break
+                    }
                     processed += 1
                     await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                 } catch is CancellationError {
+                    await self.logCancel(
+                        bookId: bookId,
+                        chapterNumber: currentChapter,
+                        mode: mode,
+                        currentGeneration: currentGeneration,
+                        reason: "chapterChange"
+                    )
                     break
                 } catch {
                     if Task.isCancelled {
+                        await self.logCancel(
+                            bookId: bookId,
+                            chapterNumber: currentChapter,
+                            mode: mode,
+                            currentGeneration: currentGeneration,
+                            reason: "chapterChange"
+                        )
                         break
                     }
                     errors.append("Chương \(number): \(error.localizedDescription)")
                     await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    await self.logPrefetch(
+                        event: "prefetch.error-continue",
+                        bookId: bookId,
+                        chapterNumber: number,
+                        mode: mode.rawValue,
+                        detail: "reason=aiError"
+                    )
                     continue
                 }
             }
@@ -128,6 +271,23 @@ actor PrefetchManager {
             await self.clearTaskIfCurrent(generation: currentGeneration)
         }
         task = createdTask
+    }
+
+    private func logCancel(
+        bookId: String,
+        chapterNumber: Int,
+        mode: AIMode,
+        currentGeneration: Int,
+        reason: String
+    ) async {
+        _ = currentGeneration
+        await logPrefetch(
+            event: "prefetch.cancel",
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode.rawValue,
+            detail: "reason=\(reason)"
+        )
     }
 
     private func bookStillExists(bookId: String, repository: BookRepository) -> Bool {

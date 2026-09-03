@@ -6,15 +6,13 @@ struct ReaderView: View {
     @Bindable var router: Router
     @State private var viewModel: ReaderViewModel
     @State private var settingsStore: SettingsStore
-    @State private var offsetY: Double = 0
-    @State private var overscrollLock = false
+    @State private var currentOffset: Double = 0
+    @State private var lastEdgeSwitch = Date.distantPast
     @State private var showSheet = false
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var contentHeight: CGFloat = 0
-    @State private var viewportHeight: CGFloat = 0
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
-    @State private var isProgrammaticScrolling = false
+    @State private var hapticTrigger = 0
 
     init(
         bookId: String,
@@ -63,37 +61,24 @@ struct ReaderView: View {
                                 .id("bottom")
                         }
                         .padding(DesignTokens.spacing16)
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: ContentHeightKey.self,
-                                    value: geometry.size.height
-                                )
-                            }
-                        )
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: ScrollOffsetKey.self,
-                                    value: geometry.frame(in: .named("reader")).minY
-                                )
-                            }
-                        )
                         .id("top")
                     }
-                    .coordinateSpace(name: "reader")
+                    .scrollBounceBehavior(.always, axes: .vertical)
                     .scrollPosition($scrollPosition)
-                    .onPreferenceChange(ScrollOffsetKey.self) { value in
-                        handleOffset(value)
+                    .onChange(of: viewModel.chapterNumber) { _, _ in
+                        scrollToTop()
                     }
-                    .onPreferenceChange(ContentHeightKey.self) { value in
-                        contentHeight = value
+                    .onScrollGeometryChange(for: Double.self) { geometry in
+                        geometry.contentOffset.y + geometry.contentInsets.top
+                    } action: { _, scrolled in
+                        currentOffset = scrolled
+                        debouncedSave(scrolled)
                     }
-                    .onPreferenceChange(ViewportHeightKey.self) { value in
-                        viewportHeight = value
-                    }
-                    .background(
-                        Color.clear.preference(key: ViewportHeightKey.self, value: outer.size.height)
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10)
+                            .onEnded { value in
+                                handleEdgeSwipe(value: value, width: outer.size.width)
+                            }
                     )
 
                     topHeader
@@ -103,9 +88,9 @@ struct ReaderView: View {
                         bottomFloatingBar(proxy)
                     }
                 }
+                .sensoryFeedback(.impact(weight: .light), trigger: hapticTrigger)
                 .onAppear {
                     scrollProxy = proxy
-                    viewportHeight = outer.size.height
                     viewModel.onAppear()
                     Task {
                         await viewModel.load()
@@ -115,14 +100,11 @@ struct ReaderView: View {
                 .onDisappear {
                     // Flush pending offset before cancelling debounce
                     if debounceTask != nil {
-                        viewModel.saveOffset(Double(-offsetY))
+                        viewModel.saveOffset(currentOffset)
                     }
                     debounceTask?.cancel()
                     debounceTask = nil
                     viewModel.onDisappear()
-                }
-                .onChange(of: outer.size.height) { _, newValue in
-                    viewportHeight = newValue
                 }
             }
         }
@@ -269,7 +251,7 @@ struct ReaderView: View {
                         Button {
                             debounceTask?.cancel()
                             debounceTask = nil
-                            beginProgrammaticScrolling()
+                            lastEdgeSwitch = Date()
                             Task {
                                 await viewModel.goPrev()
                                 scrollToTop()
@@ -292,7 +274,7 @@ struct ReaderView: View {
                         Button {
                             debounceTask?.cancel()
                             debounceTask = nil
-                            beginProgrammaticScrolling()
+                            lastEdgeSwitch = Date()
                             Task {
                                 await viewModel.goNext()
                                 scrollToTop()
@@ -363,12 +345,7 @@ struct ReaderView: View {
             Spacer()
 
             Button {
-                debounceTask?.cancel()
-                debounceTask = nil
-                beginProgrammaticScrolling()
-                withAnimation {
-                    proxy.scrollTo("bottom", anchor: .bottom)
-                }
+                scrollToBottom()
             } label: {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 12, weight: .semibold))
@@ -403,38 +380,53 @@ struct ReaderView: View {
         .padding(.bottom, -6)
     }
 
-    private func handleOffset(_ value: CGFloat) {
-        let y = Double(value)
-        offsetY = y
-        debouncedSave(-y)
-        guard !isProgrammaticScrolling else { return }
-        let isOverscrolled = ReaderOverscrollLogic.isOverscrolledBeyondBottom(
-            offsetY: value,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
+    private func handleEdgeSwipe(value: DragGesture.Value, width: CGFloat) {
+        let direction = EdgeSwipeDecision.decision(
+            startX: value.startLocation.x,
+            width: width,
+            dx: value.translation.width,
+            dy: value.translation.height
         )
-        if isOverscrolled, !overscrollLock, viewModel.canGoNext {
-            overscrollLock = true
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            Task {
-                await viewModel.goNext()
-                scrollToTop()
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                overscrollLock = false
-            }
-        } else if value > 40, !overscrollLock, viewModel.canGoPrev {
-            overscrollLock = true
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            Task {
-                await viewModel.goPrev()
-                scrollToTop()
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                overscrollLock = false
-            }
+        guard let direction else { return }
+        let now = Date()
+        guard EdgeSwipeDecision.isThrottleOk(now: now, lastSwitch: lastEdgeSwitch) else { return }
+        // swiftlint:disable switch_case_alignment
+        switch direction {
+            case .prev:
+                edgeGoPrev(now: now)
+            case .next:
+                edgeGoNext(now: now)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    private func edgeGoPrev(now: Date) {
+        guard viewModel.canGoPrev else {
+            router.toast.show("Đã là chương đầu", type: .info)
+            return
+        }
+        lastEdgeSwitch = now
+        debounceTask?.cancel()
+        debounceTask = nil
+        hapticTrigger += 1
+        Task {
+            await viewModel.goPrev()
+            scrollToTop()
+        }
+    }
+
+    private func edgeGoNext(now: Date) {
+        guard viewModel.canGoNext else {
+            router.toast.show("Đã là chương cuối", type: .info)
+            return
+        }
+        lastEdgeSwitch = now
+        debounceTask?.cancel()
+        debounceTask = nil
+        hapticTrigger += 1
+        Task {
+            await viewModel.goNext()
+            scrollToTop()
         }
     }
 
@@ -452,11 +444,20 @@ struct ReaderView: View {
     private func scrollToTop() {
         debounceTask?.cancel()
         debounceTask = nil
-        beginProgrammaticScrolling()
-        scrollPosition = ScrollPosition(point: .zero)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            scrollPosition = ScrollPosition(point: .zero)
+            scrollProxy?.scrollTo("top", anchor: .top)
+        }
+    }
+
+    private func scrollToBottom() {
+        debounceTask?.cancel()
+        debounceTask = nil
         if let proxy = scrollProxy {
-            withAnimation {
-                proxy.scrollTo("top", anchor: .top)
+            withAnimation(.easeOut(duration: 0.35)) {
+                proxy.scrollTo("bottom", anchor: .bottom)
             }
         }
     }
@@ -468,21 +469,10 @@ struct ReaderView: View {
             sessionOffset: session?.offset,
             currentBookId: bookId
         ) else { return }
-        beginProgrammaticScrolling()
         Task {
             try? await Task.sleep(nanoseconds: 10_000_000)
             await MainActor.run {
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
-            }
-        }
-    }
-
-    private func beginProgrammaticScrolling() {
-        isProgrammaticScrolling = true
-        Task {
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            await MainActor.run {
-                isProgrammaticScrolling = false
             }
         }
     }

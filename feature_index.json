@@ -76,6 +76,18 @@
       "title": "Prompt Sync & Inline AI Rewrite Picker",
       "status": "done",
       "depends_on": ["feat-011"]
+    },
+    {
+      "id": "feat-013",
+      "title": "Edge Swipe Prev/Next Chapter",
+      "status": "done",
+      "depends_on": ["feat-004"]
+    },
+    {
+      "id": "feat-014",
+      "title": "Diagnostic Log Viewer (in-session, timeline)",
+      "status": "done",
+      "depends_on": ["feat-006", "feat-007", "feat-011"]
     }
   ]
 }

@@ -17,6 +17,7 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_PROMPT` | `string` | `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` | System prompt for AI rewrite; missing/empty → reset to default |
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `1..10`, else `3` on read (BR-08) |
+| `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
 UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height/spacing) — see `settings-management.md` Flow step 2.
@@ -28,6 +29,7 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Provider:** case-insensitive compare; only `openai` accepted.
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
 - **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
+- **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
 - **Typography:** `fontSize 12..24 step 1`, `lineHeight 1.2..2.0 step 0.1`, `letterSpacing 0..1.0 step 0.1`; invalid → defaults.
 
 ## Current Keys Only

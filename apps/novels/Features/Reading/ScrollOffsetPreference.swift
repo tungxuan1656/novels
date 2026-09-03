@@ -1,49 +1,48 @@
 import Foundation
 import SwiftUI
 
-struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
+/// Pure helper for edge-swipe chapter navigation — testable without UI.
+///
+/// Convention: swipe right starting within the left third goes to previous
+/// chapter, swipe left starting within the right third goes to next chapter.
+/// The middle third ignores the gesture. Anything else (vertical, diagonal,
+/// short, wrong direction) is ignored.
+enum EdgeSwipeDirection: Equatable {
+    case prev
+    case next
 }
 
-struct ContentHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
-    }
-}
+enum EdgeSwipeDecision {
+    static let minimumDistance: CGFloat = 60
+    static let directionRatio: CGFloat = 2
+    static let throttleInterval: TimeInterval = 0.6
 
-struct ViewportHeightKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
+    /// Decide navigation from a horizontal drag.
+    /// - Parameters:
+    ///   - startX: drag start x in content coordinates.
+    ///   - width: content width defining the left/right thirds.
+    ///   - dx: horizontal translation (positive = swipe right).
+    ///   - dy: vertical translation.
+    /// - Returns: `.prev` / `.next` when the gesture matches an edge swipe, else nil.
+    static func decision(startX: CGFloat, width: CGFloat, dx: CGFloat, dy: CGFloat) -> EdgeSwipeDirection? {
+        guard width > 0 else { return nil }
+        guard abs(dx) >= minimumDistance, abs(dx) > directionRatio * abs(dy) else { return nil }
+        if startX <= width / 3, dx > 0 {
+            return .prev
+        }
+        if startX >= width * 2 / 3, dx < 0 {
+            return .next
+        }
+        return nil
     }
-}
 
-/// Pure helper for bottom overscroll detection — testable without UI
-enum ReaderOverscrollLogic {
-    static func isNearBottom(
-        offsetY: CGFloat,
-        contentHeight: CGFloat,
-        viewportHeight: CGFloat,
-        threshold: CGFloat = 40
+    /// Throttle: at most one chapter switch per interval.
+    static func isThrottleOk(
+        now: Date,
+        lastSwitch: Date,
+        interval: TimeInterval = throttleInterval
     ) -> Bool {
-        guard contentHeight > 0, viewportHeight > 0 else { return false }
-        guard contentHeight > viewportHeight else { return false }
-        return offsetY < -(contentHeight - viewportHeight - threshold)
-    }
-
-    static func isOverscrolledBeyondBottom(
-        offsetY: CGFloat,
-        contentHeight: CGFloat,
-        viewportHeight: CGFloat,
-        threshold: CGFloat = 40
-    ) -> Bool {
-        guard contentHeight > 0, viewportHeight > 0 else { return false }
-        guard contentHeight > viewportHeight else { return false }
-        return offsetY < -(contentHeight - viewportHeight + threshold)
+        now.timeIntervalSince(lastSwitch) >= interval
     }
 }
 

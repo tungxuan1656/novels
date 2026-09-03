@@ -3,67 +3,127 @@ import XCTest
 
 @MainActor
 final class ReaderViewFixTests: XCTestCase {
-    // MARK: - Overscroll only at bottom
+    private let width: CGFloat = 400
 
-    func testOverscrollNotFiringAtTop() {
-        // Scrolled 40pt from top should not trigger bottom logic
-        let offsetY: CGFloat = -40
-        let contentHeight: CGFloat = 2000
-        let viewportHeight: CGFloat = 800
-        XCTAssertFalse(ReaderOverscrollLogic.isNearBottom(
-            offsetY: offsetY,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
-        ))
+    // MARK: - Edge swipe: happy paths (screen thirds)
+
+    func testLeftEdgeSwipeRightGoesPrev() {
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 10, width: width, dx: 80, dy: 10),
+            .prev
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 100, width: width, dx: 60, dy: 0),
+            .prev
+        )
+        // Boundary: exactly one third still counts as left third
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: width / 3, width: width, dx: 60, dy: 0),
+            .prev
+        )
     }
 
-    func testOverscrollNotFiringMidContent() {
-        // Mid scroll not near bottom
-        let offsetY: CGFloat = -600
-        let contentHeight: CGFloat = 2000
-        let viewportHeight: CGFloat = 800
-        // content - viewport = 1200, threshold 40 => near bottom when y < -(1200-40)= -1160
-        XCTAssertFalse(ReaderOverscrollLogic.isNearBottom(
-            offsetY: offsetY,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
-        ))
+    func testRightEdgeSwipeLeftGoesNext() {
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 390, width: width, dx: -80, dy: -10),
+            .next
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 300, width: width, dx: -60, dy: 0),
+            .next
+        )
+        // Boundary: exactly two thirds still counts as right third
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: width * 2 / 3, width: width, dx: -60, dy: 0),
+            .next
+        )
     }
 
-    func testOverscrollFiresNearBottom() {
-        let contentHeight: CGFloat = 2000
-        let viewportHeight: CGFloat = 800
-        // Just before bottom (within 40) should be near bottom
-        let nearBottomY: CGFloat = -(contentHeight - viewportHeight - 20) // -1180
-        XCTAssertTrue(ReaderOverscrollLogic.isNearBottom(
-            offsetY: nearBottomY,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
-        ))
+    func testEdgeConstants() {
+        XCTAssertEqual(EdgeSwipeDecision.minimumDistance, 60)
+        XCTAssertEqual(EdgeSwipeDecision.directionRatio, 2)
+        XCTAssertEqual(EdgeSwipeDecision.throttleInterval, 0.6, accuracy: 0.001)
     }
 
-    func testOverscrollBeyondBottomRequiresGeometry() {
-        // Need both heights >0 and content > viewport
-        XCTAssertFalse(ReaderOverscrollLogic.isNearBottom(offsetY: -2000, contentHeight: 0, viewportHeight: 800))
-        XCTAssertFalse(ReaderOverscrollLogic.isNearBottom(offsetY: -2000, contentHeight: 500, viewportHeight: 800))
-        XCTAssertFalse(ReaderOverscrollLogic.isNearBottom(offsetY: -2000, contentHeight: 800, viewportHeight: 800))
+    // MARK: - Edge swipe: ignored gestures
+
+    func testWrongDirectionInEdgeIgnored() {
+        // Left third but swiping left is not prev
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: -80, dy: 0))
+        // Right third but swiping right is not next
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 390, width: width, dx: 80, dy: 0))
     }
 
-    func testOverscrolledBeyondBottomThreshold() {
-        let contentHeight: CGFloat = 2000
-        let viewportHeight: CGFloat = 800
-        // True overscroll beyond bottom +40
-        let beyondY: CGFloat = -(contentHeight - viewportHeight + 50) // -1250
-        XCTAssertTrue(ReaderOverscrollLogic.isOverscrolledBeyondBottom(
-            offsetY: beyondY,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
+    func testDiagonalIgnored() {
+        // |dx| must be strictly greater than 2*|dy|
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 70, dy: 40))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 390, width: width, dx: -70, dy: 40))
+        // Boundary: 60 is not > 2*30
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 60, dy: 30))
+        // Just over the ratio fires
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 10, width: width, dx: 61, dy: 30),
+            .prev
+        )
+    }
+
+    func testShortSwipeIgnored() {
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 59, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 390, width: width, dx: -59, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 0, dy: 0))
+    }
+
+    func testMiddleSwipeIgnored() {
+        // Middle third ignores both directions
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 200, width: width, dx: 120, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 200, width: width, dx: -120, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 140, width: width, dx: 120, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 260, width: width, dx: -120, dy: 0))
+    }
+
+    func testJustOutsideThirdIgnored() {
+        // Just past the left third is middle: swipe right ignored
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 140, width: width, dx: 80, dy: 0))
+        // Just before the right third is middle: swipe left ignored
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 260, width: width, dx: -80, dy: 0))
+    }
+
+    func testVerticalSwipeIgnored() {
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 10, dy: 200))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 390, width: width, dx: -10, dy: -200))
+    }
+
+    func testInvalidWidthIgnored() {
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: 0, dx: 80, dy: 0))
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: -100, dx: 80, dy: 0))
+    }
+
+    // MARK: - Throttle (bound against double-fire)
+
+    func testThrottleBlocksRapidSwitch() {
+        let now = Date(timeIntervalSinceReferenceDate: 1000)
+        XCTAssertTrue(EdgeSwipeDecision.isThrottleOk(
+            now: now,
+            lastSwitch: Date(timeIntervalSinceReferenceDate: 999.3)
         ))
-        let notBeyond: CGFloat = -(contentHeight - viewportHeight + 20)
-        XCTAssertFalse(ReaderOverscrollLogic.isOverscrolledBeyondBottom(
-            offsetY: notBeyond,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
+        XCTAssertFalse(EdgeSwipeDecision.isThrottleOk(
+            now: now,
+            lastSwitch: Date(timeIntervalSinceReferenceDate: 999.5)
+        ))
+        XCTAssertTrue(EdgeSwipeDecision.isThrottleOk(now: now, lastSwitch: .distantPast))
+    }
+
+    func testThrottleDefaultIntervalIs600ms() {
+        let now = Date(timeIntervalSinceReferenceDate: 2000)
+        // Just under 600ms ago -> blocked (margin avoids binary floating-point boundary flake)
+        XCTAssertFalse(EdgeSwipeDecision.isThrottleOk(
+            now: now,
+            lastSwitch: now.addingTimeInterval(-0.59)
+        ))
+        // Just over 600ms ago -> allowed
+        XCTAssertTrue(EdgeSwipeDecision.isThrottleOk(
+            now: now,
+            lastSwitch: now.addingTimeInterval(-0.61)
         ))
     }
 

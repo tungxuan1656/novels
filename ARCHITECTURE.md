@@ -16,7 +16,7 @@
   - Networking: `URLSession` uses `async/await`, `Task` cancellation, and `actor` de-duplication for catalog, AI, and prefetch. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
   - Security: `NSAppTransportSecurity` allows `http://localhost:8317` only.
   - Scope: No React Native packages. No RN migration in any direction. Historical RN findings are reference only.
-- **Settings keys:** Current keys only. Canonical list lives in `docs/contracts/settings-schema.md`. Keys include `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, and `PREFETCH_COUNT`. Defaults are `gpt-4o`, prefetch `3`, chunk `1300`. Invalid JSON is ignored. Unknown or legacy keys are ignored. See `docs/decisions/local-persistence.md`. [Accepted]
+- **Settings keys:** Current keys only. Canonical list lives in `docs/contracts/settings-schema.md`. Keys include `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `PREFETCH_COUNT`, and `DIAGNOSTICS_VERBOSE`. Defaults are `gpt-4o`, prefetch `3`, chunk `1300`. Invalid JSON is ignored. Unknown or legacy keys are ignored. See `docs/decisions/local-persistence.md`. [Accepted]
 
 ## 2. Code Map
 
@@ -41,7 +41,7 @@ Allowed direction: Presentation → Domain → Data/Integrations. Contracts are 
 - **Allowed:** Presentation can depend on Domain and contracts. Domain can depend on contract protocols and types. Data and Integrations implement contracts and can depend on Domain entities.
 - **Allowed:** `chapter-prefetch` can depend on `ai-reading` cache path and `local-data` cache boundary.
 - **Forbidden:** Domain must not import SwiftUI, UIKit, or WebKit. Data must not import Presentation. Integrations must not mutate UI state directly. They return results to Domain. No business rule duplication outside `docs/product/business-rules.md`. No second AI cache. Use the accepted boundaries in `docs/decisions/local-persistence.md` and `docs/contracts/local-data.md`.
-- **Forbidden:** No `SwiftData`, `Core Data`, Swift package, `Keychain`, or `BGTaskScheduler` for these boundaries (see `local-persistence.md` Non-Decisions). No React Native dependency or migration. No Network Logger screen or route. See `docs/decisions/network-logger-removed.md`.
+- **Forbidden:** No `SwiftData`, `Core Data`, Swift package, `Keychain`, or `BGTaskScheduler` for these boundaries (see `local-persistence.md` Non-Decisions). No React Native dependency or migration. No persisted Network Logger; in-session diagnostic viewer allowed with redaction per `docs/decisions/diagnostic-log-viewer.md` (partial supersede `network-logger-removed.md`).
 
 ## 4. Flows
 

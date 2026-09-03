@@ -123,3 +123,59 @@
 **Evidence**: `features/feat-012.md`, `feature_index.json` feat-012 done (depends_on feat-011), `docs/product/overview.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/domain-model.md`, `docs/design/screens.md` (5 docs grep clean), `apps/novels/Features/Reading/ReaderBottomSheet.swift` pickerStyle .inline + HStack12 + reprocessButton, `apps/novels/Features/Settings/SettingsViewModel.swift` Prompt descriptor, `./init.sh` full PASS 2026-09-03 (format 0/89, lint 0/89, build PASS, test PASS ~130, drift PASS 21/22)
 **Blockers**: none
 **Next**: repo idle — Prompt/AI Rewrite inline fully synced, no further feat active
+
+## 2026-09-04 — feat-013
+
+**State**: done
+**Done**: Auto Prev/Next on overscroll — pull quá top ≥90pt → prev đáp bottom, push quá bottom ≥90pt → next đáp top; hint “Thả để chuyển chương” ~45pt + haptic + toast “Đã là chương đầu/cuối”; short-chapter chuyển được 2 chiều; giữ lock 400ms + offset per-book + AI/prefetch cancel.
+**Evidence**: `features/feat-013.md`, `feature_index.json` feat-013 done (depends_on feat-004), `ScrollOffsetPreference.defaultThreshold=90` + `isPulledBeyondTop`, `ReaderView` hint overlays + `scrollToBottom` + bound toast, `ReaderViewFixTests` 6 tests mới, `./init.sh` full PASS (format 0/89, lint 0, build PASS, test PASS, drift PASS 21/22)
+**Blockers**: none
+**Next**: repo idle — test device thực tế chương dài/ngắn + AI rewrite
+
+## 2026-09-04 — feat-013 fix
+
+**State**: done
+**Done**: Hạ ngưỡng overscroll 90→28pt (hint ~14pt) vì biên độ vuốt thật trên Simulator chỉ ~20–35pt; ép bounce `.scrollBounceBehavior(.always)` để chương ngắn vẫn sinh tín hiệu; cập nhật `ReaderViewFixTests` theo ngưỡng 28.
+**Evidence**: `ScrollOffsetPreference.defaultThreshold=28`, `ReaderView` bounce always, tests 17/17, `./init.sh` full PASS (format/lint/build/test/drift)
+**Blockers**: none
+**Next**: user rebuild app trên Simulator rồi kéo lố ở top/bottom giữ tay để kiểm chứng hint + chuyển chương
+
+## 2026-09-04 — feat-013 pipeline fix
+
+**State**: done
+**Done**: Thay pipeline đo offset `GeometryReader` + PreferenceKey bằng `onScrollGeometryChange(-contentOffset.y)` vì pattern cũ không thấy rubber-banding (content trượt nhưng offsetY ≈ 0); giữ nguyên threshold 28/hint ~14/lock/toast/bounce.
+**Evidence**: `ReaderView` onScrollGeometryChange đảo dấu, `./init.sh` full PASS (format/lint/build/test/drift)
+**Blockers**: none
+**Next**: user rebuild + retest kéo lố top/bottom trên Simulator
+
+## 2026-09-04 — feat-013 round 2
+
+**State**: done
+**Done**: Rework excursion state machine — ngưỡng tương đối theo rest (hết hint/toast khi chưa cuộn), programmatic settle theo velocity + easeOut (hết tự back/cascade), single-source ScrollGeometry (bottom trigger được), single-fire + throttle 900ms + toast 1 lần/excursion; xóa 3 PreferenceKey chết.
+**Evidence**: `ReaderViewFixTests` 26/26 (9 tests mới: rest-invariance, re-arm, cooldown, overshoot), `./init.sh` full PASS (format/lint/build/test/drift)
+**Blockers**: none
+**Next**: user rebuild + retest theo kịch bản (lưu ý lần mở đầu restore sâu cần ≤2s settle mới nhận vuốt)
+
+## 2026-09-04 — feat-013 pivot
+
+**State**: done
+**Done**: Replaced vertical overscroll with thirds edge swipe after 3 failed rounds — swipe right in left third → prev, swipe left in right third → next; both land at top. Deleted overscroll state machine + debug overlay; kept offset save/restore, header buttons, toasts, haptics. Direction lock |dx|>=60 + |dx|>2|dy|, onEnded fire, 600ms throttle, one-time bound toast.
+**Evidence**: `EdgeSwipeDecision` + 12 new edge tests (18 ReaderViewFixTests pass), `./init.sh` full PASS (format 0/89, lint 0, build PASS, test PASS incl. UITests, drift PASS)
+**Blockers**: none
+**Next**: repo idle — user retests edge swipe on Simulator (both thirds, bounds, vertical-scroll safety)
+
+## 2026-09-04 — feat-013 jump-top
+
+**State**: done
+**Done**: Chapter switch now jumps to top instantly with animations disabled, on every path (edge swipe, header buttons, chapter-number change observer as safety net against load-vs-scroll races). Active "scroll to bottom" button keeps its animation.
+**Evidence**: `ReaderView.scrollToTop` transaction without animation + `onChange(chapterNumber)` second jump, `./init.sh` full PASS (format/lint/build/test/drift)
+**Blockers**: none
+**Next**: repo idle — user retests: no scroll animation on switch, always lands at top
+
+## 2026-09-04 — feat-014
+
+**State**: done
+**Done**: Diagnostic Log Viewer in-session — ring 500 + OSLog private, redact auth → `<redacted>` (prompt never raw, snippet chỉ khi verbose), timeout AI hardcode 180/600 + waitsForConnectivity, prefetch budget 600/1800 + markers, timeline DESC + filter/search + group toggle + expand, entry "Nhật ký" từ bottom sheet → route `Reading --> Log`. ADR `diagnostic-log-viewer.md` đảo một phần `network-logger-removed`.
+**Evidence**: `features/feat-014.md`, `docs/plans/feat-014.md`, `docs/decisions/diagnostic-log-viewer.md`, `Domain/DiagnosticsEntry.swift`, `Services/DiagnosticsLog.swift`, `AIClient`/`AIReadingService`/`PrefetchManager` instrument + `PrefetchManager` loop-top bookDeleted guard, `ReaderBottomSheet.apiLogButton` + `Features/Diagnostics/LogScreen.swift` + `Router.apiLog` + `AppRoot`, `DiagnosticsLogTests` 10 tests, docs (ARCHITECTURE/navigation/screens/SECURITY/settings-schema + `DIAGNOSTICS_VERBOSE`), `./init.sh` full PASS (format/lint/build/test/drift)
+**Blockers**: none
+**Next**: repo idle — user retest Simulator: đọc + AI Rewrite + prefetch rồi mở Nhật ký kiểm tra timeline/filter/expand/verbose

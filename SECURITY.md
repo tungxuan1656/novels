@@ -8,7 +8,7 @@
 - **Catalog auth:** none. Listing is read-only; download link is public `exportUrl`. See `docs/contracts/catalog-api.md`.
 - **AI auth:** not a separate setting. If auth is needed, the user enters it as a JSON object in `AI_CUSTOM_HEADERS` (for example `{"Authorization":"Bearer ..."}`). The app merges this JSON as headers per request. No secret is hard-coded in docs or business rules. See `docs/contracts/ai-service.md` and `docs/contracts/settings-schema.md`.
 - **Storage for `AI_CUSTOM_HEADERS`:** `UserDefaults` via `@Observable`. No `Keychain`. See `docs/contracts/local-data.md` and `docs/contracts/settings-schema.md`.
-- **No Network Logger:** removed from product and design (see `docs/decisions/network-logger-removed.md`). No credential or redaction log feature is in scope.
+- **No persisted Network Logger:** removed from product and design (see `docs/decisions/network-logger-removed.md`). In-session diagnostic timeline only, with redaction per `docs/decisions/diagnostic-log-viewer.md`. No credential at-rest, no retention.
 - **Network scope:** only catalog (`BOOKS_API_URL`) and AI (`OPENAI_API_URL`) need network. Reading, library, settings sanitize, offset, and typography restore need no network. ATS exception is `localhost`-only for `http://localhost:8317`.
 - **No secrets in repo:** docs and examples contain no real API keys, tokens, or credentials. Use redacted placeholders (`Bearer ...`). Do not add them.
 
@@ -20,4 +20,4 @@
 
 - Use redacted placeholders in docs (for example `{"Authorization":"Bearer ..."}`).
 - Link settings handling to `docs/contracts/settings-schema.md` and local boundaries to `docs/contracts/local-data.md` rather than duplicating.
-- Do not add `Keychain`, log-retention, or network-logging mechanisms. They are out of scope. See `docs/decisions/local-persistence.md`.
+- Do not add `Keychain` or persisted log-retention/network-logging mechanisms. In-session diagnostics only per `docs/decisions/diagnostic-log-viewer.md`. See `docs/decisions/local-persistence.md`.

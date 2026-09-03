@@ -14,6 +14,7 @@ import Observation
         static let aiExtraBodyJSON = ""
         static let prefetchCount = 3
         static let aiMinChunkSize = 1300
+        static let diagnosticsVerbose = false
     }
 
     private let userDefaults: UserDefaults
@@ -27,6 +28,7 @@ import Observation
     var aiPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
+    var diagnosticsVerbose: Bool
     var typography: TypographySetting
     var session: ReadingSession?
 
@@ -43,6 +45,7 @@ import Observation
         aiPrompt = SettingsDefaults.defaultPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
+        diagnosticsVerbose = Defaults.diagnosticsVerbose
         typography = .default
         session = nil
         load()
@@ -90,6 +93,9 @@ import Observation
         if let value = intValue(forKey: DefaultsKeys.aiMinChunkSize) {
             aiMinChunkSize = value
         }
+        if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
+            diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
+        }
         if let value = userDefaults.string(forKey: DefaultsKeys.font) {
             typography.font = ReaderFontMapper.normalizedFontName(value)
         }
@@ -127,6 +133,7 @@ import Observation
             openaiModel = Defaults.openaiModel
         }
         prefetchCount = clampedPrefetchCount(prefetchCount)
+        // BR-12: Bool is self-validating — missing key already defaults to false on load.
         if !(500 ... 10000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
         }
@@ -173,6 +180,8 @@ import Observation
             return "\(prefetchCount)"
         case "AI_MIN_CHUNK_SIZE":
             return "\(aiMinChunkSize)"
+        case "DIAGNOSTICS_VERBOSE":
+            return diagnosticsVerbose ? "true" : "false"
         case "font":
             return typography.font
         case "fontSize":
@@ -211,6 +220,8 @@ import Observation
             if let intValue = Int(value) {
                 aiMinChunkSize = intValue
             } // keep prior valid value on parse failure
+        case "DIAGNOSTICS_VERBOSE":
+            diagnosticsVerbose = ["true", "1", "yes"].contains(value.lowercased())
         case "font":
             typography.font = ReaderFontMapper.normalizedFontName(value)
         case "fontSize":
@@ -241,6 +252,7 @@ import Observation
         userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
+        userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
         userDefaults.set(typography.fontSize, forKey: DefaultsKeys.fontSize)
         userDefaults.set(typography.lineHeight, forKey: DefaultsKeys.lineHeight)
