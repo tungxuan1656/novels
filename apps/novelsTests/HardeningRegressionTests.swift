@@ -213,10 +213,12 @@ final class HardeningA11yTests: XCTestCase {
     func testBottomSheetHandleA11y() throws {
         let src = try source("apps/novels/SharedUI/BottomSheetView.swift")
         let code = stripped(src)
-        XCTAssertTrue(code.contains("DesignTokens.border"), "Handle should use DesignTokens.border outside comments")
-        XCTAssertTrue(code.contains("Capsule()"), "Handle should be Capsule outside comments")
-        // decorative handle should be hidden from VoiceOver
-        XCTAssertTrue(code.contains("accessibilityHidden(true)"))
+        // Intentional: no custom decorative handle; rely on system drag indicator.
+        XCTAssertFalse(code.contains("Capsule()"), "No custom handle expected; use system drag indicator")
+        XCTAssertTrue(
+            code.contains("presentationDragIndicator(.visible)"),
+            "System drag indicator should be visible when no custom handle"
+        )
     }
 }
 
