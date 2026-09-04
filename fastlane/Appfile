@@ -1,0 +1,4 @@
+app_identifier("com.tungxuan.novels")
+team_id("M5U4E4H84J")
+
+# apple_id(...) is only needed for App Store Connect lanes (not used: Diawi only).

@@ -118,6 +118,12 @@
       "title": "Chapter-Run Log + Raw JSON View",
       "status": "done",
       "depends_on": ["feat-014", "feat-018"]
+    },
+    {
+      "id": "feat-020",
+      "title": "Fastlane iOS Diawi Distribution",
+      "status": "done",
+      "depends_on": []
     }
   ]
 }

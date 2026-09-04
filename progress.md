@@ -219,3 +219,11 @@
 **Evidence**: `features/feat-019.md` (acceptance 7/7), ADR amendment + `screens.md` + `ai-service.md`, `LogRunBuilder` + `LogScreenGroupingTests` 11/11, bodies/runId tests, `./init.sh` full PASS 2026-09-04 (format/lint/build TEST SUCCEEDED/drift), `feature_index.json` feat-019 done (zero active)
 **Blockers**: none (tree uncommitted — not committed as not requested)
 **Next**: repo idle — user retests Log screen then requests commit when ready
+
+## 2026-09-04 — feat-020
+
+**State**: done
+**Done**: Fastlane iOS Diawi distribution — `Gemfile` (+lock) + `fastlane/Appfile` (`com.tungxuan.novels`/`M5U4E4H84J`) + `fastlane/Fastfile` iOS-only (`apps/novels.xcodeproj`, scheme `novels`, lanes `prepare`/`build`/`upload`/`distribute`, token via `ENV["DIAWI_TOKEN"]`) + `.gitignore` fastlane artifacts; branch `feat/020-fastlane-ios-diawi`
+**Evidence**: `ruby -c fastlane/Fastfile` Syntax OK; `bundle exec fastlane lanes` 4/4; grep old token 0 + android 0; `./init.sh` full PASS (format/lint/build/test/drift); `feature_index.json` feat-020 done (zero active)
+**Blockers**: none
+**Next**: repo idle — export `DIAWI_TOKEN` then `bundle exec fastlane ios distribute` to ship IPA to Diawi
