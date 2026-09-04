@@ -116,10 +116,10 @@ import Observation
     }
 
     /// Shared helper: returns clamped prefetch count without mutating stored value.
-    /// Stored `prefetchCount` stays as-is (e.g., 99) until `save()` → `sanitize()` coerces it,
+    /// Stored `prefetchCount` stays as-is (e.g., 1001) until `save()` → `sanitize()` coerces it,
     /// while `effectivePrefetchCount()` returns the fallback (Defaults.prefetchCount = 3) read-only.
     private func clampedPrefetchCount(_ value: Int) -> Int {
-        (1 ... 10).contains(value) ? value : Defaults.prefetchCount
+        (0 ... 1000).contains(value) ? value : Defaults.prefetchCount
     }
 
     func sanitize() {
@@ -267,7 +267,7 @@ import Observation
     }
 
     func effectivePrefetchCount() -> Int {
-        // Non-mutating read: returns clamped value without coercing stored prefetchCount (stays 99 until save()).
+        // Non-mutating read: returns clamped value without coercing stored prefetchCount (stays 1001 until save()).
         clampedPrefetchCount(prefetchCount)
     }
 

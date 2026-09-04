@@ -37,7 +37,7 @@ final class SettingsStoreTests: XCTestCase {
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let store = SettingsStore(userDefaults: userDefaults)
         store.load()
-        store.prefetchCount = 99
+        store.prefetchCount = 1001
         store.aiMinChunkSize = 100
         store.typography.fontSize = 100
         store.typography.lineHeight = 99
@@ -49,12 +49,18 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.typography.lineHeight, 1.5)
         XCTAssertEqual(store.typography.letterSpacing, 0)
 
-        store.prefetchCount = 0
+        store.prefetchCount = -1
         store.sanitize()
         XCTAssertEqual(store.prefetchCount, 3)
+        store.prefetchCount = 0
+        store.sanitize()
+        XCTAssertEqual(store.prefetchCount, 0)
         store.prefetchCount = 5
         store.sanitize()
         XCTAssertEqual(store.prefetchCount, 5)
+        store.prefetchCount = 1000
+        store.sanitize()
+        XCTAssertEqual(store.prefetchCount, 1000)
 
         store.aiMinChunkSize = 15000
         store.sanitize()

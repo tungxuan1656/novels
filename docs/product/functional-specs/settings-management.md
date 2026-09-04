@@ -16,7 +16,7 @@
 - Empty prompt → default prompt ([business-rules.md](../business-rules.md) BR-12).
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
-- Prefetch N only respects 1..10, else 3 ([business-rules.md](../business-rules.md) BR-08).
+- Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).
 
 ## States
 
@@ -31,7 +31,8 @@
 | Headers/body JSON invalid | Treated as empty, proceed |
 | Provider unknown | Normalized to `openai` |
 | Prompt empty/missing | Fallback to default prompt |
-| Prefetch N is 0, 99, "abc" | Use 3 |
+| Prefetch N is 0 | Valid, disables prefetch |
+| Prefetch N is 1001, -1, "abc" | Use 3 |
 | Unknown or legacy key present | Ignored. Current defaults apply |
 
 ## Acceptance

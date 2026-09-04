@@ -40,7 +40,7 @@
 - **Date:** 2026-02-18 — *Reconstructed from BR-08 and Flow 6*
 - **Status:** Accepted
 - **Context:** Readers go forward chapter by chapter. Parallel AI wastes quota and can be stale if user changes chapter or mode.
-- **Decision:** When chapter is ready and mode != `none`, prefetch next N (default 3, allowed 1..10, invalid → 3). Batch-check cache, skip cached, process missing one by one in order. Cancel if chapter or mode changes. See [business-rules.md](./business-rules.md) BR-08.
+- **Decision:** When chapter is ready and mode != `none`, prefetch next N (default 3, allowed 0..1000, invalid → 3). Batch-check cache, skip cached, process missing one by one in order. Cancel if chapter or mode changes. See [business-rules.md](./business-rules.md) BR-08.
 - **Consequence:** Next chapters are often ready; sequential work avoids stale writes; status is runtime-only; per-chapter errors are logged and do not stop batch.
 
 ### D5 — AI Rewrite Preserves Honorifics and Content via Single Prompt

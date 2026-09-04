@@ -38,10 +38,10 @@ struct SettingDescriptor {
                 }
                 return nil
             case "PREFETCH_COUNT":
-                if let number = Int(value), (1 ... 10).contains(number) {
+                if let number = Int(value), (0 ... 1000).contains(number) {
                     return nil
                 }
-                return "1..10, ngoài khoảng sẽ về 3"
+                return "0..1000, ngoài khoảng sẽ về 3"
             case "AI_MIN_CHUNK_SIZE":
                 if let number = Int(value), (500 ... 10000).contains(number) {
                     return nil
@@ -144,7 +144,7 @@ enum SettingsViewModel {
             key: "PREFETCH_COUNT",
             label: "Số chương tải trước",
             placeholder: "3",
-            description: "1..10, ngoài khoảng về 3 (BR-08)",
+            description: "0..1000, ngoài khoảng về 3 (BR-08)",
             defaultValue: "3",
             allowsVerbatimSave: false
         ),

@@ -55,7 +55,7 @@ Reader → parse `chapters/chapter-N.html` to text spans and render with `SwiftU
 
 AI Reading → mode `none` shows raw text. Mode `rewrite` checks cache first (`bookId(slug)+chapterNumber+mode` via SQLite). On miss, the app chunks text (~1300) and POSTs each chunk to `OPENAI_API_URL` via `URLSession`. It merges `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` JSON and ignores invalid JSON. It retries 3× (`1000/2000 ms`) with `actor` de-duplication, joins and cleans text, then does `INSERT OR REPLACE` into cache. See `docs/contracts/ai-service.md`, `docs/contracts/settings-schema.md`, `docs/product/functional-specs/ai-reading.md`.
 
-Prefetch → runs when mode is not `none` and chapter is ready. N = `PREFETCH_COUNT` (default `3`, range `1..10`, else `3`). Batch-check SQLite → sequential chapters via same AI path → `Task` cancels on chapter or mode change. See `docs/contracts/ai-service.md`, `docs/contracts/local-data.md`, `docs/product/functional-specs/chapter-prefetch.md`.
+Prefetch → runs when mode is not `none` and chapter is ready. N = `PREFETCH_COUNT` (default `3`, range `0..1000`, else `3`). Batch-check SQLite → sequential chapters via same AI path → `Task` cancels on chapter or mode change. See `docs/contracts/ai-service.md`, `docs/contracts/local-data.md`, `docs/product/functional-specs/chapter-prefetch.md`.
 
 Settings → sanitize on launch (missing or invalid → defaults; unknown or legacy → ignored; unknown provider → `openai`; empty `AI_PROMPT` → default prompt). Edit → validate → persist to `UserDefaults`. See `docs/contracts/settings-schema.md`, `SECURITY.md`, `docs/product/functional-specs/settings-management.md`.
 

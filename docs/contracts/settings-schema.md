@@ -16,7 +16,7 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_EXTRA_BODY` | `string` (JSON object) | `""` / empty | User-entered JSON merged into AI body; invalid JSON → ignored |
 | `AI_PROMPT` | `string` | `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` | System prompt for AI rewrite; missing/empty → reset to default |
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
-| `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `1..10`, else `3` on read (BR-08) |
+| `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
@@ -39,7 +39,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 ## Rules
 
 - Use current keys only; ignore unknown or legacy keys.
-- If `PREFETCH_COUNT` is outside `1..10`, use `3`.
+- If `PREFETCH_COUNT` is outside `0..1000`, use `3`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.
 
 ## Avoid
@@ -50,7 +50,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Examples
 
-- Canonical: `PREFETCH_COUNT=3` (range `1..10` else `3`); `AI_CUSTOM_HEADERS=""` when empty.
+- Canonical: `PREFETCH_COUNT=3` (range `0..1000` else `3`); `AI_CUSTOM_HEADERS=""` when empty.
 
 ## Verification
 
