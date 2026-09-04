@@ -49,7 +49,8 @@ actor AIClient {
         let trimmedURL = settingsSnapshot.urlRaw.trimmingCharacters(in: .whitespacesAndNewlines)
         let urlString = trimmedURL.isEmpty ? "http://localhost:8317/v1/chat/completions" : trimmedURL
         let model = settingsSnapshot.modelRaw.isEmpty ? "gpt-4o" : settingsSnapshot.modelRaw
-        let headers = settingsSnapshot.headers
+        let family = AIEndpointFamily.detect(urlString: urlString)
+        let headers = Self.effectiveRequestHeaders(settingsSnapshot.headers, family: family)
         let extra = settingsSnapshot.extra
         let verbose = settingsSnapshot.verbose
         guard let url = URL(string: urlString) else {
@@ -67,7 +68,8 @@ actor AIClient {
                 model: model,
                 prompt: prompt,
                 chunk: chunk,
-                extra: extra
+                extra: extra,
+                urlString: urlString
             )
         } catch {
             let nsError = error as NSError
@@ -143,35 +145,7 @@ actor AIClient {
                     )
                 }
                 let shape = AIResponseShape.parse(data)
-                let decoded: AIChatResponse
-                do {
-                    decoded = try JSONDecoder().decode(AIChatResponse.self, from: data)
-                } catch {
-                    await recordApiAttempt(
-                        context: context,
-                        attempt: attemptNumber,
-                        latencyMs: elapsed,
-                        urlString: url.absoluteString,
-                        model: model,
-                        statusCode: statusCode,
-                        errorDomain: "DecodingError",
-                        errorCode: (error as NSError).code,
-                        responseLen: data.count,
-                        responseHashPrefix: DiagnosticsRedactor.hashPrefix(
-                            String(data: data, encoding: .utf8) ?? ""
-                        ),
-                        retryAfterMs: retryAfter,
-                        responseJsonKeys: shape.responseJsonKeys,
-                        choicesCount: shape.choicesCount,
-                        contentKind: shape.contentKind,
-                        hasReasoningContent: shape.hasReasoningContent,
-                        hasToolCalls: shape.hasToolCalls,
-                        requestBody: requestBodyString,
-                        responseBody: responseBodyString
-                    )
-                    throw AIClientError.noResponse
-                }
-                guard let content = decoded.resolvedText
+                guard let content = AIUnifiedResponse.resolve(data: data, family: family)
                 else {
                     await recordApiAttempt(
                         context: context,
@@ -250,26 +224,81 @@ actor AIClient {
         throw lastError ?? AIClientError.noResponse
     }
 
-    private static func makeRequestBodyData(
+    static func makeRequestBodyData(
         model: String,
         prompt: String,
         chunk: String,
-        extra: [String: Any]
+        extra: [String: Any],
+        urlString: String = ""
     ) throws -> Data {
-        var baseBody: [String: Any] = [
-            "model": model,
-            "messages": [
-                ["role": "system", "content": prompt],
-                ["role": "user", "content": chunk],
-            ],
-        ]
-        for (key, value) in extra {
-            if key == "model" || key == "messages" || key == "stream" {
-                continue
-            }
-            baseBody[key] = value
+        // swiftlint:disable switch_case_alignment
+        switch AIEndpointFamily.detect(urlString: urlString) {
+            case .responses:
+                // Reasoning via extra {"reasoning":{"effort":"medium","summary":"auto"}},
+                // tokens via {"max_output_tokens":512}, verbosity via {"text":{"verbosity":"medium"}}.
+                // No default token cap.
+                var baseBody: [String: Any] = [
+                    "model": model,
+                    "instructions": prompt,
+                    "input": chunk,
+                    "stream": false,
+                ]
+                for (key, value) in extra {
+                    if key == "model" || key == "input" || key == "instructions" || key == "stream" {
+                        continue
+                    }
+                    baseBody[key] = value
+                }
+                return try JSONSerialization.data(withJSONObject: baseBody)
+            case .anthropic:
+                // Thinking via extra {"thinking":{"type":"adaptive"}} + {"output_config":{"effort":"high"}}, temp 0..1.
+                var baseBody: [String: Any] = [
+                    "model": model,
+                    "system": prompt,
+                    "messages": [
+                        ["role": "user", "content": chunk],
+                    ],
+                    "stream": false,
+                    "max_tokens": 10240,
+                ]
+                for (key, value) in extra {
+                    if key == "model" || key == "messages" || key == "system" || key == "stream" {
+                        continue
+                    }
+                    baseBody[key] = value
+                }
+                return try JSONSerialization.data(withJSONObject: baseBody)
+            case .chatCompletions:
+                var baseBody: [String: Any] = [
+                    "model": model,
+                    "messages": [
+                        ["role": "system", "content": prompt],
+                        ["role": "user", "content": chunk],
+                    ],
+                    "stream": false,
+                ]
+                for (key, value) in extra {
+                    if key == "model" || key == "messages" || key == "stream" {
+                        continue
+                    }
+                    baseBody[key] = value
+                }
+                return try JSONSerialization.data(withJSONObject: baseBody)
         }
-        return try JSONSerialization.data(withJSONObject: baseBody)
+        // swiftlint:enable switch_case_alignment
+    }
+
+    static func effectiveRequestHeaders(
+        _ headers: [String: String],
+        family: AIEndpointFamily
+    ) -> [String: String] {
+        guard family == .anthropic else { return headers }
+        if headers.keys.contains(where: { $0.lowercased() == "anthropic-version" }) {
+            return headers
+        }
+        var out = headers
+        out["anthropic-version"] = "2023-06-01"
+        return out
     }
 
     /// Single helper for all per-attempt `.api` log entries (A1/A4).
