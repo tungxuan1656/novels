@@ -1,6 +1,14 @@
 import Foundation
 import Observation
 
+/// Trigger source for ReaderViewModel.load: only `.chapterChange` may start
+/// current-chapter AI work and prefetch. `.returnFromLog` (back from Log to the
+/// same chapter + mode) makes zero API calls and keeps prefetchStatus as-is.
+enum LoadSource {
+    case chapterChange
+    case returnFromLog
+}
+
 @MainActor
 @Observable
 // swiftlint:disable:next type_body_length
@@ -24,6 +32,8 @@ final class ReaderViewModel {
     private let prefetchManager: PrefetchManager
     private var prefetchPollTask: Task<Void, Never>?
     private let processedCache: ProcessedChapterCaching
+    private(set) var lastVisibleChapter: Int?
+    private(set) var lastVisibleMode: AIMode?
     var canGoPrev: Bool {
         chapterNumber > 1
     }
@@ -67,7 +77,7 @@ final class ReaderViewModel {
         }
     }
 
-    func load() async {
+    func load(source: LoadSource = .chapterChange) async {
         isLoading = true
         errorMessage = nil
         do {
@@ -89,6 +99,10 @@ final class ReaderViewModel {
             blocks = []
         }
         isLoading = false
+        if source == .returnFromLog {
+            // Back from Log to same chapter + mode: zero API, keep prefetchStatus as-is.
+            return
+        }
         if aiMode != .none {
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
@@ -104,7 +118,7 @@ final class ReaderViewModel {
         guard canGoNext else { return }
         await cancelPrefetch()
         chapterNumber += 1
-        await load()
+        await load(source: .chapterChange)
         persistChapter()
     }
 
@@ -112,7 +126,7 @@ final class ReaderViewModel {
         guard canGoPrev else { return }
         await cancelPrefetch()
         chapterNumber -= 1
-        await load()
+        await load(source: .chapterChange)
         persistChapter()
     }
 
@@ -123,7 +137,7 @@ final class ReaderViewModel {
         } else {
             chapterNumber = max(1, number)
         }
-        await load()
+        await load(source: .chapterChange)
         persistChapter()
     }
 
@@ -163,8 +177,12 @@ final class ReaderViewModel {
     }
 
     func onDisappear() {
+        lastVisibleChapter = chapterNumber
+        lastVisibleMode = aiMode
         settingsStore.session?.onScreen = false
         settingsStore.save()
+        aiTask?.cancel()
+        isAIProcessing = false
         prefetchPollTask?.cancel()
         prefetchPollTask = nil
         if aiMode == .none {
@@ -226,6 +244,8 @@ final class ReaderViewModel {
                 ) ?? raw
             }
             processedContent = result
+        } catch is CancellationError {
+            // Cancelled (nav/disappear/mode switch): no aiError/toast, defer clears flag.
         } catch {
             aiError = error.localizedDescription
             toastCenter?.show(aiError ?? "AI processing failed.", type: .error)
@@ -302,7 +322,6 @@ final class ReaderViewModel {
                 }
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
-            guard !Task.isCancelled else { return }
             let status = await manager.currentStatus()
             await MainActor.run { self.prefetchStatus = status }
         }

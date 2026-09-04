@@ -37,6 +37,16 @@ struct LogEntry: Identifiable, Sendable, Equatable {
     // extras derived from response headers / transport
     let retryAfterMs: Int?
     let timeoutKind: String?
+    // safe response shape (no raw body, ≤10 keys, kinds only)
+    let responseJsonKeys: [String]?
+    let choicesCount: Int?
+    let contentKind: String?
+    let hasReasoningContent: Bool?
+    let hasToolCalls: Bool?
+    // chapter-run grouping + raw bodies (RAM-only, never persisted; never in debugSummary/OSLog)
+    let runId: UUID?
+    let requestBody: String?
+    let responseBody: String?
 
     init(
         requestId: UUID = UUID(),
@@ -63,7 +73,15 @@ struct LogEntry: Identifiable, Sendable, Equatable {
         event: String? = nil,
         detail: String? = nil,
         retryAfterMs: Int? = nil,
-        timeoutKind: String? = nil
+        timeoutKind: String? = nil,
+        responseJsonKeys: [String]? = nil,
+        choicesCount: Int? = nil,
+        contentKind: String? = nil,
+        hasReasoningContent: Bool? = nil,
+        hasToolCalls: Bool? = nil,
+        runId: UUID? = nil,
+        requestBody: String? = nil,
+        responseBody: String? = nil
     ) {
         self.requestId = requestId
         self.sessionId = sessionId
@@ -90,6 +108,14 @@ struct LogEntry: Identifiable, Sendable, Equatable {
         self.detail = detail
         self.retryAfterMs = retryAfterMs
         self.timeoutKind = timeoutKind
+        self.responseJsonKeys = responseJsonKeys
+        self.choicesCount = choicesCount
+        self.contentKind = contentKind
+        self.hasReasoningContent = hasReasoningContent
+        self.hasToolCalls = hasToolCalls
+        self.runId = runId
+        self.requestBody = requestBody
+        self.responseBody = responseBody
     }
 
     /// One-line OSLog summary. Never embeds raw secrets, prompts, or chapter text.
@@ -110,6 +136,12 @@ struct LogEntry: Identifiable, Sendable, Equatable {
         if let timeoutKind {
             parts.append("timeout=\(timeoutKind)")
         }
+        if let choicesCount {
+            parts.append("choices=\(choicesCount)")
+        }
+        if let contentKind {
+            parts.append("content=\(contentKind)")
+        }
         return parts.joined(separator: " ")
     }
 }
@@ -122,6 +154,7 @@ struct AIDiagnosticsContext: Sendable {
     let chunkIndex: Int?
     let chunkTotal: Int?
     let requestId: UUID
+    let runId: UUID?
 
     init(
         bookId: String = "",
@@ -129,7 +162,8 @@ struct AIDiagnosticsContext: Sendable {
         mode: String = "rewrite",
         chunkIndex: Int? = nil,
         chunkTotal: Int? = nil,
-        requestId: UUID? = nil
+        requestId: UUID? = nil,
+        runId: UUID? = nil
     ) {
         self.bookId = bookId
         self.chapterNumber = chapterNumber
@@ -137,5 +171,6 @@ struct AIDiagnosticsContext: Sendable {
         self.chunkIndex = chunkIndex
         self.chunkTotal = chunkTotal
         self.requestId = requestId ?? UUID()
+        self.runId = runId
     }
 }

@@ -365,4 +365,42 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertFalse(status.isRunning)
         XCTAssertTrue(client.calls.count <= 2)
     }
+
+    func testMissingChapterErrorCarriesOwnRunId() async throws {
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)
+        // Chapter 3 vanished from disk; 2 and 4 prefetch normally.
+        repo.fileExists = { _, number in number != 3 }
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning)
+        XCTAssertEqual(status.errors.count, 1)
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let missing = entries.filter {
+            $0.event == "prefetch.error-continue" && $0.chapterNumber == 3
+        }
+        XCTAssertEqual(missing.count, 1, "one missing-chapter error entry")
+        let missingRun = try XCTUnwrap(missing.first?.runId, "missing-chapter error must carry a runId")
+        // Chapters 2 and 4 each ran under their own distinct runs.
+        let starts2 = entries.filter { $0.event == "chunk.start" && $0.chapterNumber == 2 }
+        let starts4 = entries.filter { $0.event == "chunk.start" && $0.chapterNumber == 4 }
+        XCTAssertFalse(starts2.isEmpty)
+        XCTAssertFalse(starts4.isEmpty)
+        let run2 = try XCTUnwrap(starts2.first?.runId)
+        let run4 = try XCTUnwrap(starts4.first?.runId)
+        XCTAssertNotEqual(run2, run4, "each prefetched chapter is its own run")
+        XCTAssertNotEqual(missingRun, run2)
+        XCTAssertNotEqual(missingRun, run4)
+    }
 }

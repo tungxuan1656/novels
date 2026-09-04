@@ -234,3 +234,107 @@ final class ReaderViewFixTests: XCTestCase {
         XCTAssertEqual(counter.count, 0)
     }
 }
+
+// MARK: - feat-018 Tasks 4-5: header-only spinner, sheet no spinner
+
+final class ReaderHeaderSpinnerTests: XCTestCase {
+    private func repoRoot() -> URL {
+        let fileURL = URL(fileURLWithPath: #filePath)
+        var current = fileURL.deletingLastPathComponent()
+        for _ in 0 ..< 6 {
+            let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return current
+            }
+            let parent = current.deletingLastPathComponent()
+            if parent.path == current.path {
+                break
+            }
+            current = parent
+        }
+        return fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func source(_ relative: String) throws -> String {
+        let root = repoRoot()
+        let candidate = root.appendingPathComponent(relative)
+        let path = FileManager.default.fileExists(atPath: candidate.path) ? candidate.path : relative
+        return try String(contentsOfFile: path, encoding: .utf8)
+    }
+
+    private func stripped(_ text: String) -> String {
+        var result = text
+        if let regex = try? NSRegularExpression(
+            pattern: "/\\*.*?\\*/",
+            options: [.dotMatchesLineSeparators]
+        ) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: ""
+            )
+        }
+        let lines = result.components(separatedBy: "\n")
+        let withoutLineComments = lines.map { line -> String in
+            if let range = line.range(of: "//") {
+                return String(line[..<range.lowerBound])
+            }
+            return line
+        }
+        return withoutLineComments.joined(separator: "\n")
+    }
+
+    func testHeaderSpinnerOnlyForCurrentChapter() throws {
+        let src = try source("apps/novels/Features/Reading/ReaderView.swift")
+        let code = stripped(src)
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"aiProgressHeader\")"))
+        XCTAssertTrue(code.contains("accessibilityLabel(\"Đang xử lý\")"))
+        XCTAssertTrue(code.contains("scaleEffect(0.7)"))
+        XCTAssertTrue(code.contains("frame(width: 22, height: 28)"))
+        XCTAssertTrue(code.contains("if viewModel.isAIProcessing"))
+        XCTAssertTrue(code.contains("Text(\"Đang xử lý\")"))
+        XCTAssertTrue(code.contains(".font(.caption)"))
+        XCTAssertTrue(code.contains(".lineLimit(1)"))
+        XCTAssertTrue(code.contains(".frame(height: 28)"))
+        XCTAssertFalse(code.contains("accessibilityIdentifier(\"aiProgress\")"))
+        XCTAssertFalse(code.contains("accessibilityIdentifier(\"prefetchStatus\")"))
+        XCTAssertFalse(code.contains("accessibilityIdentifier(\"prefetchStatusError\")"))
+        XCTAssertTrue(code.contains("Không tìm thấy chương"))
+    }
+
+    func testHeaderProcessingTextGatedByCurrentChapter() throws {
+        let src = try source("apps/novels/Features/Reading/ReaderView.swift")
+        let code = stripped(src)
+        XCTAssertEqual(code.components(separatedBy: "Text(\"Đang xử lý\")").count - 1, 1)
+        XCTAssertEqual(code.components(separatedBy: "aiProgressHeader").count - 1, 1)
+        guard let gate = code.range(of: "if viewModel.isAIProcessing"),
+              let text = code.range(of: "Text(\"Đang xử lý\")"),
+              let capsule = code.range(of: "accessibilityIdentifier(\"prevButton\")")
+        else {
+            XCTFail("missing gate/text/capsule ordering markers")
+            return
+        }
+        XCTAssertTrue(gate.lowerBound < text.lowerBound && text.lowerBound < capsule.lowerBound)
+    }
+
+    func testPrefetchRunningShowsNoSpinner() throws {
+        let src = try source("apps/novels/Features/Reading/ReaderView.swift")
+        let code = stripped(src)
+        XCTAssertFalse(code.contains("prefetchStatus"))
+        XCTAssertFalse(code.contains("Đang tải trước"))
+        XCTAssertFalse(code.contains("Tải trước:"))
+    }
+
+    func testBottomSheetHasNoLoadingIndicator() throws {
+        let src = try source("apps/novels/Features/Reading/ReaderBottomSheet.swift")
+        let code = stripped(src)
+        XCTAssertFalse(code.contains("accessibilityIdentifier(\"aiProgress\")"))
+        XCTAssertFalse(code.contains("ProgressView()"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"aiModePicker\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"reprocessButton\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"apiLogButton\")"))
+        XCTAssertTrue(code.contains("disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)"))
+        XCTAssertTrue(code.contains("Button(\"Xử lý lại\")"))
+    }
+}

@@ -3,6 +3,7 @@ import XCTest
 
 // swiftlint:disable trailing_comma
 
+// swiftlint:disable:next type_body_length
 final class DiagnosticsLogTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
@@ -77,7 +78,7 @@ final class DiagnosticsLogTests: XCTestCase {
         let requestEntries = entries.filter { $0.kind == .api && $0.statusCode == nil }
         XCTAssertEqual(requestEntries.count, 1)
         XCTAssertEqual(requestEntries.first?.headersRedacted?["Authorization"], "<redacted>")
-        XCTAssertEqual(requestEntries.first?.host, "localhost/v1/chat/completions")
+        XCTAssertEqual(requestEntries.first?.host, "http://localhost:8317/v1/chat/completions")
         XCTAssertEqual(requestEntries.first?.snippet, "hello-chunk")
         for entry in entries {
             let values = (entry.headersRedacted ?? [:]).values.joined(separator: " ")
@@ -153,9 +154,13 @@ final class DiagnosticsLogTests: XCTestCase {
         let client = makeClient(settings: settings)
         let service = AIReadingService(cache: cache, client: client, settings: settings)
         var callCount = 0
+        let lock = NSLock()
         AIMockURLProtocol.handler = { request in
+            lock.lock()
             callCount += 1
-            return try self.okHandler(content: "part-\(callCount)")(request)
+            let content = "part-\(callCount)"
+            lock.unlock()
+            return try self.okHandler(content: content)(request)
         }
         let output = try await service.processedContent(
             bookId: "slug",
@@ -163,7 +168,8 @@ final class DiagnosticsLogTests: XCTestCase {
             mode: .rewrite,
             rawText: String(repeating: "a", count: 2600)
         )
-        XCTAssertEqual(output, "part-1\npart-2")
+        // Parallel TaskGroup: chunk completion order is nondeterministic, compare as set.
+        XCTAssertEqual(output.split(separator: "\n").map(String.init).sorted(), ["part-1", "part-2"])
         let entries = await DiagnosticsLog.shared.snapshot()
         let starts = entries.filter { $0.event == "chunk.start" }
         let successes = entries.filter { $0.event == "chunk.success" }
@@ -281,6 +287,67 @@ final class DiagnosticsLogTests: XCTestCase {
         let entries = await DiagnosticsLog.shared.snapshot()
         let cancels = entries.filter { $0.event == "prefetch.cancel" }
         XCTAssertTrue(cancels.contains { ($0.detail ?? "").contains("reason=chapterChange") })
+    }
+
+    // MARK: - Response shape (feat-017)
+
+    func testShapeParserKinds() {
+        let nullData = Data("{\"choices\":[{\"message\":{\"content\":null,\"reasoning_content\":\"r\"}}]}".utf8)
+        let nullShape = AIResponseShape.parse(nullData)
+        XCTAssertEqual(nullShape.responseJsonKeys, ["choices"])
+        XCTAssertEqual(nullShape.choicesCount, 1)
+        XCTAssertEqual(nullShape.contentKind, "null")
+        XCTAssertEqual(nullShape.hasReasoningContent, true)
+        XCTAssertEqual(nullShape.hasToolCalls, false)
+
+        let emptyData = Data("{\"choices\":[]}".utf8)
+        let emptyShape = AIResponseShape.parse(emptyData)
+        XCTAssertEqual(emptyShape.choicesCount, 0)
+        XCTAssertEqual(emptyShape.contentKind, "missing")
+
+        let envelopeData = Data("{\"data\":{\"choices\":[]}}".utf8)
+        let envelopeShape = AIResponseShape.parse(envelopeData)
+        XCTAssertEqual(envelopeShape.responseJsonKeys, ["data"])
+        XCTAssertNil(envelopeShape.choicesCount)
+        XCTAssertEqual(envelopeShape.contentKind, "missing")
+
+        let toolsData = Data("{\"choices\":[{\"message\":{\"content\":null,\"tool_calls\":[{\"id\":\"x\"}]}}]}".utf8)
+        let toolsShape = AIResponseShape.parse(toolsData)
+        XCTAssertEqual(toolsShape.hasToolCalls, true)
+        XCTAssertEqual(toolsShape.contentKind, "null")
+    }
+
+    func testShapeFailureKeepsRedaction() async throws {
+        let secret = "Bearer shape-secret-456"
+        let settings = await makeSettings(verbose: true, headersJSON: "{\"Authorization\":\"\(secret)\"}")
+        let client = makeClient(settings: settings)
+        let raw = "{\"choices\":[{\"message\":{\"content\":null,\"tool_calls\":[{\"id\":\"t1\"}]}}]}"
+        AIMockURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, raw.data(using: .utf8)!)
+        }
+        do {
+            _ = try await client.complete(prompt: "sys", chunk: "chunk-body")
+            XCTFail("should throw")
+        } catch {
+            XCTAssertTrue("\(error)".lowercased().contains("noresponse"))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertFalse(entries.isEmpty)
+        let failure = try XCTUnwrap(entries.first { $0.errorDomain == "AIClientError.noResponse" })
+        XCTAssertEqual(failure.hasToolCalls, true)
+        XCTAssertEqual(failure.contentKind, "null")
+        for entry in entries {
+            let values = (entry.headersRedacted ?? [:]).values.joined(separator: " ")
+            let combined = "\(entry.debugSummary) \(entry.detail ?? "") \(entry.snippet ?? "") \(values)"
+            XCTAssertFalse(combined.contains(secret))
+            XCTAssertFalse(combined.contains(raw))
+        }
     }
 }
 

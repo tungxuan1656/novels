@@ -88,6 +88,36 @@
       "title": "Diagnostic Log Viewer (in-session, timeline)",
       "status": "done",
       "depends_on": ["feat-006", "feat-007", "feat-011"]
+    },
+    {
+      "id": "feat-015",
+      "title": "Parallel Chunks + Bounded Retry + Loading-Only UI",
+      "status": "done",
+      "depends_on": ["feat-006", "feat-014"]
+    },
+    {
+      "id": "feat-016",
+      "title": "No Auto-Retry + Fix Stuck Loading",
+      "status": "done",
+      "depends_on": ["feat-015"]
+    },
+    {
+      "id": "feat-017",
+      "title": "Tolerant 200 Decode + Shape Logging",
+      "status": "done",
+      "depends_on": ["feat-016"]
+    },
+    {
+      "id": "feat-018",
+      "title": "Rewrite + Prefetch Correctness (gom feat-015/016/017)",
+      "status": "done",
+      "depends_on": ["feat-015", "feat-016", "feat-017"]
+    },
+    {
+      "id": "feat-019",
+      "title": "Log theo chapter-run, xem JSON thô",
+      "status": "done",
+      "depends_on": ["feat-014", "feat-018"]
     }
   ]
 }

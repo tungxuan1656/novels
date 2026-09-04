@@ -178,6 +178,36 @@ final class AIReadingViewModelTests: XCTestCase {
         XCTAssertNil(try cache.get(bookId: slug, chapterNumber: 1, mode: .none))
     }
 
+    func testFailClearsProcessingFlagWhilePrefetchRunning() async throws {
+        let slug = "fail-flag-slug"
+        let repo = try makeTempRepoWithBook(slug: slug, chapters: ["chapter one raw", "chapter two raw"])
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let settings = makeSettings()
+        AIMockURLProtocol.handler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("{\"error\":\"server\"}".utf8))
+        }
+        let service = makeService(cache: cache, settings: settings)
+        let vm = ReaderViewModel(
+            bookId: slug,
+            repository: repo,
+            settingsStore: settings,
+            cache: cache,
+            aiService: service
+        )
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        // Single attempt fails fast: flag cleared, error surfaced, no stuck spinner.
+        XCTAssertFalse(vm.isAIProcessing)
+        XCTAssertNotNil(vm.aiError)
+        // Prefetch runs independently with its own indicator (running or finished/cancelled),
+        // but must not leave the chapter AI spinner stuck.
+        XCTAssertFalse(vm.isAIProcessing)
+        // onDisappear clears the flag synchronously even if a task was in flight.
+        vm.onDisappear()
+        XCTAssertFalse(vm.isAIProcessing)
+    }
+
     func testGoNextAutoReloadsAIWhenModeNotNone() async throws {
         let slug = "nav-slug"
         let repo = try makeTempRepoWithBook(slug: slug, chapters: ["chapter one raw", "chapter two raw"])

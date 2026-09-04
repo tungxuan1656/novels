@@ -6,15 +6,16 @@ struct BottomSheetView<Content: View>: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(DesignTokens.border)
-                .frame(width: 40, height: 5)
-                .padding(.top, DesignTokens.spacing8)
-                .padding(.bottom, DesignTokens.spacing12)
-                .accessibilityHidden(true)
+//            Capsule()
+//                .fill(DesignTokens.border)
+//                .frame(width: 40, height: 5)
+//                .padding(.top, DesignTokens.spacing8)
+//                .padding(.bottom, DesignTokens.spacing12)
+//                .accessibilityHidden(true)
             content
                 .padding(.horizontal, DesignTokens.spacing16)
                 .padding(.bottom, DesignTokens.spacing16)
+                .padding(.top, DesignTokens.spacing24)
         }
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusSheet, style: .continuous))
     }

@@ -5,6 +5,7 @@ struct ReaderBottomSheet: View {
     var viewModel: ReaderViewModel?
     var onClose: () -> Void
     @Environment(Router.self) private var router: Router?
+    @State private var diagnosticsStore: DiagnosticsStore = .shared
 
     let fonts = ReaderFontMapper.fonts
 
@@ -135,41 +136,52 @@ struct ReaderBottomSheet: View {
             .frame(minHeight: 40)
             .contentShape(Rectangle())
 
-            if viewModel.isAIProcessing {
-                ProgressView("Đang xử lý...")
-                    .tint(DesignTokens.accent)
-            }
-            if let error = viewModel.aiError {
-                Text(error)
-                    .foregroundStyle(DesignTokens.error)
-                    .font(.caption)
-            }
-
             apiLogButton(viewModel: viewModel)
         }
     }
 
     private func apiLogButton(viewModel: ReaderViewModel) -> some View {
-        Button {
+        let hasErrors = diagnosticsStore.errorCount > 0
+        let title = hasErrors ? "Nhật ký · \(diagnosticsStore.errorCount) lỗi" : "Nhật ký"
+        let voiceLabel = hasErrors
+            ? "Nhật ký chẩn đoán, có \(diagnosticsStore.errorCount) lỗi"
+            : "Nhật ký chẩn đoán"
+        let hint = hasErrors ? "Mở nhật ký, lọc lỗi" : "Mở nhật ký chẩn đoán"
+        let initialFilter: LogKindFilter = hasErrors ? .error : .all
+        return Button {
             onClose()
-            router?.push(.apiLog(bookId: viewModel.bookId))
+            router?.push(.apiLog(bookId: viewModel.bookId, initialFilter: initialFilter))
         } label: {
             HStack(spacing: 8) {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .foregroundStyle(DesignTokens.muted)
-                Text("Nhật ký")
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .foregroundStyle(DesignTokens.muted)
+                    if hasErrors {
+                        Circle()
+                            .fill(DesignTokens.error)
+                            .frame(width: 10, height: 10)
+                            .offset(x: 5, y: -4)
+                            .accessibilityHidden(true)
+                    }
+                }
+                Text(title)
                     .font(.subheadline)
                     .foregroundStyle(DesignTokens.text)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
                     .foregroundStyle(DesignTokens.muted)
+                    .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
             .contentShape(Rectangle())
         }
         .accessibilityIdentifier("apiLogButton")
-        .accessibilityLabel("Nhật ký chẩn đoán")
+        .accessibilityLabel(voiceLabel)
+        .accessibilityHint(hint)
+        .task {
+            await diagnosticsStore.refresh()
+        }
     }
 
     private func stepperRow(

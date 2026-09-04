@@ -67,6 +67,72 @@ enum DiagnosticsRedactor {
     }
 }
 
+/// Safe response-shape parser (feat-017). JSONSerialization only, kinds/counts/keys — never raw values.
+struct AIResponseShape: Sendable, Equatable {
+    let responseJsonKeys: [String]?
+    let choicesCount: Int?
+    let contentKind: String?
+    let hasReasoningContent: Bool?
+    let hasToolCalls: Bool?
+
+    static func parse(_ data: Data) -> AIResponseShape {
+        guard let obj = try? JSONSerialization.jsonObject(with: data),
+              let dict = obj as? [String: Any]
+        else {
+            return AIResponseShape(
+                responseJsonKeys: nil,
+                choicesCount: nil,
+                contentKind: nil,
+                hasReasoningContent: nil,
+                hasToolCalls: nil
+            )
+        }
+        let keys = Array(dict.keys).sorted().prefix(10).map { $0 }
+        var count: Int?
+        var kind = "missing"
+        var hasReasoning = false
+        var hasTools = false
+        if let choices = dict["choices"] as? [[String: Any]] {
+            count = choices.count
+            if let first = choices.first {
+                let message = first["message"] as? [String: Any] ?? [:]
+                kind = contentKind(of: message["content"])
+                hasReasoning = isNonEmptyString(message["reasoning_content"])
+                    || isNonEmptyString(first["reasoning_content"])
+                hasTools = isNonEmptyArray(message["tool_calls"]) || isNonEmptyArray(first["tool_calls"])
+            }
+        }
+        return AIResponseShape(
+            responseJsonKeys: keys,
+            choicesCount: count,
+            contentKind: kind,
+            hasReasoningContent: hasReasoning,
+            hasToolCalls: hasTools
+        )
+    }
+
+    static func contentKind(of value: Any?) -> String {
+        guard let value else { return "missing" }
+        if value is NSNull {
+            return "null"
+        }
+        if let text = value as? String {
+            return text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "empty-string" : "ok"
+        }
+        return "missing"
+    }
+
+    private static func isNonEmptyString(_ value: Any?) -> Bool {
+        guard let text = value as? String else { return false }
+        return !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private static func isNonEmptyArray(_ value: Any?) -> Bool {
+        guard let array = value as? [Any] else { return false }
+        return !array.isEmpty
+    }
+}
+
 /// In-memory ring buffer (≤500 entries, FIFO). Cleared on launch — fresh actor state, no persistence.
 actor DiagnosticsLog {
     static let shared = DiagnosticsLog()
@@ -108,6 +174,10 @@ final class DiagnosticsStore {
     static let shared = DiagnosticsStore()
 
     var entries: [LogEntry] = []
+
+    var errorCount: Int {
+        entries.filter { $0.event == "chunk.fail" || $0.errorCode != nil }.count
+    }
 
     init() {}
 

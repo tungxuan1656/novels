@@ -55,7 +55,6 @@ struct ReaderView: View {
                             } else {
                                 content
                             }
-                            prefetchIndicator
                             Color.clear
                                 .frame(height: 120)
                                 .id("bottom")
@@ -91,9 +90,15 @@ struct ReaderView: View {
                 .sensoryFeedback(.impact(weight: .light), trigger: hapticTrigger)
                 .onAppear {
                     scrollProxy = proxy
+                    let disappearingChapter = viewModel.lastVisibleChapter
+                    let disappearingMode = viewModel.lastVisibleMode
                     viewModel.onAppear()
+                    let source: LoadSource =
+                        (disappearingChapter == viewModel.chapterNumber
+                            && disappearingMode == viewModel.aiMode)
+                        ? .returnFromLog : .chapterChange
                     Task {
-                        await viewModel.load()
+                        await viewModel.load(source: source)
                         restoreOffset()
                     }
                 }
@@ -121,26 +126,8 @@ struct ReaderView: View {
 
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
-            if viewModel.isAIProcessing {
-                ProgressView("Đang xử lý...")
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("aiProgress")
-            }
-            if let error = viewModel.aiError {
-                Text(error)
-                    .foregroundStyle(DesignTokens.error)
-                    .font(.caption)
-                    .accessibilityIdentifier("aiError")
-            }
             if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
                 aiProcessedContent(processed)
-            } else if !viewModel.isAIProcessing, viewModel.aiError == nil {
-                if viewModel.blocks.isEmpty {
-                    Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                        .foregroundStyle(DesignTokens.muted)
-                } else {
-                    content
-                }
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(DesignTokens.muted)
@@ -247,6 +234,20 @@ struct ReaderView: View {
                 Spacer()
 
                 HStack(spacing: 4) {
+                    if viewModel.isAIProcessing {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 22, height: 28)
+                            Text("Đang xử lý")
+                                .font(.caption)
+                                .foregroundStyle(DesignTokens.muted)
+                                .lineLimit(1)
+                        }
+                        .frame(height: 28)
+                        .accessibilityIdentifier("aiProgressHeader")
+                        .accessibilityLabel("Đang xử lý")
+                    }
                     HStack(spacing: 2) {
                         Button {
                             debounceTask?.cancel()
@@ -317,27 +318,6 @@ struct ReaderView: View {
             .padding(.horizontal, 8)
         }
         .accessibilityIdentifier("header")
-    }
-
-    @ViewBuilder
-    private var prefetchIndicator: some View {
-        if viewModel.prefetchStatus.isRunning {
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.8)
-                Text(
-                    "Đang tải trước \(viewModel.prefetchStatus.processedChapters)/\(viewModel.prefetchStatus.totalChapters)"
-                )
-                .font(.caption)
-                .foregroundStyle(DesignTokens.muted)
-            }
-            .accessibilityIdentifier("prefetchStatus")
-            .padding(.vertical, 4)
-        } else if !viewModel.prefetchStatus.errors.isEmpty {
-            Text("Tải trước: \(viewModel.prefetchStatus.errors.count) lỗi")
-                .font(.caption)
-                .foregroundStyle(DesignTokens.error)
-                .accessibilityIdentifier("prefetchStatusError")
-        }
     }
 
     private func bottomFloatingBar(_ proxy: ScrollViewProxy) -> some View {

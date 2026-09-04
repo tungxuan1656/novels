@@ -33,7 +33,8 @@ actor PrefetchManager {
         bookId: String,
         chapterNumber: Int,
         mode: String,
-        detail: String
+        detail: String,
+        runId: UUID? = nil
     ) async {
         await DiagnosticsLog.shared.append(LogEntry(
             requestId: UUID(),
@@ -43,7 +44,8 @@ actor PrefetchManager {
             chapterNumber: chapterNumber,
             mode: mode,
             event: event,
-            detail: detail
+            detail: detail,
+            runId: runId
         ))
     }
 
@@ -178,6 +180,7 @@ actor PrefetchManager {
                     break
                 }
                 let itemStart = Date()
+                let runId = UUID()
                 let htmlResult: String? = try? repository.chapterHTML(slug: bookId, number: number)
                 guard let html = htmlResult else {
                     errors.append("Chương \(number): Không tìm thấy chương")
@@ -187,7 +190,8 @@ actor PrefetchManager {
                         bookId: bookId,
                         chapterNumber: number,
                         mode: mode.rawValue,
-                        detail: "reason=missingChapter"
+                        detail: "reason=missingChapter",
+                        runId: runId
                     )
                     continue
                 }
@@ -202,7 +206,8 @@ actor PrefetchManager {
                         bookId: bookId,
                         chapterNumber: number,
                         mode: mode.rawValue,
-                        detail: "reason=emptyContent"
+                        detail: "reason=emptyContent",
+                        runId: runId
                     )
                     continue
                 }
@@ -221,7 +226,8 @@ actor PrefetchManager {
                         bookId: bookId,
                         chapterNumber: number,
                         mode: mode,
-                        rawText: raw
+                        rawText: raw,
+                        runId: runId
                     )
                     if Date().timeIntervalSince(itemStart) > Self.perChapterBudget {
                         await self.logPrefetch(
@@ -262,7 +268,8 @@ actor PrefetchManager {
                         bookId: bookId,
                         chapterNumber: number,
                         mode: mode.rawValue,
-                        detail: "reason=aiError"
+                        detail: "reason=aiError",
+                        runId: runId
                     )
                     continue
                 }

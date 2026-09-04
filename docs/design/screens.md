@@ -17,7 +17,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 | **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
-| **Log** | Diagnose AI/prefetch timeline | Header; filter chips; group toggle; expandable rows | Content, Empty, No-match | Reading sheet → Log → back |
+| **Log** | Diagnose AI/prefetch per chapter-run | Header; search; grouped chapter rows with status; JSON body sheet | Content, Empty, No-match | Reading sheet → Log → back |
 
 ## 3. Shared Patterns
 
@@ -37,7 +37,10 @@ Gear opens Settings.
 - Warning uses orange
 Duration is 3s for <60 chars, 4s for <150 chars, and 5s for long text. Tap to dismiss. Toast shows import, delete, validation, and network errors.
 
-**Loading.** Inline spinner for lists; blocking overlay for download, AI, and clear.
+**Loading.** Inline spinner for lists; blocking overlay for download and clear. Reading rules:
+- No loading indicator inside the Reading content body and none inside the Reading bottom sheet.
+- The only Reading rewrite indicator is a small spinner in the top header, left of the prev/next cluster, visible only while the current chapter itself is being rewritten — never for background prefetch chapters.
+- Chapter failure toasts once and renders the raw fallback; prefetch failure is silent in Reading (badge + timeline in Log only).
 
 ## 4. Rules
 

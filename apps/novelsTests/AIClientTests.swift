@@ -31,6 +31,7 @@ final class AIMockURLProtocol: URLProtocol {
     override func stopLoading() {}
 }
 
+// swiftlint:disable:next type_body_length
 final class AIClientTests: XCTestCase {
     override func tearDown() {
         super.tearDown()
@@ -128,7 +129,7 @@ final class AIClientTests: XCTestCase {
         XCTAssertEqual(output, "hi")
     }
 
-    func testRetries3TimesThenThrows() async {
+    func testTimeoutRetriesOnceThenThrows() async {
         let (client, _) = await MainActor.run {
             makeClient()
         }
@@ -141,8 +142,129 @@ final class AIClientTests: XCTestCase {
             _ = try await client.complete(prompt: "p", chunk: "c")
             XCTFail("should throw")
         } catch {
-            XCTAssertEqual(count, 3)
+            XCTAssertEqual(count, 2)
         }
+    }
+
+    func testHttp500RetriesOnceThenThrows() async {
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        var count = 0
+        AIMockURLProtocol.handler = { request in
+            count += 1
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 500,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, Data("{\"error\":\"server\"}".utf8))
+        }
+        do {
+            _ = try await client.complete(prompt: "p", chunk: "c")
+            XCTFail("should throw")
+        } catch {
+            XCTAssertEqual(count, 2)
+            if case let AIClientError.httpError(code, _) = error {
+                XCTAssertEqual(code, 500)
+            } else {
+                XCTFail("expected httpError 500, got \(error)")
+            }
+        }
+    }
+
+    func testFailedChunkRetriesOnceWithStableRequestId() async throws {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        var count = 0
+        AIMockURLProtocol.handler = { request in
+            count += 1
+            if count == 1 {
+                let response = HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 500,
+                    httpVersion: nil,
+                    headerFields: nil
+                )!
+                return (response, Data("{\"error\":\"server\"}".utf8))
+            }
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let ctx = AIDiagnosticsContext(
+            bookId: "b",
+            chapterNumber: 1,
+            mode: "rewrite",
+            chunkIndex: 0,
+            chunkTotal: 1
+        )
+        let output = try await client.complete(prompt: "p", chunk: "hello", context: ctx)
+        XCTAssertEqual(output, "ok")
+        XCTAssertEqual(count, 2)
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let related = entries.filter { $0.requestId == ctx.requestId }
+        XCTAssertFalse(related.isEmpty)
+        let attempts = related.compactMap { $0.attempt }.sorted()
+        XCTAssertTrue(attempts.contains(1) && attempts.contains(2), "attempts \(attempts)")
+    }
+
+    func testCancelledTaskThrowsImmediatelyWithoutRetry() async {
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        var count = 0
+        AIMockURLProtocol.handler = { request in
+            count += 1
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let task = Task<String, Error> {
+            try await client.complete(prompt: "p", chunk: "c")
+        }
+        task.cancel()
+        do {
+            _ = try await task.value
+            XCTFail("should throw CancellationError")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "expected CancellationError, got \(error)")
+            XCTAssertLessThanOrEqual(count, 1, "cancelled chunk must never retry, got \(count)")
+        }
+    }
+
+    func testHttp200SingleAttemptSuccess() async throws {
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        var count = 0
+        AIMockURLProtocol.handler = { request in
+            count += 1
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "p", chunk: "c")
+        XCTAssertEqual(output, "ok")
+        XCTAssertEqual(count, 1)
     }
 
     func testEmptyChoicesThrows() async {
@@ -166,6 +288,199 @@ final class AIClientTests: XCTestCase {
             let description = error.localizedDescription.lowercased()
             let string = "\(error)".lowercased()
             XCTAssertTrue(description.contains("no response") || string.contains("noresponse"))
+        }
+    }
+
+    func testNullContentWithReasoningSucceeds() async throws {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        AIMockURLProtocol.handler = { request in
+            let json = "{\"choices\":[{\"message\":{\"content\":null,\"reasoning_content\":\"suy luan\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "p", chunk: "c")
+        XCTAssertEqual(output, "suy luan")
+    }
+
+    func testToolCallsOnlyThrowsNoResponseWithShape() async {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        let raw = "{\"choices\":[{\"message\":{\"content\":null," +
+            "\"tool_calls\":[{\"id\":\"x\",\"type\":\"function\"}]}}]}"
+        AIMockURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, raw.data(using: .utf8)!)
+        }
+        do {
+            _ = try await client.complete(prompt: "p", chunk: "c")
+            XCTFail("should throw")
+        } catch {
+            XCTAssertTrue("\(error)".lowercased().contains("noresponse"))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let failures = entries.filter { $0.errorDomain == "AIClientError.noResponse" }
+        XCTAssertFalse(failures.isEmpty)
+        let shape = try? XCTUnwrap(failures.last)
+        XCTAssertEqual(shape?.choicesCount, 1)
+        XCTAssertEqual(shape?.contentKind, "null")
+        XCTAssertEqual(shape?.hasToolCalls, true)
+        XCTAssertEqual(shape?.hasReasoningContent, false)
+        XCTAssertTrue(shape?.responseJsonKeys?.contains("choices") ?? false)
+        for entry in entries {
+            let combined = "\(entry.debugSummary) \(entry.detail ?? "") \(entry.snippet ?? "")"
+            XCTAssertFalse(combined.contains(raw))
+        }
+    }
+
+    func testEnvelopeDataThrowsNoResponseWithShape() async {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        AIMockURLProtocol.handler = { request in
+            let json = "{\"data\":{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        do {
+            _ = try await client.complete(prompt: "p", chunk: "c")
+            XCTFail("should throw")
+        } catch {
+            XCTAssertTrue("\(error)".lowercased().contains("noresponse"))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let failures = entries.filter {
+            $0.errorDomain == "DecodingError" || $0.errorDomain == "AIClientError.noResponse"
+        }
+        XCTAssertFalse(failures.isEmpty)
+        let shape = try? XCTUnwrap(failures.last)
+        XCTAssertEqual(shape?.responseJsonKeys, ["data"])
+        XCTAssertNil(shape?.choicesCount)
+        XCTAssertEqual(shape?.contentKind, "missing")
+    }
+
+    func testEmptyStringContentThrowsWithShape() async {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        AIMockURLProtocol.handler = { request in
+            let json = "{\"choices\":[{\"message\":{\"content\":\"   \"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        do {
+            _ = try await client.complete(prompt: "p", chunk: "c")
+            XCTFail("should throw")
+        } catch {
+            XCTAssertTrue("\(error)".lowercased().contains("noresponse"))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let failures = entries.filter { $0.errorDomain == "AIClientError.noResponse" }
+        XCTAssertEqual(failures.last?.contentKind, "empty-string")
+        XCTAssertEqual(failures.last?.choicesCount, 1)
+    }
+
+    func testApiEntriesCarryFullBodiesAndFullURLOnSuccess() async throws {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        let run = UUID()
+        AIMockURLProtocol.handler = { request in
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let ctx = AIDiagnosticsContext(
+            bookId: "b",
+            chapterNumber: 20,
+            mode: "rewrite",
+            chunkIndex: 0,
+            chunkTotal: 1,
+            runId: run
+        )
+        let output = try await client.complete(prompt: "sys", chunk: "hello", context: ctx)
+        XCTAssertEqual(output, "ok")
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let api = entries.filter { $0.kind == .api && $0.requestId == ctx.requestId }
+        XCTAssertEqual(api.count, 2, "request + success entries")
+        for entry in api {
+            XCTAssertEqual(entry.runId, run)
+            XCTAssertEqual(entry.host, "http://localhost:8317/v1/chat/completions")
+            XCTAssertTrue(
+                entry.requestBody?.contains("\"messages\"") ?? false,
+                "requestBody \(entry.requestBody ?? "")"
+            )
+        }
+        let success = try XCTUnwrap(api.first { $0.statusCode == 200 })
+        XCTAssertTrue(
+            success.responseBody?.contains("\"choices\"") ?? false,
+            "responseBody \(success.responseBody ?? "")"
+        )
+        XCTAssertTrue(success.responseBody?.contains("ok") ?? false)
+    }
+
+    func testFailEntriesCarryBodiesAndFullURL() async {
+        await DiagnosticsLog.shared.clear()
+        let (client, _) = await MainActor.run {
+            makeClient()
+        }
+        AIMockURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 500,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, Data("{\"error\":\"server\"}".utf8))
+        }
+        let ctx = AIDiagnosticsContext(bookId: "b", chapterNumber: 20, mode: "rewrite")
+        do {
+            _ = try await client.complete(prompt: "p", chunk: "c", context: ctx)
+            XCTFail("should throw")
+        } catch {
+            XCTAssertTrue("\(error)".lowercased().contains("httperror"))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let failures = entries.filter {
+            $0.requestId == ctx.requestId && $0.errorDomain == "AIClientError.httpError"
+        }
+        XCTAssertEqual(failures.count, 2, "attempt 1 + attempt 2 fail entries")
+        for entry in failures {
+            XCTAssertEqual(entry.host, "http://localhost:8317/v1/chat/completions")
+            XCTAssertTrue(entry.requestBody?.contains("\"messages\"") ?? false)
+            XCTAssertTrue(entry.responseBody?.contains("server") ?? false, "responseBody \(entry.responseBody ?? "")")
         }
     }
 }

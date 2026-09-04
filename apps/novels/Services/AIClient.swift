@@ -23,7 +23,7 @@ actor AIClient {
         self.session = session ?? URLSession(configuration: Self.defaultConfiguration())
     }
 
-    // swiftlint:disable:next function_body_length cyclomatic_complexity
+    // swiftlint:disable:next function_body_length
     func complete(
         prompt: String,
         chunk: String,
@@ -50,14 +50,16 @@ actor AIClient {
         }
         await logInvalidPayloadEvents(headers: headers, extra: extra, context: context)
         let chunkHash = DiagnosticsRedactor.hashPrefix(chunk)
+        try Task.checkCancellation()
         var lastError: Error?
-        for attempt in 0 ..< 3 {
-            let attemptNumber = attempt + 1
+        for attemptNumber in 1 ... 2 {
             let attemptStart = Date()
             func latencyMs() -> Int {
                 Int(Date().timeIntervalSince(attemptStart) * 1000)
             }
+            var requestBodyString: String?
             do {
+                try Task.checkCancellation()
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -77,9 +79,11 @@ actor AIClient {
                     }
                     body[key] = value
                 }
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+                let requestBodyData = try JSONSerialization.data(withJSONObject: body)
+                request.httpBody = requestBodyData
                 request.timeoutInterval = Self.requestTimeout
                 let requestHeaders = request.allHTTPHeaderFields ?? [:]
+                requestBodyString = request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
                 await DiagnosticsLog.shared.append(LogEntry(
                     requestId: context.requestId,
                     sessionId: DiagnosticsLog.sessionId,
@@ -91,15 +95,18 @@ actor AIClient {
                     chunkTotal: context.chunkTotal,
                     attempt: attemptNumber,
                     latencyMs: 0,
-                    host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                    host: url.absoluteString,
                     model: model,
                     headersRedacted: DiagnosticsRedactor.redactedHeaders(requestHeaders),
                     bodyLen: chunk.utf8.count,
                     bodyHashPrefix: chunkHash,
-                    snippet: DiagnosticsRedactor.snippet(chunk, limit: 100, verbose: verbose)
+                    snippet: DiagnosticsRedactor.snippet(chunk, limit: 100, verbose: verbose),
+                    runId: context.runId,
+                    requestBody: requestBodyString
                 ))
                 let (data, response) = try await session.data(for: request)
                 let elapsed = latencyMs()
+                let responseBodyString = String(data: data, encoding: .utf8)
                 let http = response as? HTTPURLResponse
                 let statusCode = http?.statusCode ?? 0
                 let retryAfter = http.flatMap { DiagnosticsRedactor.retryAfterMs(from: $0.allHeaderFields) }
@@ -115,18 +122,22 @@ actor AIClient {
                         chunkTotal: context.chunkTotal,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                        host: url.absoluteString,
                         statusCode: statusCode,
                         errorDomain: "AIClientError.httpError",
                         errorCode: statusCode,
                         model: model,
-                        retryAfterMs: retryAfter
+                        retryAfterMs: retryAfter,
+                        runId: context.runId,
+                        requestBody: requestBodyString,
+                        responseBody: responseBodyString
                     ))
                     throw AIClientError.httpError(
                         http.statusCode,
                         HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
                     )
                 }
+                let shape = AIResponseShape.parse(data)
                 let decoded: AIChatResponse
                 do {
                     decoded = try JSONDecoder().decode(AIChatResponse.self, from: data)
@@ -142,7 +153,7 @@ actor AIClient {
                         chunkTotal: context.chunkTotal,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                        host: url.absoluteString,
                         statusCode: statusCode,
                         errorDomain: "DecodingError",
                         errorCode: (error as NSError).code,
@@ -151,12 +162,19 @@ actor AIClient {
                         responseHashPrefix: DiagnosticsRedactor.hashPrefix(
                             String(data: data, encoding: .utf8) ?? ""
                         ),
-                        retryAfterMs: retryAfter
+                        retryAfterMs: retryAfter,
+                        responseJsonKeys: shape.responseJsonKeys,
+                        choicesCount: shape.choicesCount,
+                        contentKind: shape.contentKind,
+                        hasReasoningContent: shape.hasReasoningContent,
+                        hasToolCalls: shape.hasToolCalls,
+                        runId: context.runId,
+                        requestBody: requestBodyString,
+                        responseBody: responseBodyString
                     ))
                     throw AIClientError.noResponse
                 }
-                guard let content = decoded.choices.first?.message.content,
-                      !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                guard let content = decoded.resolvedText
                 else {
                     await DiagnosticsLog.shared.append(LogEntry(
                         requestId: context.requestId,
@@ -169,7 +187,7 @@ actor AIClient {
                         chunkTotal: context.chunkTotal,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                        host: url.absoluteString,
                         statusCode: statusCode,
                         errorDomain: "AIClientError.noResponse",
                         errorCode: 0,
@@ -178,7 +196,15 @@ actor AIClient {
                         responseHashPrefix: DiagnosticsRedactor.hashPrefix(
                             String(data: data, encoding: .utf8) ?? ""
                         ),
-                        retryAfterMs: retryAfter
+                        retryAfterMs: retryAfter,
+                        responseJsonKeys: shape.responseJsonKeys,
+                        choicesCount: shape.choicesCount,
+                        contentKind: shape.contentKind,
+                        hasReasoningContent: shape.hasReasoningContent,
+                        hasToolCalls: shape.hasToolCalls,
+                        runId: context.runId,
+                        requestBody: requestBodyString,
+                        responseBody: responseBodyString
                     ))
                     throw AIClientError.noResponse
                 }
@@ -193,37 +219,29 @@ actor AIClient {
                     chunkTotal: context.chunkTotal,
                     attempt: attemptNumber,
                     latencyMs: elapsed,
-                    host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                    host: url.absoluteString,
                     statusCode: statusCode,
                     model: model,
                     responseLen: data.count,
                     responseHashPrefix: DiagnosticsRedactor.hashPrefix(content),
                     snippet: DiagnosticsRedactor.snippet(content, limit: 200, verbose: verbose),
-                    retryAfterMs: retryAfter
+                    retryAfterMs: retryAfter,
+                    runId: context.runId,
+                    requestBody: requestBodyString,
+                    responseBody: responseBodyString
                 ))
                 return content
             } catch {
-                lastError = error
+                if error is CancellationError {
+                    throw CancellationError()
+                }
                 if error is DecodingError {
-                    throw AIClientError.noResponse
-                }
-                if case AIClientError.noResponse = error {
-                    throw error
-                }
-                if case let AIClientError.httpError(code, _) = error {
-                    if (400 ... 499).contains(code) {
-                        throw error
-                    }
-                    if attempt < 2 {
-                        await logRetry(context: context, attempt: attemptNumber, backoffMs: attemptBackoffMs(attempt))
-                        let delay: UInt64 = attempt == 0 ? 1_000_000_000 : 2_000_000_000
-                        try? await Task.sleep(nanoseconds: delay)
-                        continue
-                    } else {
-                        throw lastError ?? error
-                    }
-                }
-                if error is URLError || (error as NSError).domain == NSURLErrorDomain {
+                    lastError = AIClientError.noResponse
+                } else if case AIClientError.noResponse = error {
+                    lastError = error
+                } else if case AIClientError.httpError = error {
+                    lastError = error
+                } else if error is URLError || (error as NSError).domain == NSURLErrorDomain {
                     let urlError = error as? URLError
                     await DiagnosticsLog.shared.append(LogEntry(
                         requestId: context.requestId,
@@ -236,46 +254,26 @@ actor AIClient {
                         chunkTotal: context.chunkTotal,
                         attempt: attemptNumber,
                         latencyMs: latencyMs(),
-                        host: DiagnosticsRedactor.endpointDisplay(url: url, verbose: verbose),
+                        host: url.absoluteString,
                         errorDomain: (error as NSError).domain,
                         errorCode: (error as NSError).code,
                         model: model,
-                        timeoutKind: urlError?.code == .timedOut ? "timedOut" : nil
+                        timeoutKind: urlError?.code == .timedOut ? "timedOut" : nil,
+                        runId: context.runId,
+                        requestBody: requestBodyString
                     ))
-                    if attempt < 2 {
-                        await logRetry(context: context, attempt: attemptNumber, backoffMs: attemptBackoffMs(attempt))
-                        let delay: UInt64 = attempt == 0 ? 1_000_000_000 : 2_000_000_000
-                        try? await Task.sleep(nanoseconds: delay)
-                        continue
-                    } else {
-                        throw lastError ?? AIClientError.httpError(0, "AI processing failed.")
-                    }
+                    lastError = error
+                } else {
+                    // Programming errors (e.g., JSONSerialization) — retry once like any other error
+                    lastError = error
                 }
-                // Programming errors (e.g., JSONSerialization) — do not retry
-                throw error
+                if attemptNumber == 2 {
+                    throw lastError ?? error
+                }
+                continue
             }
         }
-        throw lastError ?? AIClientError.httpError(0, "AI processing failed.")
-    }
-
-    private func attemptBackoffMs(_ attempt: Int) -> Int {
-        attempt == 0 ? 1000 : 2000
-    }
-
-    private func logRetry(context: AIDiagnosticsContext, attempt: Int, backoffMs: Int) async {
-        await DiagnosticsLog.shared.append(LogEntry(
-            requestId: context.requestId,
-            sessionId: DiagnosticsLog.sessionId,
-            kind: .event,
-            bookId: context.bookId,
-            chapterNumber: context.chapterNumber,
-            mode: context.mode,
-            chunkIndex: context.chunkIndex,
-            chunkTotal: context.chunkTotal,
-            attempt: attempt,
-            event: "retry.scheduled",
-            detail: "backoffMs=\(backoffMs) nextAttempt=\(attempt + 1)"
-        ))
+        throw lastError ?? AIClientError.noResponse
     }
 
     private func logInvalidPayloadEvents(
@@ -300,7 +298,8 @@ actor AIClient {
                 chunkIndex: context.chunkIndex,
                 chunkTotal: context.chunkTotal,
                 event: "invalid.headers",
-                detail: "len=\(headersTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(headersTrimmed))"
+                detail: "len=\(headersTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(headersTrimmed))",
+                runId: context.runId
             ))
         }
         if !bodyTrimmed.isEmpty, extra.isEmpty {
@@ -314,7 +313,8 @@ actor AIClient {
                 chunkIndex: context.chunkIndex,
                 chunkTotal: context.chunkTotal,
                 event: "invalid.body",
-                detail: "len=\(bodyTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(bodyTrimmed))"
+                detail: "len=\(bodyTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(bodyTrimmed))",
+                runId: context.runId
             ))
         }
     }

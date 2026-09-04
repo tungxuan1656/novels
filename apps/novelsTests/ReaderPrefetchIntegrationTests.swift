@@ -98,4 +98,61 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         XCTAssertNil(UserDefaults.standard.object(forKey: "PrefetchStatus"))
         XCTAssertNotNil(vm.prefetchStatus)
     }
+
+    func testReturnFromLogMakesZeroAPICalls() async throws {
+        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        client.calls.removeAll()
+        let runningBefore = vm.prefetchStatus.isRunning
+        let messageBefore = vm.prefetchStatus.message
+        let errorsBefore = vm.prefetchStatus.errors
+        let processedBefore = vm.prefetchStatus.processedChapters
+        await vm.load(source: .returnFromLog)
+        // Give any stray aiTask/prefetch trigger time to fire if the gate regresses.
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertTrue(client.calls.isEmpty, "return-from-Log must make zero API calls, got \(client.calls)")
+        XCTAssertEqual(vm.prefetchStatus.isRunning, runningBefore)
+        XCTAssertEqual(vm.prefetchStatus.message, messageBefore)
+        XCTAssertEqual(vm.prefetchStatus.errors, errorsBefore)
+        XCTAssertEqual(vm.prefetchStatus.processedChapters, processedBefore)
+    }
+
+    func testChapterChangeProcessesMissesSequentiallyAndContinuesOnError() async throws {
+        let (vm, cache, _, client, tmp) = try makeVM(prefetchCount: 3, total: 6)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let now = Date()
+        try cache.upsert(ProcessedChapter(
+            bookId: "test-slug",
+            chapterNumber: 3,
+            mode: .rewrite,
+            content: "cached3",
+            contentHash: "h3",
+            createdAt: now,
+            updatedAt: now
+        ))
+        client.shouldFail = [2: NSError(
+            domain: "ai",
+            code: 500,
+            userInfo: [NSLocalizedDescriptionKey: "fail 2"]
+        )]
+        // Mode switch is a chapterChange-class trigger: current-chapter AI + sequential prefetch.
+        // NOTE: load() first so vm.book is set (prefetch needs the chapter count).
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        try await Task.sleep(nanoseconds: 2_000_000_000)
+        XCTAssertEqual(vm.chapterNumber, 1)
+        XCTAssertTrue(client.calls.first == 1, "current chapter AI first, got \(client.calls)")
+        XCTAssertFalse(client.calls.contains(3), "cached chapter must be skipped, got \(client.calls)")
+        XCTAssertEqual(client.calls.filter { $0 == 2 }.count, 2, "failed chunk retried once, got \(client.calls)")
+        XCTAssertEqual(client.calls.filter { $0 == 4 }.count, 1, "got \(client.calls)")
+        // Error recorded and continued: ch4 cached despite ch2 failing.
+        XCTAssertNotNil(try cache.get(bookId: "test-slug", chapterNumber: 4, mode: .rewrite))
+        XCTAssertNil(try cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite))
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        XCTAssertEqual(vm.prefetchStatus.errors.count, 1, "errors \(vm.prefetchStatus.errors)")
+    }
 }

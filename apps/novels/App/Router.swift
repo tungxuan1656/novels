@@ -27,7 +27,7 @@ final class Router {
         case settings
         case cacheManager
         case settingEditor(settingKey: String)
-        case apiLog(bookId: String?)
+        case apiLog(bookId: String?, initialFilter: LogKindFilter)
     }
 
     func restoreInitialRoute() {

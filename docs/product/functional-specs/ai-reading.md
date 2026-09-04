@@ -6,16 +6,16 @@
 
 1. Actor opens a chapter. System checks AI mode. If mode is `none` ("Không"), show raw text parsed from HTML in file storage and render with SwiftUI.Text. If mode is `rewrite` ("Rewrite"), check processed chapter cache for `bookId + chapterNumber + "rewrite"`.
 2. Cache hit → render cached text with SwiftUI.Text, no service call.
-3. Cache miss → read raw text, get prompt from `AI_PROMPT` in persistent settings store, send to AI processing service, clean, save to cache as text, render with SwiftUI.Text.
+3. Cache miss → split raw text into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render with SwiftUI.Text. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once.
 4. Actor switches mode → reload same chapter via cache-first path.
 5. In Reading bottom sheet, "AI Rewrite" is shown with an inline picker ("Không", "Rewrite") and the Reprocess ("Xử lý lại") button placed right beside it in the same row.
-6. Failure or empty response → show error, no cache write. Concurrent same-key requests are de-duplicated.
+6. One chunk still failing after its retry aborts the chapter → toast once, render raw fallback, no cache write. Actor retries manually via "Xử lý lại". Concurrent same-key requests are de-duplicated.
 
 ## Rules (business rules, link to business-rules.md)
 
 - Cache is the only AI cache. Check cache before any call. Key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07).
 - AI Rewrite uses single `AI_PROMPT` system prompt configured in settings ([business-rules.md](../business-rules.md) BR-03, BR-04).
-- Mode `none` bypasses cache and service. Up to three retries. No cache on final failure ([integrations.md](../integrations.md) §2).
+- Mode `none` bypasses cache and service. Bounded retry: max 2 attempts per failed chunk only. No cache on final failure ([integrations.md](../integrations.md) §2).
 
 ## States
 
@@ -28,18 +28,18 @@
 |------|--------|
 | Mode `none` | Render raw text (parsed from HTML) with SwiftUI.Text, no cache |
 | Cache hit | Render instantly |
-| Cache miss, success | Save to cache and render |
-| Empty response | Show "no response", no cache |
-| Service fails after retries | Show error, no cache |
+| Cache miss, success | Parallel chunk calls, join in order, save to cache and render |
+| Empty response after retry | Toast once, render raw fallback, no cache |
+| One chunk fails twice | Abort chapter, toast once, raw fallback, manual "Xử lý lại" |
 | Concurrent same key | Single call, both share result |
 
 ## Acceptance
 
 - [ ] Switching Không / Rewrite reloads same chapter with correct source.
 - [ ] Cached chapter renders without calling the service.
-- [ ] Uncached chapter calls service with `AI_PROMPT`, saves text to cache, then renders with SwiftUI.Text.
+- [ ] Uncached chapter calls one request per chunk in parallel with `AI_PROMPT`, retries only the failed chunk once, joins in order, saves text to cache, then renders with SwiftUI.Text.
 - [ ] Sheet shows "AI Rewrite" inline picker with options "Không" and "Rewrite", with Reprocess button right beside it.
-- [ ] Empty or failed response shows error and creates no entry.
+- [ ] Failed response after retry toasts once, renders raw fallback, and creates no entry.
 
 ## Links
 

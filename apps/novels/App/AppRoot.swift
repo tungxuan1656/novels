@@ -44,8 +44,8 @@ struct AppRoot: View {
                             CacheManagerView()
                         case let .settingEditor(settingKey):
                             SettingEditorView(settingKey: settingKey)
-                        case let .apiLog(bookId):
-                            LogScreen(bookId: bookId)
+                        case let .apiLog(bookId, initialFilter):
+                            LogScreen(bookId: bookId, initialFilter: initialFilter)
                     }
                     // swiftlint:enable switch_case_alignment
                 }
