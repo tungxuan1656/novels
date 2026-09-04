@@ -49,6 +49,14 @@ struct SettingsView: View {
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
                 .accessibilityIdentifier("settings-CACHE")
+                NavigationLink(value: Router.Route.apiLog(bookId: nil, initialFilter: .all)) {
+                    Label("Nhật ký", systemImage: "doc.text.magnifyingglass")
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+                .accessibilityIdentifier("settings-LOG")
             }
         }
         .navigationTitle("Cài đặt")

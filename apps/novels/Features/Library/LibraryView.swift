@@ -102,20 +102,36 @@ struct LibraryView: View {
                 BookInfoSheet(book: book)
             }
         }
-        .alert(item: $viewModel.showDeleteConfirm) { book in
-            Alert(
-                title: Text("Xóa sách?"),
-                message: Text("Bạn có chắc muốn xóa “\(book.name)” không?"),
-                primaryButton: .destructive(Text("Xóa")) {
+        // Delete confirmation uses a single boolean-driven alert, so presentation
+        // does not depend on row identity. Duplicate book ids are removed
+        // upstream by first-wins dedupe in FileBookRepository.listBooks(),
+        // keeping List(id: \.id) diffing stable.
+        .alert(
+            "Xóa sách?",
+            isPresented: Binding(
+                get: { viewModel.showDeleteConfirm != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.showDeleteConfirm = nil
+                    }
+                }
+            ),
+            actions: {
+                Button("Xóa", role: .destructive) {
                     viewModel.deleteConfirmed()
-                },
-                secondaryButton: .cancel(Text("Hủy"))
-            )
-        }
+                }
+                Button("Hủy", role: .cancel) {
+                    viewModel.showDeleteConfirm = nil
+                }
+            },
+            message: {
+                if let book = viewModel.showDeleteConfirm {
+                    Text("Bạn có chắc muốn xóa “\(book.name)” không?")
+                }
+            }
+        )
         .task {
             viewModel.load()
         }
     }
 }
-
-extension Book: Identifiable {}
