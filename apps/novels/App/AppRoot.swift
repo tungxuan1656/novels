@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AppRoot: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var router: Router
     @State private var libraryViewModel: LibraryViewModel
     @State private var settingsStore: SettingsStore
@@ -56,6 +57,15 @@ struct AppRoot: View {
         .environment(router.toast)
         .environment(settingsStore)
         .toast(center: router.toast)
+        .onChange(of: scenePhase) { _, newPhase in
+            // Seamless restore: flush the in-memory session to disk when leaving
+            // the foreground, so kill-after-background relaunches into the same
+            // book/chapter/offset. (Sub-300ms scroll→kill debounce gap is phase 2
+            // with the ReaderView restore race.)
+            if newPhase == .background || newPhase == .inactive {
+                settingsStore.save()
+            }
+        }
         .task {
             router.restoreInitialRoute()
         }

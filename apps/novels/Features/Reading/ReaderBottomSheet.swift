@@ -278,7 +278,9 @@ struct ReaderBottomSheet: View {
                     .font(.subheadline)
                     .monospacedDigit()
                     .foregroundStyle(theme.textPrimary)
-                    .frame(width: 32, alignment: .trailing)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(minWidth: 48, alignment: .trailing)
             }
         }
         .frame(minHeight: 36)

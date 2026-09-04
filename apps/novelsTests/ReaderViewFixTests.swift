@@ -148,11 +148,12 @@ final class ReaderViewFixTests: XCTestCase {
     }
 
     func testOffsetRestoreZeroOrNil() {
-        XCTAssertNil(ReaderOffsetRestore.offsetToRestore(
+        // Offset 0 (top of chapter) is a valid restore position for the same book.
+        XCTAssertEqual(ReaderOffsetRestore.offsetToRestore(
             sessionBookId: "book-a",
             sessionOffset: 0,
             currentBookId: "book-a"
-        ))
+        ), 0)
         XCTAssertNil(ReaderOffsetRestore.offsetToRestore(
             sessionBookId: nil,
             sessionOffset: 42,
@@ -232,6 +233,121 @@ final class ReaderViewFixTests: XCTestCase {
         task?.cancel()
         try? await Task.sleep(nanoseconds: 400_000_000)
         XCTAssertEqual(counter.count, 0)
+    }
+}
+
+// MARK: - Phase 2 seamless restore: flush + content-aware restore
+
+final class ReaderRestorePhase2Tests: XCTestCase {
+    /// Top-of-chapter (or missing) offsets need no scroll work.
+    func testNeedsScrollRestore() {
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: 0))
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: nil))
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: -5))
+        XCTAssertTrue(ReaderRestoreDecision.needsScrollRestore(offset: 0.5))
+        XCTAssertTrue(ReaderRestoreDecision.needsScrollRestore(offset: 123.4))
+    }
+
+    /// Re-assert only when the first set never took effect; never yank the user.
+    func testShouldReassert() {
+        // First set lost (still near top) -> re-assert.
+        XCTAssertTrue(ReaderRestoreDecision.shouldReassert(currentOffset: 0, target: 120))
+        // Scroll took effect -> leave alone.
+        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 119.5, target: 120))
+        // User scrolled away -> never yank back.
+        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 400, target: 120))
+        // Chapter-top target needs nothing.
+        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 0, target: 0))
+    }
+
+    /// Flush helper exists and is called from both disappear and backgrounding.
+    func testReaderFlushOnBackgroundAndDisappear() throws {
+        let code = try strippedReaderView()
+        XCTAssertTrue(code.contains("flushPendingOffset()"), "missing flush helper calls")
+        XCTAssertTrue(code.contains("scenePhase"), "must observe scenePhase for background flush")
+        XCTAssertTrue(code.contains("viewModel.saveOffset(currentOffset)"), "flush must save synchronously")
+        XCTAssertTrue(code.contains("newPhase == .background"), "flush must trigger on background")
+    }
+
+    /// Restore waits for real content with bounded retries, not a fixed sleep.
+    func testReaderRestoreWaitsForContent() throws {
+        let code = try strippedReaderView()
+        XCTAssertTrue(code.contains("isRestoringOffset"), "restore must track in-flight state")
+        XCTAssertTrue(code.contains("shouldReassert"), "restore must re-assert a lost set")
+        XCTAssertTrue(code.contains("viewModel.blocks.isEmpty"), "restore must wait for chapter content")
+        XCTAssertFalse(code.contains("10_000_000"), "fixed 10ms restore sleep must go")
+    }
+
+    /// Chapter change during a restore must not scroll back to top over it.
+    func testReaderChapterChangeGuardedDuringRestore() throws {
+        let code = try strippedReaderView()
+        XCTAssertTrue(
+            code.contains("guard !isRestoringOffset else { return }"),
+            "onChange chapterNumber must skip scrollToTop while restoring"
+        )
+    }
+
+    /// Designer chips stay solid: all 5 chipBackground usages intact.
+    func testDesignerChipsUntouched() throws {
+        let code = try strippedReaderView()
+        XCTAssertEqual(
+            code.components(separatedBy: ".background(theme.chipBackground)").count - 1,
+            5,
+            "designer chipBackground usages must stay at 5"
+        )
+    }
+
+    // MARK: - Source helpers (same pattern as ReaderHeaderSpinnerTests)
+
+    private func strippedReaderView() throws -> String {
+        try stripped(source("apps/novels/Features/Reading/ReaderView.swift"))
+    }
+
+    private func repoRoot() -> URL {
+        let fileURL = URL(fileURLWithPath: #filePath)
+        var current = fileURL.deletingLastPathComponent()
+        for _ in 0 ..< 6 {
+            let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return current
+            }
+            let parent = current.deletingLastPathComponent()
+            if parent.path == current.path {
+                break
+            }
+            current = parent
+        }
+        return fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func source(_ relative: String) throws -> String {
+        let root = repoRoot()
+        let candidate = root.appendingPathComponent(relative)
+        let path = FileManager.default.fileExists(atPath: candidate.path) ? candidate.path : relative
+        return try String(contentsOfFile: path, encoding: .utf8)
+    }
+
+    private func stripped(_ text: String) -> String {
+        var result = text
+        if let regex = try? NSRegularExpression(
+            pattern: "/\\*.*?\\*/",
+            options: [.dotMatchesLineSeparators]
+        ) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: ""
+            )
+        }
+        let lines = result.components(separatedBy: "\n")
+        let withoutLineComments = lines.map { line -> String in
+            if let range = line.range(of: "//") {
+                return String(line[..<range.lowerBound])
+            }
+            return line
+        }
+        return withoutLineComments.joined(separator: "\n")
     }
 }
 

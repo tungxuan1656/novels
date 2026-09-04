@@ -202,7 +202,7 @@ struct CacheManagerView: View {
                             .frame(minWidth: 32)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(DesignTokens.muted.opacity(0.12), in: Capsule())
+                            .background(DesignTokens.muted.opacity(0.2), in: Capsule())
                             .accessibilityLabel("\(row.count) chương")
                         Button(role: .destructive) {
                             showClearBookConfirm = row.slug
@@ -216,10 +216,10 @@ struct CacheManagerView: View {
                                 .frame(minWidth: 56)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 5)
-                                .background(DesignTokens.error.opacity(0.1), in: Capsule())
+                                .background(DesignTokens.error.opacity(0.15), in: Capsule())
                                 .overlay(
                                     Capsule()
-                                        .stroke(DesignTokens.error.opacity(0.25), lineWidth: 1)
+                                        .stroke(DesignTokens.error.opacity(0.35), lineWidth: 1)
                                 )
                                 .contentShape(Rectangle())
                         }

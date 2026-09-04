@@ -180,8 +180,10 @@ final class ReaderViewModel {
     func onDisappear() {
         lastVisibleChapter = chapterNumber
         lastVisibleMode = aiMode
-        settingsStore.session?.onScreen = false
-        settingsStore.save()
+        // Seamless restore: do NOT clear session.onScreen here. onDisappear also
+        // fires when References/TOC/Log cover Reader (push, not pop); clearing it
+        // would strand relaunch on Library. Only Router.popReading /
+        // didPopFromReading (true back) clears onScreen.
         aiTask?.cancel()
         isAIProcessing = false
         prefetchPollTask?.cancel()

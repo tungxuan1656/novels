@@ -134,7 +134,7 @@ extension ReadingTheme {
             case .vangGiay:
                 return Color(hex: 0xE8DDC0)
             case .trang:
-                return Color(hex: 0xEFEFF1)
+                return Color(hex: 0xE0E1E6)
             case .den:
                 return Color(hex: 0x2A2724)
         }

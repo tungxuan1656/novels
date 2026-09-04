@@ -161,7 +161,8 @@ enum ReaderOffsetRestore {
         sessionOffset: Double?,
         currentBookId: String
     ) -> Double? {
-        guard let sessionBookId, let sessionOffset, sessionBookId == currentBookId, sessionOffset > 0 else {
+        // Offset 0 (top of chapter) is a valid restore position: same book is enough.
+        guard let sessionBookId, let sessionOffset, sessionBookId == currentBookId, sessionOffset >= 0 else {
             return nil
         }
         return sessionOffset
