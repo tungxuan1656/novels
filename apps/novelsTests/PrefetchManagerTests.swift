@@ -277,7 +277,7 @@ final class PrefetchManagerTests: XCTestCase {
     }
 
     func testInvalidPrefetchCountCoercedTo3() async throws {
-        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 99, totalChapters: 10)
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 1001, totalChapters: 10)
         let svc = client.service(cache: cache, settings: settings)
         await manager.start(
             bookId: "book-slug",
@@ -296,7 +296,7 @@ final class PrefetchManagerTests: XCTestCase {
         let suite2 = try XCTUnwrap(UserDefaults(suiteName: "pref2.\(UUID().uuidString)"))
         let settings2 = await MainActor.run {
             let store = SettingsStore(userDefaults: suite2)
-            store.prefetchCount = 0
+            store.prefetchCount = -1
             store.save()
             return store
         }
@@ -369,13 +369,14 @@ final class PrefetchManagerTests: XCTestCase {
     func testEffectivePrefetchCountClampsOutOfRange() async throws {
         let (_, _, settings, _, _) = try await makeManagerEnv()
         let cases: [(input: Int, expected: Int)] = [
-            (0, 3),
             (-1, 3),
-            (99, 3),
-            (100, 3),
+            (1001, 3),
             (Int.max, 3),
+            (0, 0),
             (1, 1),
-            (10, 10),
+            (99, 99),
+            (100, 100),
+            (1000, 1000),
         ]
         for (input, expected) in cases {
             await MainActor.run { settings.prefetchCount = input }

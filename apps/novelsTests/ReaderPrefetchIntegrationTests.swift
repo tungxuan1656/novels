@@ -77,9 +77,9 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     }
 
     func testInvalidPrefetchCountCoercedInVM() async throws {
-        let (vm, _, settings, client, tmp) = try makeVM(prefetchCount: 99, total: 10)
+        let (vm, _, settings, client, tmp) = try makeVM(prefetchCount: 1001, total: 10)
         defer { try? FileManager.default.removeItem(at: tmp) }
-        await MainActor.run { settings.prefetchCount = 99; settings.save() }
+        await MainActor.run { settings.prefetchCount = 1001; settings.save() }
         await vm.setAIMode(.rewrite)
         await vm.load()
         try await Task.sleep(nanoseconds: 800_000_000)

@@ -16,7 +16,8 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_EXTRA_BODY` | `string` (JSON object) | `""` / empty | User-entered JSON merged into AI body; invalid JSON → ignored |
 | `AI_PROMPT` | `string` | `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` | System prompt for AI rewrite; missing/empty → reset to default |
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
-| `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `1..10`, else `3` on read (BR-08) |
+| `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
+| `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite`); unknown → `none` |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
@@ -29,6 +30,7 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Provider:** case-insensitive compare; only `openai` accepted.
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
 - **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
+- **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
 - **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..10 step 0.2`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
 
@@ -39,7 +41,8 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 ## Rules
 
 - Use current keys only; ignore unknown or legacy keys.
-- If `PREFETCH_COUNT` is outside `1..10`, use `3`.
+- If `PREFETCH_COUNT` is outside `0..1000`, use `3`.
+- If `AI_MODE` is not `none` or `rewrite`, use `none`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.
 
 ## Avoid
@@ -50,7 +53,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Examples
 
-- Canonical: `PREFETCH_COUNT=3` (range `1..10` else `3`); `AI_CUSTOM_HEADERS=""` when empty.
+- Canonical: `PREFETCH_COUNT=3` (range `0..1000` else `3`); `AI_CUSTOM_HEADERS=""` when empty.
 
 ## Verification
 

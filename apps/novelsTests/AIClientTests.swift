@@ -532,9 +532,9 @@ final class AIClientTests: XCTestCase {
         XCTAssertEqual(output, "ok")
         let body = try XCTUnwrap(captured)
         let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
-        // System-owned keys win: user-supplied model/messages/stream are stripped.
+        // System-owned keys win: user-supplied model/messages are stripped; stream is always false.
         XCTAssertEqual(dict["model"] as? String, "gpt-4o")
-        XCTAssertNil(dict["stream"])
+        XCTAssertEqual(dict["stream"] as? Bool, false)
         let messages = try XCTUnwrap(dict["messages"] as? [[String: Any]])
         XCTAssertEqual(messages.count, 2)
         XCTAssertEqual(messages[0]["role"] as? String, "system")
@@ -585,5 +585,230 @@ final class AIClientTests: XCTestCase {
         XCTAssertEqual(count, 1)
         let entries = await DiagnosticsLog.shared.snapshot()
         XCTAssertTrue(entries.allSatisfy { $0.host == "http://localhost:8317/v1/chat/completions" })
+    }
+
+    func testEndpointFamilyDetection() {
+        XCTAssertEqual(
+            AIEndpointFamily.detect(urlString: "http://localhost:8317/v1/chat/completions"),
+            .chatCompletions
+        )
+        XCTAssertEqual(AIEndpointFamily.detect(urlString: "https://api.openai.com/v1/responses"), .responses)
+        XCTAssertEqual(AIEndpointFamily.detect(urlString: "https://API.OPENAI.COM/V1/RESPONSES"), .responses)
+        XCTAssertEqual(AIEndpointFamily.detect(urlString: "https://api.anthropic.com/v1/messages"), .anthropic)
+        XCTAssertEqual(
+            AIEndpointFamily.detect(urlString: "http://localhost:8317/v1/chat/completions"),
+            .chatCompletions
+        )
+    }
+
+    func testChatBuilderIncludesStreamFalse() throws {
+        let data = try AIClient.makeRequestBodyData(
+            model: "gpt-4o",
+            prompt: "sys",
+            chunk: "hi",
+            extra: [:],
+            urlString: "http://localhost:8317/v1/chat/completions"
+        )
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(dict["stream"] as? Bool, false)
+        let messages = try XCTUnwrap(dict["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertEqual(messages[0]["content"] as? String, "sys")
+        XCTAssertEqual(messages[1]["content"] as? String, "hi")
+    }
+
+    func testResponsesBuilderUsesInstructionsInputAndStripsReserved() throws {
+        var extra: [String: Any] = [:]
+        extra["model"] = "injected"
+        extra["input"] = "injected"
+        extra["instructions"] = "injected"
+        extra["stream"] = true
+        extra["temperature"] = 0.5
+        extra["reasoning"] = ["effort": "medium"]
+        let data = try AIClient.makeRequestBodyData(
+            model: "gpt-4o",
+            prompt: "sys",
+            chunk: "chk",
+            extra: extra,
+            urlString: "https://api.openai.com/v1/responses"
+        )
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(dict["model"] as? String, "gpt-4o")
+        XCTAssertEqual(dict["instructions"] as? String, "sys")
+        XCTAssertEqual(dict["input"] as? String, "chk")
+        XCTAssertEqual(dict["stream"] as? Bool, false)
+        XCTAssertNil(dict["messages"])
+        XCTAssertNotNil(dict["temperature"])
+        XCTAssertNotNil(dict["reasoning"])
+    }
+
+    func testAnthropicBuilderDefaultsAndStripsReserved() throws {
+        let data = try AIClient.makeRequestBodyData(
+            model: "claude-x",
+            prompt: "sys",
+            chunk: "chk",
+            extra: ["model": "injected", "system": "injected", "stream": true],
+            urlString: "https://api.anthropic.com/v1/messages"
+        )
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(dict["model"] as? String, "claude-x")
+        XCTAssertEqual(dict["system"] as? String, "sys")
+        XCTAssertEqual(dict["stream"] as? Bool, false)
+        let messages = try XCTUnwrap(dict["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages.count, 1)
+        XCTAssertEqual(messages[0]["role"] as? String, "user")
+        XCTAssertEqual(messages[0]["content"] as? String, "chk")
+        if let tokens = dict["max_tokens"] as? Int {
+            XCTAssertEqual(tokens, 1024)
+        } else if let num = dict["max_tokens"] as? NSNumber {
+            XCTAssertEqual(num.intValue, 1024)
+        } else {
+            XCTFail("max_tokens missing")
+        }
+    }
+
+    func testAnthropicBuilderRespectsMaxTokensOverride() throws {
+        let data = try AIClient.makeRequestBodyData(
+            model: "claude-x",
+            prompt: "sys",
+            chunk: "chk",
+            extra: ["max_tokens": 512],
+            urlString: "https://api.anthropic.com/v1/messages"
+        )
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        if let tokens = dict["max_tokens"] as? Int {
+            XCTAssertEqual(tokens, 512)
+        } else if let num = dict["max_tokens"] as? NSNumber {
+            XCTAssertEqual(num.intValue, 512)
+        } else {
+            XCTFail("max_tokens missing")
+        }
+    }
+
+    func testAnthropicVersionHeaderInjected() async throws {
+        let (client, _) = await MainActor.run {
+            makeClient(url: "https://api.anthropic.com/v1/messages")
+        }
+        var captured: URLRequest?
+        AIMockURLProtocol.handler = { request in
+            captured = request
+            let json = "{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "sys", chunk: "hi")
+        XCTAssertEqual(output, "ok")
+        XCTAssertEqual(captured?.value(forHTTPHeaderField: "anthropic-version"), "2023-06-01")
+        let capturedRequest = try XCTUnwrap(captured)
+        let body = try XCTUnwrap(capturedBodyData(from: capturedRequest))
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(dict["stream"] as? Bool, false)
+        XCTAssertEqual(dict["system"] as? String, "sys")
+    }
+
+    func testAnthropicVersionHeaderPreservedWhenPresent() async throws {
+        let (client, _) = await MainActor.run {
+            makeClient(
+                headersJSON: "{\"anthropic-version\":\"2024-01-01\"}",
+                url: "https://api.anthropic.com/v1/messages"
+            )
+        }
+        var captured: URLRequest?
+        AIMockURLProtocol.handler = { request in
+            captured = request
+            let json = "{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"stop_reason\":\"end_turn\"}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "sys", chunk: "hi")
+        XCTAssertEqual(output, "ok")
+        XCTAssertEqual(captured?.value(forHTTPHeaderField: "anthropic-version"), "2024-01-01")
+    }
+
+    func testResponsesParserPrefersOutputText() throws {
+        let json = "{\"output_text\":\"hello\",\"output\":[{\"type\":\"message\"," +
+            "\"content\":[{\"type\":\"output_text\",\"text\":\"other\"}]}],\"status\":\"completed\"}"
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        let decoded = try JSONDecoder().decode(AIResponsesResponse.self, from: data)
+        XCTAssertEqual(decoded.resolvedText, "hello")
+        XCTAssertEqual(AIUnifiedResponse.resolve(data: data, family: .responses), "hello")
+    }
+
+    func testResponsesParserFallbackWalksOutput() throws {
+        let json = "{\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\"," +
+            "\"text\":\"hel\"},{\"type\":\"output_text\",\"text\":\"lo\"}]}],\"status\":\"completed\"}"
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        XCTAssertEqual(AIUnifiedResponse.resolve(data: data, family: .responses), "hello")
+    }
+
+    func testResponsesParserRefusalOnlyIsNil() throws {
+        let json = "{\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"refusal\",\"refusal\":\"no\"}]}]}"
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        XCTAssertNil(AIUnifiedResponse.resolve(data: data, family: .responses))
+    }
+
+    func testAnthropicParserJoinsTextIgnoresThinking() throws {
+        let json = "{\"content\":[{\"type\":\"thinking\",\"thinking\":\"hmm\"}," +
+            "{\"type\":\"text\",\"text\":\"he\"},{\"type\":\"text\",\"text\":\"llo\"}," +
+            "{\"type\":\"tool_use\",\"text\":\"ignored?\"}],\"stop_reason\":\"end_turn\"}"
+        let data = try XCTUnwrap(json.data(using: .utf8))
+        // tool_use block has type tool_use so its text must be ignored even if present.
+        XCTAssertEqual(AIUnifiedResponse.resolve(data: data, family: .anthropic), "hello")
+    }
+
+    func testResponsesEndToEndViaComplete() async throws {
+        let (client, _) = await MainActor.run {
+            makeClient(url: "https://api.openai.com/v1/responses")
+        }
+        var captured: URLRequest?
+        AIMockURLProtocol.handler = { request in
+            captured = request
+            let json = "{\"output_text\":\"done\",\"status\":\"completed\"}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "sys", chunk: "hi")
+        XCTAssertEqual(output, "done")
+        let capturedRequest = try XCTUnwrap(captured)
+        let body = try XCTUnwrap(capturedBodyData(from: capturedRequest))
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(dict["input"] as? String, "hi")
+        XCTAssertEqual(dict["instructions"] as? String, "sys")
+        XCTAssertEqual(dict["stream"] as? Bool, false)
+    }
+
+    func testResponsesShapeLogging() throws {
+        let json = "{\"output_text\":\"hi\",\"output\":[{\"type\":\"reasoning\"}," +
+            "{\"type\":\"function_call\"}],\"status\":\"completed\"}"
+        let shape = try AIResponseShape.parse(XCTUnwrap(json.data(using: .utf8)))
+        XCTAssertEqual(shape.choicesCount, 2)
+        XCTAssertEqual(shape.contentKind, "ok")
+        XCTAssertEqual(shape.hasReasoningContent, true)
+        XCTAssertEqual(shape.hasToolCalls, true)
+    }
+
+    func testAnthropicShapeLogging() throws {
+        let json = "{\"content\":[{\"type\":\"thinking\"}," +
+            "{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\"}"
+        let shape = try AIResponseShape.parse(XCTUnwrap(json.data(using: .utf8)))
+        XCTAssertEqual(shape.choicesCount, 2)
+        XCTAssertEqual(shape.contentKind, "ok")
+        XCTAssertEqual(shape.hasReasoningContent, true)
+        XCTAssertEqual(shape.hasToolCalls, false)
     }
 }

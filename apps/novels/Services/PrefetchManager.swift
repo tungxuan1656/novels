@@ -196,8 +196,14 @@ actor PrefetchManager {
                     continue
                 }
                 let parsed: [TextBlock] = HtmlParser.parse(html: html)
-                let raw = parsed.flatMap { $0.spans.map { $0.text } }.joined(separator: " ")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                let joined = parsed.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
+                var normalized = joined.replacingOccurrences(
+                    of: "[ \\t]*\\n[ \\t]*",
+                    with: "\n",
+                    options: .regularExpression
+                )
+                normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+                let raw = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !raw.isEmpty else {
                     errors.append("Chương \(number): Nội dung rỗng")
                     await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)

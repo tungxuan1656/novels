@@ -4,19 +4,37 @@
 
 ## Endpoint
 
-- **Single endpoint:** one OpenAI-compatible `POST` to chat completions. No second provider endpoint.
+- **Three families by URL path substring (case-insensitive):** the app branches request/response handling on the configured endpoint URL.
+  - URL contains `/responses` → Responses family.
+  - Else URL contains `/messages` → Anthropic Messages family.
+  - Else → Chat Completions family (default, preserves `http://localhost:8317/v1/chat/completions`).
 - **Defaults:** defaults live in `settings-schema.md`. This file owns chunk, retry, and cache behavior only.
+
+| Family | URL substring | Input keys | Output location | Token key | Reasoning key |
+| --- | --- | --- | --- | --- | --- |
+| Chat Completions | (default) | `model`, `messages: [{system: prompt}, {user: chunk}]` | `choices[0].message.content`, fallback `reasoning_content` | via `AI_EXTRA_BODY` (e.g. `max_tokens`) | `reasoning_content` fallback |
+| Responses | `/responses` | `model`, `instructions: prompt`, `input: chunk` | `output_text` preferred, else `output[]` (`type == "message"` → `content[]` (`type == "output_text"` → `text`)) | `max_output_tokens` (no default cap) | `reasoning: {"effort": "medium", "summary": "auto"}` |
+| Anthropic Messages | `/messages` | `model`, `system: prompt`, `messages: [{user: chunk}]` | `content[]` (`type == "text"` → `text` joined) | `max_tokens` (default `1024`, overridable) | `thinking: {"type": "adaptive"}` + `output_config: {"effort": "high"}` |
+
+- **Streaming:** all families send `"stream": false` explicitly. Streaming responses are not supported.
+- **Anthropic headers:** when the family is Anthropic and configured headers lack `anthropic-version` (case-insensitive), the app injects `"anthropic-version": "2023-06-01"`. A user-supplied value wins. Anthropic temperature range is `0...1`.
+- **Verbosity (Responses):** via extra `{"text": {"verbosity": "medium"}}`.
 
 ## Request Construction
 
 For each chunk of chapter text (see Chunking):
 
-1. Base body includes `model` and `messages`. Each message has `role` (`system`, `user`, or `assistant`) and `content` string. The configured `AI_PROMPT` setting is the system content. The chunk text is the user content.
-2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body. If the JSON is invalid, ignore it and continue. The request does not fail.
-3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). If the JSON is invalid, ignore it.
+1. Base body depends on the endpoint family (see table above) and always includes `"stream": false` explicitly. Chat: `model` + `messages` (`system` = `AI_PROMPT`, `user` = chunk). Responses: `model` + `instructions` (`AI_PROMPT`) + `input` (chunk string). Anthropic: `model` + `system` (`AI_PROMPT`) + `messages` (`user` = chunk) + `max_tokens` (default `1024` when `AI_EXTRA_BODY` lacks it).
+2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body. Reserved keys are stripped per family and never overridden from extra: chat `{model, messages, stream}`; responses `{model, input, instructions, stream}`; anthropic `{model, messages, system, stream}` (`max_tokens` IS overridable via extra). `JSONSerialization` failure (invalid value types) fails fast with no retry. If the JSON is invalid, ignore it and continue. The request does not fail. Per-family passthrough examples:
+   - Chat: `{"temperature": 0.7}`.
+   - Responses: `{"reasoning": {"effort": "medium", "summary": "auto"}}`, `{"max_output_tokens": 512}`, `{"text": {"verbosity": "medium"}}`.
+   - Anthropic: `{"thinking": {"type": "adaptive"}}`, `{"output_config": {"effort": "high"}}`, `{"temperature": 0.7}`, `{"max_tokens": 512}` (override).
+3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). If the JSON is invalid, ignore it.
 4. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
 
 ### Request and Response Shape
+
+Chat completions:
 
 ```json
 {
@@ -24,15 +42,42 @@ For each chunk of chapter text (see Chunking):
   "messages": [
     { "role": "system", "content": "<prompt>" },
     { "role": "user", "content": "<chapter chunk>" }
-  ]
+  ],
+  "stream": false
 }
 ```
 
-Read the result from `choices[0].message.content` (tolerant). `content` may be `null`/missing/empty; fallback to `choices[0].message.reasoning_content` trim non-empty → dùng; else it is an AI processing error. `tool_calls` decodes tolerantly (miss → nil) and never counts as content. Envelope `{data:...}` is not unwrapped — it fails as no-response with shape log.
+Responses:
+
+```json
+{
+  "model": "gpt-4o",
+  "instructions": "<prompt>",
+  "input": "<chapter chunk>",
+  "stream": false
+}
+```
+
+Anthropic messages:
+
+```json
+{
+  "model": "claude-x",
+  "system": "<prompt>",
+  "messages": [{ "role": "user", "content": "<chapter chunk>" }],
+  "stream": false,
+  "max_tokens": 1024
+}
+```
+
+Read the result tolerantly (all optional, never throw on missing; decode failure or empty resolves to no-response with shape log):
+- Chat: `choices[0].message.content` (tolerant). `content` may be `null`/missing/empty; fallback to `choices[0].message.reasoning_content` trim non-empty → dùng; else it is an AI processing error. `tool_calls` decodes tolerantly (miss → nil) and never counts as content. Envelope `{data:...}` is not unwrapped — it fails as no-response with shape log.
+- Responses: prefer `output_text` trim non-empty; else join `output[]` where `type == "message"` → `content[]` where `type == "output_text"` → `text`, concatenated with `""` then trimmed. Refusal-only or empty → no-response.
+- Anthropic: join `content[]` where `type == "text"` → `text` (concatenated with `""` then trimmed). `thinking`/`redacted_thinking`/`tool_use` blocks are ignored. Empty → no-response.
 
 ## Chunking
 
-- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. Values outside `500...10000` sanitize to `1300`. The app uses one chunk for short chapters. For long chapters the app splits text into chunks. Each chunk triggers one service call. The app waits for every chunk call to succeed, then joins chunk outputs in source order (`"\n"`), saves the joined text as one cache entry, and renders it.
+- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. Values outside `500...10000` sanitize to `1300`. The app uses one chunk for short chapters. For long chapters the app packs paragraphs (split on any newline run, so every non-empty line is its own unit) greedily into chunks joined with `"\n\n"`, never splitting a paragraph that fits within the size hard cap. An oversize paragraph splits at sentence boundaries (`. ! ? …` plus trailing closers, never inside digit-dot-digit or short uppercase abbreviations, joined with `" "`); an oversize sentence splits at the last space within budget so words stay whole; only a spaceless token longer than budget is hard-cut. Each chunk triggers one service call. The app waits for every chunk call to succeed, then joins chunk outputs in source order (`"\n\n"`), saves the joined text as one cache entry, and renders it.
 - Within one chapter, chunk calls run in parallel (TaskGroup, index-keyed ordered join). Across prefetch chapters, chapters run sequentially — one chapter batch at a time, never all N chapters at once.
 - Prefetch processes chapters sequentially (BR-08, `chapter-prefetch.md`).
 
@@ -59,8 +104,8 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Rules
 
-- Use one `POST` to chat completions per chunk.
-- Merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` only when valid JSON object; otherwise ignore.
+- Use one `POST` per chunk to the configured endpoint; branch body/shape by family (chat `/chat/completions`, responses `/responses`, anthropic `/messages`).
+- Merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` only when valid JSON object; otherwise ignore. Strip reserved keys per family; always send `"stream": false`.
 - Bounded retry: max 2 attempts per failed chunk only, then stop; user reprocesses manually.
 - Check cache before call; save on success.
 
@@ -72,7 +117,9 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Examples
 
-- Canonical: `POST` `http://localhost:8317/v1/chat/completions` with merged headers and body.
+- Canonical chat: `POST` `http://localhost:8317/v1/chat/completions` with merged headers and body.
+- Responses: `POST` `https://api.openai.com/v1/responses` with `{"model":"...","instructions":"...","input":"...","stream":false}` plus extra `{"reasoning":{"effort":"medium","summary":"auto"}}`.
+- Anthropic: `POST` `https://api.anthropic.com/v1/messages` with `anthropic-version: 2023-06-01` header and `{"model":"...","system":"...","messages":[...],"stream":false,"max_tokens":1024}`.
 
 ## Verification
 

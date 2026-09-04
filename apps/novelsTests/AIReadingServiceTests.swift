@@ -343,7 +343,7 @@ final class AIReadingServiceTests: XCTestCase {
             mode: .rewrite,
             rawText: raw
         )
-        XCTAssertEqual(output, "out-0\nout-1\nout-2\nout-3\nout-4")
+        XCTAssertEqual(output, "out-0\n\nout-1\n\nout-2\n\nout-3\n\nout-4")
     }
 
     func testPerChunkTwoAttemptsThenFailsFastNoPartialCache() async throws {
@@ -436,7 +436,7 @@ final class AIReadingServiceTests: XCTestCase {
             mode: .rewrite,
             rawText: raw
         )
-        XCTAssertEqual(output, "got-A\ngot-B\ngot-C")
+        XCTAssertEqual(output, "got-A\n\ngot-B\n\ngot-C")
         lock.lock()
         let attempts = attemptsByMarker
         lock.unlock()

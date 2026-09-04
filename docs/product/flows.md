@@ -46,7 +46,7 @@ Request → User switches `none` ("Không") | `rewrite` ("Rewrite").
 ### 6 — Prefetch Background
 
 Runs only when current chapter ready, book exists, mode != `none`.
-- Request → System takes next N (default 3, 1..10 else 3) → Batch-check cache → Skip cached → Process missing one by one via Flow 5 → Update `isRunning`/`total`/`processed`/`errors`.
+- Request → System takes next N (default 3, 0..1000 else 3) → Batch-check cache → Skip cached → Process missing one by one via Flow 5 → Update `isRunning`/`total`/`processed`/`errors`.
 - At end or all cached → No work.
 - Request → Change chapter/mode → Cancel run, start new.
 - Per-chapter error → Log and continue.

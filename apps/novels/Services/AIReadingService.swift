@@ -189,7 +189,7 @@ actor AIReadingService {
             for try await(index, text) in group {
                 buffer[index] = text
             }
-            return buffer.compactMap { $0 }.joined(separator: "\n")
+            return buffer.compactMap { $0 }.joined(separator: "\n\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
         }
     }

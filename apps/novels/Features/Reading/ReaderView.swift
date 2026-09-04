@@ -142,7 +142,7 @@ struct ReaderView: View {
             ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
                 let combined = block.spans.reduce(Text("")) { accumulator, span in
                     if span.isLineBreak {
-                        return accumulator + Text("\n")
+                        return accumulator + Text(span.text)
                     }
                     var piece = Text(span.text)
                         .font(fontFor(block: block, span: span))
@@ -223,8 +223,8 @@ struct ReaderView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(DesignTokens.muted)
-                        .frame(width: 30, height: 30)
-                        .background(Color(uiColor: .systemGray5).opacity(0.85))
+                        .frame(width: 28, height: 28)
+                        .background(Color(uiColor: .systemGray5))
                         .clipShape(Circle())
                 }
                 .a11yHitTarget()
@@ -297,7 +297,7 @@ struct ReaderView: View {
                     }
                     .padding(.horizontal, 2)
                     .frame(height: 28)
-                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .background(Color(uiColor: .systemGray5))
                     .clipShape(Capsule())
 
                     Button {
@@ -307,7 +307,7 @@ struct ReaderView: View {
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(DesignTokens.muted)
                             .frame(width: 28, height: 28)
-                            .background(Color(uiColor: .systemGray5).opacity(0.85))
+                            .background(Color(uiColor: .systemGray5))
                             .clipShape(Circle())
                     }
                     .a11yHitTarget()
@@ -348,8 +348,8 @@ struct ReaderView: View {
                 Image(systemName: "textformat.size")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DesignTokens.muted)
-                    .frame(width: 32, height: 32)
-                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .frame(width: 28, height: 28)
+                    .background(Color(uiColor: .systemGray5))
                     .clipShape(Circle())
             }
             .a11yHitTarget()

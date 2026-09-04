@@ -12,8 +12,14 @@ final class SettingsEditorValidationTests: XCTestCase {
         let store = SettingsStore(userDefaults: userDefaults)
         store.prefetchCount = 0
         store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 0)
         store.prefetchCount = 99
+        store.save()
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 99)
+        store.prefetchCount = 1001
+        store.save()
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
+        store.prefetchCount = -1
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
         store.prefetchCount = 5

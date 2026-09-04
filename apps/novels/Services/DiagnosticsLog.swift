@@ -101,6 +101,28 @@ struct AIResponseShape: Sendable, Equatable {
                     || isNonEmptyString(first["reasoning_content"])
                 hasTools = isNonEmptyArray(message["tool_calls"]) || isNonEmptyArray(first["tool_calls"])
             }
+        } else if let output = dict["output"] as? [[String: Any]] {
+            count = output.count
+            if dict.keys.contains("output_text") {
+                kind = contentKind(of: dict["output_text"])
+            } else {
+                kind = responsesTextKind(from: output)
+            }
+            hasReasoning = output.contains { ($0["type"] as? String) == "reasoning" }
+            hasTools = output.contains { ($0["type"] as? String) == "function_call" }
+        } else if let content = dict["content"] as? [[String: Any]] {
+            count = content.count
+            if let firstText = content.first(where: { ($0["type"] as? String) == "text" }) {
+                kind = contentKind(of: firstText["text"])
+            } else {
+                kind = "missing"
+            }
+            hasReasoning = content.contains {
+                ($0["type"] as? String) == "thinking" || ($0["type"] as? String) == "redacted_thinking"
+            }
+            hasTools = content.contains {
+                ($0["type"] as? String) == "tool_use" || ($0["type"] as? String) == "server_tool_use"
+            }
         }
         return AIResponseShape(
             responseJsonKeys: keys,
@@ -130,6 +152,18 @@ struct AIResponseShape: Sendable, Equatable {
     private static func isNonEmptyArray(_ value: Any?) -> Bool {
         guard let array = value as? [Any] else { return false }
         return !array.isEmpty
+    }
+
+    private static func responsesTextKind(from output: [[String: Any]]) -> String {
+        for item in output where (item["type"] as? String) == "message" {
+            guard let blocks = item["content"] as? [[String: Any]] else { continue }
+            for block in blocks where (block["type"] as? String) == "output_text" {
+                if block.keys.contains("text") {
+                    return contentKind(of: block["text"])
+                }
+            }
+        }
+        return "missing"
     }
 }
 

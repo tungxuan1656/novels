@@ -19,7 +19,7 @@
 
 ## States
 
-- **AI Mode:** none ("Không") ↔ rewrite ("Rewrite") (switch anytime via inline picker, [domain-model.md](../domain-model.md) AI Mode)
+- **AI Mode:** none ("Không") ↔ rewrite ("Rewrite") (switch anytime via inline picker, [domain-model.md](../domain-model.md) AI Mode). Persisted app-wide via `AI_MODE` in the settings store (default `none`); `ReaderViewModel` restores it on init and saves on every switch, so the choice survives restart.
 - **Processing:** idle → checking cache → processing → cached/rendered | error
 
 ## Cases
