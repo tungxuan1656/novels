@@ -1,53 +1,53 @@
-# feat-018 — Rewrite + Prefetch Correctness (gom feat-015/016/017)
+# feat-018 — Rewrite + Prefetch Correctness (consolidating feat-015/016/017)
 
 ## Goal
 
-Hành vi rewrite + tải trước đúng như user chốt 2026-09-04: batch chunk song song join đúng thứ tự, retry 1 lần đúng chunk lỗi, prefetch sequential chỉ khi đổi chapter thật, header spinner duy nhất cho chapter hiện tại, back từ Nhật ký zero-API.
+Rewrite + prefetch behavior as the user confirmed on 2026-09-04: parallel chunk batches joined in correct order, 1 retry on the exact failed chunk, sequential prefetch only on a real chapter change, a single header spinner for the current chapter, zero-API back navigation from the "Nhật ký" log.
 
 ## Context
 
-- feat-015/016/017 chồng nhau cho cùng 1 vấn đề (song song + retry + kẹt spinner + decode 200-lạ), hiện uncommitted nhưng đã mark done. Đóng băng 3 feat này ở trạng thái lưu trữ, dồn toàn bộ hành vi đúng vào feat-018 duy nhất. Không tạo feat mới cho mỗi lần sửa nhỏ nữa.
-- Bug gốc: vào Nhật ký rồi back lại Reading ch22 thì retry prefetch dù trước đó đã lỗi-dừng; spinner nằm trong content + bottom-sheet gây nhầm chapter hiện tại vs prefetch.
+- feat-015/016/017 overlap on the same problem (parallelism + retry + stuck spinner + odd 200 decode), currently uncommitted but marked done. Freeze those 3 features as archived and consolidate all correct behavior into feat-018 alone. No new feature per small fix anymore.
+- Root bug: entering the "Nhật ký" log and backing to Reading ch22 retried prefetch even though it had previously stopped on error; spinners in content + bottom-sheet confused the current chapter with prefetch.
 
 ## Scope
 
-- `Services/AIClient.swift`: loop tối đa 2 attempts/chunk (mọi loại lỗi, đúng chunk lỗi, cùng requestId, log attempt 1/2 riêng, `Task.checkCancellation`).
-- `Services/AIReadingService.swift`: giữ TaskGroup song song index-keyed ordered join `"\n"`, fail-fast 1 chunk sau 2 attempts → abort chapter, không cache partial.
-- `Services/PrefetchManager.swift` + `Features/Reading/ReaderViewModel.swift`: trigger prefetch chỉ khi chapterNumber đổi thật (goNext/goPrev/goToChapter/References/mode switch/reprocess); `load(source)` phân biệt chapterChange vs return-from-Log; back từ Log cùng chapter → zero API, giữ terminal status; batchStatus all-cached → zero call; miss → sequential từng chapter batch; lỗi skip + `errors[]` + `prefetch.error-continue`; 2 đường tải lại (next-chapter auto-check, ngoài window manual "Xử lý lại").
-- `Features/Reading/ReaderView.swift`: xóa `aiSection` spinner + `prefetchIndicator` khỏi content; header hàng 2 thêm spinner 12px trái capsule prev/next, visible chỉ khi `isAIProcessing` chapter hiện tại.
-- `Features/Reading/ReaderBottomSheet.swift`: xóa hoàn toàn indicator loading; giữ picker + "Xử lý lại" + nút Nhật ký (badge lỗi).
-- Lỗi: `CancellationError` riêng (clear flag, không toast); chapter fail toast 1 lần + raw fallback; prefetch fail silent (badge + Log).
-- Docs (đã cập nhật trước code trong brainstorm này): `docs/contracts/ai-service.md`, `docs/product/functional-specs/ai-reading.md`, `docs/product/functional-specs/chapter-prefetch.md`, `docs/design/screens.md`.
-- Tests extend (không file mới trừ khi cần): per-chunk retry đúng chunk, join đúng thứ tự delay ngược, back-from-Log zero-API, header spinner chỉ current, prefetch sequential-skip.
+- `Services/AIClient.swift`: loop of max 2 attempts/chunk (all error kinds, exact failed chunk, same requestId, separate attempt 1/2 logs, `Task.checkCancellation`).
+- `Services/AIReadingService.swift`: keep index-keyed parallel TaskGroup with ordered `"\n"` join, fail-fast with 1 chunk aborting the chapter after 2 attempts, no partial caching.
+- `Services/PrefetchManager.swift` + `Features/Reading/ReaderViewModel.swift`: trigger prefetch only on a real chapterNumber change (goNext/goPrev/goToChapter/References/mode switch/reprocess); `load(source)` distinguishes chapterChange vs return-from-Log; back from Log on the same chapter → zero API, terminal status kept; batchStatus all-cached → zero calls; on miss → sequential per-chapter batches, skip on error + `errors[]` + `prefetch.error-continue`; 2 reload paths (next-chapter auto-check, manual "Xử lý lại" outside the window).
+- `Features/Reading/ReaderView.swift`: remove the `aiSection` spinner + `prefetchIndicator` from content; row 2 of the header adds a 12px spinner left of the prev/next capsule, visible only while the current chapter has `isAIProcessing`.
+- `Features/Reading/ReaderBottomSheet.swift`: remove the loading indicator entirely; keep picker + "Xử lý lại" + "Nhật ký" button (error badge).
+- Errors: dedicated `CancellationError` (clear flag, no toast); chapter fail shows one toast + raw fallback; prefetch fail is silent (badge + Log).
+- Docs (updated before code in this brainstorm): `docs/contracts/ai-service.md`, `docs/product/functional-specs/ai-reading.md`, `docs/product/functional-specs/chapter-prefetch.md`, `docs/design/screens.md`.
+- Extend tests (no new files unless needed): per-chunk retry on the right chunk, correct-order join under reversed delays, back-from-Log zero-API, header spinner for current only, prefetch sequential-skip.
 
 ## Non-goals
 
-- Không đổi timeout 180/600, chunk hint 1300, cache key, ATS localhost-only, Log shape fields hiện có.
-- Không thêm setting, không envelope `{data:...}` thành success, không raw log.
-- Không refactor ngoài scope rewrite/prefetch/header.
+- No change to the 180/600 timeout, 1300 chunk hint, cache key, localhost-only ATS, or existing Log shape fields.
+- No new settings, no `{data:...}` envelope treated as success, no raw logging.
+- No refactoring outside rewrite/prefetch/header scope.
 
 ## Acceptance
 
-- [x] 1 chunk lỗi → retry 1 lần đúng chunk đó (requests==2 cho chunk lỗi, chunk khác==1), success thì join đúng thứ tự.
-- [x] 1 chunk fail 2 lần → abort chapter, toast 1 lần, raw fallback, không cache partial, manual "Xử lý lại" được.
-- [x] Đổi chapter → batchStatus: all-cached zero API; còn miss → sequential từng chapter batch, lỗi skip tiếp.
-- [x] Ở ch22 vào Nhật ký back lại → zero API (không reload current, không prefetch), giữ status cũ.
-- [x] Header spinner chỉ khi chapter hiện tại rewrite; content + bottom-sheet không spinner; prefetch chạy không hiện header.
+- [x] 1 failed chunk → 1 retry on that exact chunk (requests==2 for the failed chunk, ==1 for others), success joins in correct order.
+- [x] 1 chunk failing twice → chapter abort, one toast, raw fallback, no partial cache, manual "Xử lý lại" available.
+- [x] Chapter change → batchStatus: all-cached means zero API; on miss → sequential per-chapter batches, continue past errors.
+- [x] On ch22, entering the "Nhật ký" log and backing out → zero API (no current reload, no prefetch), old status kept.
+- [x] Header spinner only while the current chapter rewrites; no spinners in content + bottom-sheet; running prefetch shows no header.
 - [x] `./init.sh` full PASS.
 
 ## Relevant docs
 
-- `docs/contracts/ai-service.md` (Chunking + Retry bounded per-chunk)
+- `docs/contracts/ai-service.md` (Chunking + bounded per-chunk Retry)
 - `docs/product/functional-specs/ai-reading.md` (batch join + manual retry)
-- `docs/product/functional-specs/chapter-prefetch.md` (trigger chapter-change + sequential + back-zero-API)
-- `docs/design/screens.md` (Loading header-only)
-- `features/feat-015.md`, `features/feat-016.md`, `features/feat-017.md` (lưu trữ, không sửa tiếp)
+- `docs/product/functional-specs/chapter-prefetch.md` (chapter-change trigger + sequential + back-zero-API)
+- `docs/design/screens.md` (header-only Loading)
+- `features/feat-015.md`, `features/feat-016.md`, `features/feat-017.md` (archived, do not edit further)
 
 ## Plan
 
 External: `docs/plans/feat-018.md`. Ownership:
-- @fixer: `AIClient`, `AIReadingService`, `PrefetchManager`, `ReaderViewModel`, tests logic.
-- @designer: `ReaderView` header spinner + xóa content indicator, `ReaderBottomSheet` xóa spinner.
+- @fixer: `AIClient`, `AIReadingService`, `PrefetchManager`, `ReaderViewModel`, logic tests.
+- @designer: `ReaderView` header spinner + content-indicator removal, `ReaderBottomSheet` spinner removal.
 - Shared: trigger source + zero-API + toast/raw-fallback.
 
 ## Verify
@@ -56,10 +56,10 @@ External: `docs/plans/feat-018.md`. Ownership:
 
 ## Handoff
 
-- State: done — fix-1 (Tasks 1-3: AIClient 2 attempts stable requestId + TaskGroup join verify + LoadSource zero-API + stale a11y fix) + des-1 (Tasks 4-5: header aiProgressHeader + xóa content/sheet spinner) + Task 6 full verify done 2026-09-04.
+- State: done — fix-1 (Tasks 1-3: AIClient 2 attempts with stable requestId + TaskGroup join verify + LoadSource zero-API + stale a11y fix) + des-1 (Tasks 4-5: header aiProgressHeader + content/sheet spinner removal) + Task 6 full verify done 2026-09-04.
 - Evidence: `./init.sh` full PASS (format 0/lint 0/build PASS/test ** TEST SUCCEEDED ** incl. AIClientTests 12/12, AIReadingServiceTests 11/11, Prefetch 7/7+6/6, ReaderHeaderSpinnerTests 3/3, ReaderViewFixTests 18/18/drift PASS); plan `docs/plans/feat-018.md`.
-- Blockers: none (working tree vẫn giữ uncommitted gộp feat-015/016/017 + feat-018 — chưa commit vì user chưa yêu cầu).
-- Next: repo idle — user retest thiết bị thật: ch22 fail → toast + raw + header tắt; vào Nhật ký back lại zero-API; đổi chapter prefetch sequential.
-- Follow-up 2026-09-04: header thêm text "Đang xử lý" (caption, muted) ngay phải spinner trong cùng HStack height 28 — quick PASS + HeaderSpinner/ViewFix 22/22 + A11y/Regression PASS.
+- Blockers: none (working tree still holds the combined uncommitted feat-015/016/017 + feat-018 — not committed because the user has not asked for it).
+- Next: repo idle — user retests on a real device: failed ch22 → toast + raw + header off; entering the "Nhật ký" log and backing out is zero-API; chapter change prefetches sequentially.
+- Follow-up 2026-09-04: header adds a "Đang xử lý" text (caption, muted) right of the spinner in the same height-28 HStack — quick PASS + HeaderSpinner/ViewFix 22/22 + A11y/Regression PASS.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->

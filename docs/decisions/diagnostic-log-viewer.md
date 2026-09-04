@@ -46,6 +46,6 @@ AI rewrite via OpenAI-compatible endpoint runs silently. User needs visibility i
 
 ## Amendment 2026-09-04 — feat-019 grouped chapter-run view + in-RAM JSON bodies
 
-- Log groups 1 row = 1 chapter × 1 processing run (`runId` per `processedContent`/`reprocess` call, threaded through chunk/api/cache entries; prefetch assigns one `runId` per chapter attempt). Manual retry = new row. Row shows run status (Thành công/Thất bại/Đang xử lý) + chunk counts; expand reveals inner events incl. retry attempts.
+- Log groups 1 row = 1 chapter × 1 processing run (`runId` per `processedContent`/`reprocess` call, threaded through chunk/api/cache entries; prefetch assigns one `runId` per chapter attempt). Manual retry = new row. Row shows run status (Success/Failure/Processing) + chunk counts; expand reveals inner events incl. retry attempts.
 - One deliberate exception to "never raw body": full request/response JSON is kept **in RAM only** on the api entry (`requestBody`/`responseBody`), shown in-app in a bottom sheet viewer. Never persisted, never in `debugSummary`/OSLog. Headers block removed from Log UI; model row removed; server shows full URL.
 - Filters removed (book/chapter pickers, kind chips, timeline/chapter segmentation). Search kept, narrowed to chapter number/status/event/detail (no requestId/host/error code).

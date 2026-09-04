@@ -17,7 +17,7 @@
 - Identity: slug `book.json.id` is local folder `Application Support/novels/books/<slug>/` and `processed_chapters.book_id`; remote numeric `ExportedBook.id`/`bookId` never used as folder/cache key per `docs/decisions/book-identity.md`.
 - Settings: read `BOOKS_API_URL` from `SettingsStore` (sanitized BR-12, default `https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books`); unknown/legacy keys ignored.
 - Import: download ZIP to `FileManager.temporaryDirectory` → `FileManager.unzipItem` → validate → atomic replace `books/<slug>/` via `FileBookRepository` → delete temp ZIP only on success; re-import same slug overwrites atomically without confirm per clarification 2026-08-25.
-- UI: sort default Tên A→Z, option Mới nhất (lastUpdated desc) local sort; blocking overlay spinner simple (“Loading...” / “Extracting...”) no progress %, per clarification; toast chung chung “Invalid book package, cannot import” for invalid package, per clarification; success toast “Book imported” + pop to Library + refresh.
+- UI: sort default Tên A→Z, option Mới nhất (lastUpdated desc) local sort; blocking overlay spinner simple (“Loading...” / “Extracting...”) no progress %, per clarification; generic toast “Invalid book package, cannot import” for invalid package, per clarification; success toast “Book imported” + pop to Library + refresh.
 - No reader HTML→Text, no AI/prefetch, no Settings Editor UI beyond reading `BOOKS_API_URL`.
 
 ## File Structure
@@ -540,7 +540,7 @@ Run: `grep -R "Content-Type.*application/json" --include="*.swift" apps/novels/S
 
 - [ ] **Step 4: Manual flow check (simulator)**
 
-Launch iPhone 17 Pro 26.5 → Library empty → tap + → Add Book loading → (mock) list sort Tên A→Z default → switch Mới nhất → reorder → tap row → overlay “Loading...” → “Extracting...” → toast “Book imported” → pop Library → row appears without restart. Kill → relaunch → Library still shows imported book. Test invalid ZIP → toast chung, no folder.
+Launch iPhone 17 Pro 26.5 → Library empty → tap + → Add Book loading → (mock) list sort Tên A→Z default → switch Mới nhất → reorder → tap row → overlay “Loading...” → “Extracting...” → toast “Book imported” → pop Library → row appears without restart. Kill → relaunch → Library still shows imported book. Test invalid ZIP → generic toast, no folder.
 
 - [ ] **Step 5: Update feature handoff**
 
@@ -556,7 +556,7 @@ Changed paths: `features/feat-003.md`, `docs/plans/feat-003.md`. Verify `catalog
 
 ## Self-Review
 
-**Spec coverage:** Every acceptance in `features/feat-003.md` mapped — POST empty body + Content-Type + no auth (Task 2), success:false message (Task 2 Step 5), empty/error retry + pull-to-refresh (Task 4 Step 6), ZIP temp download (Task 3 Step 7), invalid wrapper/__MACOSX reject + no partial (Task 3 Steps 5-7), atomic replace + ZIP delete only on success + re-import overwrite (Task 3), Library refresh without restart (Task 4 Step 7), offline error no crash (Task 2/3), sort Tên A→Z default + Mới nhất local (Task 3 Step 3), spinner simple + toast chung (Global Constraints, Task 4).
+**Spec coverage:** Every acceptance in `features/feat-003.md` mapped — POST empty body + Content-Type + no auth (Task 2), success:false message (Task 2 Step 5), empty/error retry + pull-to-refresh (Task 4 Step 6), ZIP temp download (Task 3 Step 7), invalid wrapper/__MACOSX reject + no partial (Task 3 Steps 5-7), atomic replace + ZIP delete only on success + re-import overwrite (Task 3), Library refresh without restart (Task 4 Step 7), offline error no crash (Task 2/3), sort Tên A→Z default + Mới nhất local (Task 3 Step 3), spinner simple + generic toast (Global Constraints, Task 4).
 
 **Placeholder scan:** No TBD/TODO, no “implement later”, every test has actual code, every implementation step has concrete Swift snippet, run commands are exact `xcodebuild` paths, no “Similar to Task N”.
 

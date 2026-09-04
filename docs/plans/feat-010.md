@@ -25,13 +25,13 @@
 
 - **Modify:** `apps/novels/Persistence/FileManagerZIP.swift` — core unzip loop: data-descriptor, hygiene filter, wrapper collect
 - **Modify:** `apps/novels/Persistence/ZipValidator.swift` — tolerant hygiene ignore, canonical root helper
-- **Create (optional small helper):** `apps/novels/Persistence/ZipRootResolver.swift` — `resolveCanonicalRoot(at:)` shared giữa FileManagerZIP & Validator (nếu giữ riêng thì inline vào FileManagerZIP)
+- **Create (optional small helper):** `apps/novels/Persistence/ZipRootResolver.swift` — `resolveCanonicalRoot(at:)` shared between FileManagerZIP & Validator (if kept separate, inline into FileManagerZIP)
 - **Modify:** `apps/novels/Domain/Book.swift` — add `BookTolerant` decode fallback when `id` is missing
 - **Modify:** `apps/novels/Persistence/BookRepository.swift` — use tolerant validator and slug derive fallback
-- **Modify:** `apps/novels/Features/Import/ImportViewModel.swift` — gọi resolver sau unzip trước validator/save
-- **Modify:** `docs/contracts/book-package.md`, `docs/decisions/book-package-shape.md`, `ARCHITECTURE.md` — cập nhật tolerant contract/ADR
-- **Modify Tests:** `apps/novelsTests/ImportViewModelTests.swift`, `apps/novelsTests/BookRepositoryTests.swift`, `apps/novelsTests/FileManagerZIPTests.swift` (nếu tồn tại) — thêm cases tolerant
-- **Create:** `apps/novelsTests/Fixtures/TolerantFixtures.swift` (helper tạo ZIP flag 0x08 + wrapper bằng Python zipfile hoặc Swift)
+- **Modify:** `apps/novels/Features/Import/ImportViewModel.swift` — call resolver after unzip before validator/save
+- **Modify:** `docs/contracts/book-package.md`, `docs/decisions/book-package-shape.md`, `ARCHITECTURE.md` — update tolerant contract/ADR
+- **Modify Tests:** `apps/novelsTests/ImportViewModelTests.swift`, `apps/novelsTests/BookRepositoryTests.swift`, `apps/novelsTests/FileManagerZIPTests.swift` (if present) — add tolerant cases
+- **Create:** `apps/novelsTests/Fixtures/TolerantFixtures.swift` (helper creating flag-0x08 + wrapper ZIPs via Python zipfile or Swift)
 
 ---
 
@@ -43,7 +43,7 @@
 
 **Interfaces:**
 - Consumes: `Data` ZIP bytes, `crcTable`, `inflateRawDeflate`, `decompressDeflate`
-- Produces: `func unzipItem(at: URL, to: URL) throws` tolerant (không throw with flag 0x08 hay __MACOSX), `func isHygieneEntry(_ name: String) -> Bool`
+- Produces: `func unzipItem(at: URL, to: URL) throws` tolerant (no throw on flag 0x08 or __MACOSX), `func isHygieneEntry(_ name: String) -> Bool`
 
 - [ ] **Step 1: Write failing test for flag 0x08 and __MACOSX**
 
@@ -72,7 +72,7 @@ func testUnzipIgnoresMacOSXAlongsideValid() throws {
 - [ ] **Step 2: Run test to confirm FAIL**
 
 Run: `xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -only-testing:novelsTests/ImportViewModelTests/testUnzipAcceptsDataDescriptorFlag`
-Expected: FAIL with `CocoaError.fileReadCorruptFile` tại `flag & 0x08 !=0`
+Expected: FAIL with `CocoaError.fileReadCorruptFile` at `flag & 0x08 !=0`
 
 - [ ] **Step 3: Implement hygiene filter + data-descriptor**
 
@@ -119,7 +119,7 @@ if !isAllowedFileName(fileName) {
 // Nếu headerCrc==0 && isDescriptor → sau khi decompress, đọc descriptor bytes 12/16 từ data, parse crcReal/compReal/uncompReal, dùng to verify thay vì header
 ```
 
-Chi tiết descriptor parsing:
+Descriptor parsing details:
 
 ```swift
 private func readDescriptor(at pos: Int, data: Data) -> (crc: UInt32, comp: UInt32, uncomp: UInt32, len: Int)? {
@@ -146,7 +146,7 @@ private func readDescriptor(at pos: Int, data: Data) -> (crc: UInt32, comp: UInt
 - [ ] **Step 4: Run test again to confirm PASS**
 
 Run: `xcodebuild test ... -only-testing:novelsTests/ImportViewModelTests/testUnzipAcceptsDataDescriptorFlag` → PASS
-Run: `testUnzipIgnoresMacOSXAlongsideValid` → PASS, `out/__MACOSX` không tồn tại
+Run: `testUnzipIgnoresMacOSXAlongsideValid` → PASS, `out/__MACOSX` does not exist
 
 - [ ] **Step 5: Commit**
 
@@ -160,7 +160,7 @@ git commit -m "fix(zip): support data-descriptor flag 0x08 and ignore __MACOSX/.
 ### Task 2: Canonical root resolver + wrapper flatten
 
 **Files:**
-- Modify: `apps/novels/Persistence/FileManagerZIP.swift` (thêm `resolveCanonicalRoot`)
+- Modify: `apps/novels/Persistence/FileManagerZIP.swift` (add `resolveCanonicalRoot`)
 - Modify: `apps/novels/Persistence/ZipValidator.swift`
 - Modify: `apps/novels/Features/Import/ImportViewModel.swift:116`
 
@@ -270,7 +270,7 @@ func testValidatorToleratesDSStoreAndMacOSX() {
 func testValidatorStillRejectsMissingChapter() { XCTAssertFalse(...) }
 ```
 
-- [ ] **Step 2: Chạy FAIL**
+- [ ] **Step 2: Run FAIL**
 
 Run: `xcodebuild test ... -only-testing:novelsTests/BookRepositoryTests/testValidatorToleratesDSStoreAndMacOSX` → FAIL
 
@@ -288,11 +288,11 @@ func isHygiene(_ name: String) -> Bool {
 // Tương tự chapters: chỉ đếm file matching chapter-N.html, bỏ qua .DS_Store/._* in chapters/
 ```
 
-Giữ reject for outer-folder thực (không must hygiene) khi không qua resolver — nhưng resolver already flatten nên validator tolerant chỉ need ignore hygiene.
+Keep rejecting genuine outer-folders (non-hygiene) when bypassing the resolver — but the resolver already flattens, so the tolerant validator only needs to ignore hygiene.
 
 - [ ] **Step 4: PASS**
 
-Run: `testValidatorToleratesDSStoreAndMacOSX` PASS, existing `testValidatorRejectsWrapper` vẫn FAIL khi không qua resolver (đảm bảo strict gốc vẫn giữ khi không flatten), nhưng qua resolver thì PASS
+Run: `testValidatorToleratesDSStoreAndMacOSX` PASS, existing `testValidatorRejectsWrapper` still FAILs without the resolver (ensuring the original strict behavior stays when not flattened), but PASSes via the resolver
 
 - [ ] **Step 5: Commit**
 
@@ -303,7 +303,7 @@ git commit -m "fix(zip): validator ignores .DS_Store/__MACOSX hygiene"
 
 ---
 
-### Task 4: Book id fallback (sample thiếu id)
+### Task 4: Book id fallback (sample missing id)
 
 **Files:**
 - Modify: `apps/novels/Domain/Book.swift`
@@ -312,7 +312,7 @@ git commit -m "fix(zip): validator ignores .DS_Store/__MACOSX hygiene"
 
 **Interfaces:**
 - Consumes: `Data` book.json
-- Produces: `Book` with id luôn có (derive nếu thiếu)
+- Produces: `Book` with id always present (derived when missing)
 
 - [ ] **Step 1: Write failing test**
 
@@ -324,7 +324,7 @@ func testBookDecodeFallsBackWhenIdMissing() throws {
 }
 ```
 
-- [ ] **Step 2: Chạy FAIL**
+- [ ] **Step 2: Run FAIL**
 
 Run: `xcodebuild test ...` → FAIL decode
 
@@ -368,11 +368,11 @@ struct Book: Codable, Equatable {
 }
 ```
 
-Cập nhật `ZipValidator` and `BookRepository` dùng `Book` tolerant decode.
+Update `ZipValidator` and `BookRepository` to use `Book` tolerant decode.
 
 - [ ] **Step 4: PASS**
 
-Run test PASS, sample `van-gioi-.../book.json` decode is with id derived `van-gioi-chi-rut-thuong-he-thong`
+Run test PASS, sample `van-gioi-.../book.json` decodes with derived id `van-gioi-chi-rut-thuong-he-thong`
 
 - [ ] **Step 5: Commit**
 
@@ -383,27 +383,27 @@ git commit -m "fix(book): derive slug when book.json id missing"
 
 ---
 
-### Task 5: Cập nhật contracts/docs (source-of-truth)
+### Task 5: Update contracts/docs (source-of-truth)
 
 **Files:**
 - Modify: `docs/contracts/book-package.md:5-68`
 - Modify: `docs/decisions/book-package-shape.md`
 - Modify: `ARCHITECTURE.md:14`
-- Modify: `docs/contracts/local-data.md` (mô tả unzip tolerant)
+- Modify: `docs/contracts/local-data.md` (tolerant unzip description)
 
 - [ ] **Step 1: Review current docs**
 
-Mở `docs/contracts/book-package.md` xác nhận section "Producer Requirement" ghi strict reject wrapper.
+Open `docs/contracts/book-package.md` and confirm the "Producer Requirement" section states strict wrapper rejection.
 
 - [ ] **Step 2: Update book-package.md**
 
-Thay:
+Replace:
 ```
 Valid ZIP contains exactly that layout. App accepts only the exact archive-root...
 Reject outer-folder and __MACOSX wrappers.
 Do not flatten wrappers...
 ```
-Thành:
+With:
 ```
 Canonical layout remains book.json + chapters/chapter-N.html at archive root.
 Tolerant ingest (2026-08-26): App accepts both canonical and single outer-folder wrapper (payload nested one level) and ignores hygiene entries __MACOSX/, .DS_Store, ._* resource forks, flattening wrapper to canonical root when detected. Hygiene is skipped during unzip and validation; invalid content still fails.
@@ -411,11 +411,11 @@ ZIPs using data-descriptor (flag 0x08) for DEFLATE are supported via trailing de
 Security invariants (zip-slip, 100MB cap, CRC, STORE/DEFLATE only) remain enforced.
 ```
 
-Giữ Reference Sample note nhưng đổi từ "rejected" → "now tolerated via flatten (kept as reference)".
+Keep the Reference Sample note but change "rejected" → "now tolerated via flatten (kept as reference)".
 
 - [ ] **Step 3: Update ADR**
 
-Thêm vào `docs/decisions/book-package-shape.md`:
+Add to `docs/decisions/book-package-shape.md`:
 
 ```markdown
 ## Amendment 2026-08-26 — Tolerant ingest
@@ -438,7 +438,7 @@ git commit -m "docs(zip): update contract to tolerant ingest with wrapper flatte
 
 ---
 
-### Task 6: Bài kiểm thử tổng hợp + verification
+### Task 6: Integration test sweep + verification
 
 **Files:**
 - Modify: `apps/novelsTests/ImportViewModelTests.swift`, `BookRepositoryTests.swift`
@@ -471,22 +471,22 @@ enum TolerantFixtures {
 - [ ] **Step 2: Add coverage tests**
 
 - `testImportSyntheticWrapperFlag08MacOSXSucceeds`
-- `testImportRealSampleSucceeds` (dùng `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` thật, verify library count 743)
+- `testImportRealSampleSucceeds` (using the real `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip`, verifying library count 743)
 - `testImportStillRejectsZipSlip` (entry `../evil.html` → invalidPackage)
 - `testImportStillRejectsBomb` (single file >100MB → invalidPackage)
-- `testImportStillRejectsCRCMismatch` (sửa 1 byte sau nén → invalidPackage)
-- `testImportStillRejectsMissingChapter` (count 2 nhưng chỉ 1 file)
+- `testImportStillRejectsCRCMismatch` (flip 1 byte after compression → invalidPackage)
+- `testImportStillRejectsMissingChapter` (count 2 but only 1 file)
 
 - [ ] **Step 3: Run full verification**
 
 Run: `./init.sh`
-Expected: PASS format 0, lint 0, build PASS, test PASS (tăng từ ~60 lên ~70 tests)
+Expected: PASS format 0, lint 0, build PASS, test PASS (up from ~60 to ~70 tests)
 
-Chạy thêm: `xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' | tail -20`
+Also run: `xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' | tail -20`
 
 - [ ] **Step 4: Self-review plan**
 
-Check: spec coverage đủ 3 root causes, không placeholder, type consistency `resolveCanonicalRoot(at: URL) -> URL`, `isHygieneEntry`, `Book.init(from:)` slugify.
+Check: spec coverage covers all 3 root causes, no placeholders, type consistency `resolveCanonicalRoot(at: URL) -> URL`, `isHygieneEntry`, `Book.init(from:)` slugify.
 
 - [ ] **Step 5: Commit tests**
 
@@ -500,12 +500,12 @@ git commit -m "test(zip): add tolerant wrapper/flag08/hygiene fixtures and secur
 ## Verification
 
 - `./init.sh` PASS (format, lint, build, test)
-- `xcodebuild test` PASS with tất cả cases tolerant + security invariant
+- `xcodebuild test` PASS with all tolerant cases + security invariants
 
 ## Rollback
 
-- Revert FileManagerZIP flag handling về throw nếu tolerant gây false positive (nhưng hygiene and wrapper có thể giữ)
-- Hoặc đặt feature flag `isTolerantZIP` to toggle strict/tolerant
+- Revert FileManagerZIP flag handling to throw if tolerance causes false positives (but hygiene and wrapper handling may stay)
+- Or gate behind feature flag `isTolerantZIP` to toggle strict/tolerant
 
 ## Open
 

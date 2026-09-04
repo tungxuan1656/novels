@@ -127,34 +127,34 @@
 ## 2026-09-04 — feat-013
 
 **State**: done
-**Done**: Auto Prev/Next on overscroll — pull quá top ≥90pt → prev đáp bottom, push quá bottom ≥90pt → next đáp top; hint “Thả để chuyển chương” ~45pt + haptic + toast “Đã là chương đầu/cuối”; short-chapter chuyển được 2 chiều; giữ lock 400ms + offset per-book + AI/prefetch cancel.
-**Evidence**: `features/feat-013.md`, `feature_index.json` feat-013 done (depends_on feat-004), `ScrollOffsetPreference.defaultThreshold=90` + `isPulledBeyondTop`, `ReaderView` hint overlays + `scrollToBottom` + bound toast, `ReaderViewFixTests` 6 tests mới, `./init.sh` full PASS (format 0/89, lint 0, build PASS, test PASS, drift PASS 21/22)
+**Done**: Auto Prev/Next on overscroll — pull past top ≥90pt → prev landing at bottom, push past bottom ≥90pt → next landing at top; hint “Thả để chuyển chương” ~45pt + haptic + toast “Đã là chương đầu/cuối”; short chapters navigable both directions; keeps 400ms lock + per-book offset + AI/prefetch cancel.
+**Evidence**: `features/feat-013.md`, `feature_index.json` feat-013 done (depends_on feat-004), `ScrollOffsetPreference.defaultThreshold=90` + `isPulledBeyondTop`, `ReaderView` hint overlays + `scrollToBottom` + bound toast, `ReaderViewFixTests` 6 new tests, `./init.sh` full PASS (format 0/89, lint 0, build PASS, test PASS, drift PASS 21/22)
 **Blockers**: none
-**Next**: repo idle — test device thực tế chương dài/ngắn + AI rewrite
+**Next**: repo idle — test on real device with long/short chapters + AI rewrite
 
 ## 2026-09-04 — feat-013 fix
 
 **State**: done
-**Done**: Hạ ngưỡng overscroll 90→28pt (hint ~14pt) vì biên độ vuốt thật trên Simulator chỉ ~20–35pt; ép bounce `.scrollBounceBehavior(.always)` để chương ngắn vẫn sinh tín hiệu; cập nhật `ReaderViewFixTests` theo ngưỡng 28.
+**Done**: Lowered overscroll threshold 90→28pt (hint ~14pt) because real swipe amplitude on Simulator is only ~20–35pt; forced bounce `.scrollBounceBehavior(.always)` so short chapters still emit signal; updated `ReaderViewFixTests` to threshold 28.
 **Evidence**: `ScrollOffsetPreference.defaultThreshold=28`, `ReaderView` bounce always, tests 17/17, `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: user rebuild app trên Simulator rồi kéo lố ở top/bottom giữ tay để kiểm chứng hint + chuyển chương
+**Next**: user rebuilds app on Simulator then pulls past top/bottom holding touch to verify hint + chapter switch
 
 ## 2026-09-04 — feat-013 pipeline fix
 
 **State**: done
-**Done**: Thay pipeline đo offset `GeometryReader` + PreferenceKey bằng `onScrollGeometryChange(-contentOffset.y)` vì pattern cũ không thấy rubber-banding (content trượt nhưng offsetY ≈ 0); giữ nguyên threshold 28/hint ~14/lock/toast/bounce.
-**Evidence**: `ReaderView` onScrollGeometryChange đảo dấu, `./init.sh` full PASS (format/lint/build/test/drift)
+**Done**: Replaced offset-measurement pipeline `GeometryReader` + PreferenceKey with `onScrollGeometryChange(-contentOffset.y)` because the old pattern missed rubber-banding (content slides but offsetY ≈ 0); kept threshold 28/hint ~14/lock/toast/bounce unchanged.
+**Evidence**: `ReaderView` onScrollGeometryChange with inverted sign, `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: user rebuild + retest kéo lố top/bottom trên Simulator
+**Next**: user rebuilds + retests past-edge pull at top/bottom on Simulator
 
 ## 2026-09-04 — feat-013 round 2
 
 **State**: done
-**Done**: Rework excursion state machine — ngưỡng tương đối theo rest (hết hint/toast khi chưa cuộn), programmatic settle theo velocity + easeOut (hết tự back/cascade), single-source ScrollGeometry (bottom trigger được), single-fire + throttle 900ms + toast 1 lần/excursion; xóa 3 PreferenceKey chết.
-**Evidence**: `ReaderViewFixTests` 26/26 (9 tests mới: rest-invariance, re-arm, cooldown, overshoot), `./init.sh` full PASS (format/lint/build/test/drift)
+**Done**: Rework excursion state machine — rest-relative thresholds (no hint/toast before scrolling), programmatic settle by velocity + easeOut (no auto back/cascade), single-source ScrollGeometry (bottom trigger works), single-fire + 900ms throttle + 1 toast per excursion; removed 3 dead PreferenceKeys.
+**Evidence**: `ReaderViewFixTests` 26/26 (9 new tests: rest-invariance, re-arm, cooldown, overshoot), `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: user rebuild + retest theo kịch bản (lưu ý lần mở đầu restore sâu cần ≤2s settle mới nhận vuốt)
+**Next**: user rebuilds + retests per script (note: first open with deep restore needs ≤2s settle before accepting swipes)
 
 ## 2026-09-04 — feat-013 pivot
 
@@ -175,47 +175,47 @@
 ## 2026-09-04 — feat-014
 
 **State**: done
-**Done**: Diagnostic Log Viewer in-session — ring 500 + OSLog private, redact auth → `<redacted>` (prompt never raw, snippet chỉ khi verbose), timeout AI hardcode 180/600 + waitsForConnectivity, prefetch budget 600/1800 + markers, timeline DESC + filter/search + group toggle + expand, entry "Nhật ký" từ bottom sheet → route `Reading --> Log`. ADR `diagnostic-log-viewer.md` đảo một phần `network-logger-removed`.
+**Done**: Diagnostic Log Viewer in-session — ring 500 + OSLog private, redact auth → `<redacted>` (prompt never raw, snippet only when verbose), AI timeout hardcoded 180/600 + waitsForConnectivity, prefetch budget 600/1800 + markers, timeline DESC + filter/search + group toggle + expand, entry "Nhật ký" from bottom sheet → route `Reading --> Log`. ADR `diagnostic-log-viewer.md` partially reverses `network-logger-removed`.
 **Evidence**: `features/feat-014.md`, `docs/plans/feat-014.md`, `docs/decisions/diagnostic-log-viewer.md`, `Domain/DiagnosticsEntry.swift`, `Services/DiagnosticsLog.swift`, `AIClient`/`AIReadingService`/`PrefetchManager` instrument + `PrefetchManager` loop-top bookDeleted guard, `ReaderBottomSheet.apiLogButton` + `Features/Diagnostics/LogScreen.swift` + `Router.apiLog` + `AppRoot`, `DiagnosticsLogTests` 10 tests, docs (ARCHITECTURE/navigation/screens/SECURITY/settings-schema + `DIAGNOSTICS_VERBOSE`), `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: repo idle — user retest Simulator: đọc + AI Rewrite + prefetch rồi mở Nhật ký kiểm tra timeline/filter/expand/verbose
+**Next**: repo idle — user retests on Simulator: read + AI Rewrite + prefetch then open "Nhật ký" to check timeline/filter/expand/verbose
 
 ## 2026-09-04 — feat-015
 
 **State**: done
-**Done**: Parallel chunks + tổng 2 attempts + loading-only — TaskGroup index-keyed join đúng thứ tự (retry per-chunk trong client), AIClient 0..<2 + checkCancellation, ViewModel cancel aiTask onDisappear, spinner thuần căn giữa (xóa aiError view/id, giữ toast), badge đỏ Log khi có fail.
-**Evidence**: `features/feat-015.md`, `docs/plans/feat-015.md`, `AIClient`/`AIReadingService`/`ReaderViewModel`/`DiagnosticsStore.errorCount`, `ReaderView`/`BottomSheet`/`LogScreen` + `Router.apiLog(bookId:initialFilter:)`, `ai-service.md` retry 2, tests AIClient/AIReadingService/DiagnosticsLog/PrefetchManager/ReaderViewFixTests PASS, `./init.sh` format/lint/build/drift PASS + targeted TEST SUCCEEDED (full 1 lần flake bundle Simulator)
+**Done**: Parallel chunks + 2 total attempts + loading-only — TaskGroup index-keyed join in correct order (retry per-chunk in client), AIClient 0..<2 + checkCancellation, ViewModel cancels aiTask onDisappear, plain centered spinner (removed aiError view/id, kept toast), red Log badge on fail.
+**Evidence**: `features/feat-015.md`, `docs/plans/feat-015.md`, `AIClient`/`AIReadingService`/`ReaderViewModel`/`DiagnosticsStore.errorCount`, `ReaderView`/`BottomSheet`/`LogScreen` + `Router.apiLog(bookId:initialFilter:)`, `ai-service.md` retry 2, tests AIClient/AIReadingService/DiagnosticsLog/PrefetchManager/ReaderViewFixTests PASS, `./init.sh` format/lint/build/drift PASS + targeted TEST SUCCEEDED (full run flaked once on Simulator bundle)
 **Blockers**: none
-**Next**: repo idle — user retest dịch song song + Nhật ký attempt/requestId
+**Next**: repo idle — user retests parallel translation + Log attempt/requestId
 
 ## 2026-09-04 — feat-016
 
 **State**: done
-**Done**: Bỏ auto-retry (1 attempt/chunk, fail → manual "Xử lý lại") + fix kẹt spinner ch22 — catch CancellationError riêng (không aiError/toast), onDisappear clear flag đồng bộ, poll prefetch luôn sync cuối, fix race test parallel (NSLock + assert tập hợp).
+**Done**: Removed auto-retry (1 attempt/chunk, fail → manual "Xử lý lại") + fixed stuck spinner ch22 — separate CancellationError catch (no aiError/toast), synchronous flag clear onDisappear, prefetch poll always syncs at end, fixed parallel test race (NSLock + set assertion).
 **Evidence**: `features/feat-016.md`, `AIClient` single-attempt, `ReaderViewModel` cancel/catch/poll, `ai-service.md` no-retry, `DiagnosticsLogTests` NSLock + set-compare, `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: repo idle — user retest ch22 fail: spinner chapter tắt, prefetch chạy riêng, manual retry
+**Next**: repo idle — user retests ch22 fail: chapter spinner off, prefetch runs separately, manual retry
 
 ## 2026-09-04 — feat-017
 
 **State**: done
-**Done**: Tolerant 200 decode — `content?` + `reasoning_content` fallback + `tool_calls` tolerant; shape logging an toàn (keys/choicesCount/contentKind/hasReasoning/hasTools, không raw); LogScreen rows Dạng/Choices/Nội dung; giữ single-attempt + manual retry.
+**Done**: Tolerant 200 decode — `content?` + `reasoning_content` fallback + `tool_calls` tolerant; safe shape logging (keys/choicesCount/contentKind/hasReasoning/hasTools, no raw); LogScreen Kind/Choices/Content rows; keeps single-attempt + manual retry.
 **Evidence**: `features/feat-017.md`, `AIResponse` resolvedText, `AIClient` shape parse/log, `DiagnosticsEntry/Log` shape fields, `LogScreen`, `ai-service.md`, tests reasoning/tool/envelope/empty + redaction, `./init.sh` full PASS (format/lint/build/test/drift)
 **Blockers**: none
-**Next**: repo idle — user retest provider 200-shape lạ, mở Log xem Dạng/Choices
+**Next**: repo idle — user retests odd provider 200-shape, opens Log to check Kind/Choices
 
 ## 2026-09-04 — feat-018
 
 **State**: done
-**Done**: Rewrite + Prefetch Correctness (gom feat-015/016/017, đóng băng 3 feat cũ ở done-lưu trữ): batch chunk song song join đúng thứ tự, retry 1 lần đúng chunk lỗi (mọi loại lỗi, 2 attempts/chunk, requestId stable, attempt 1/2 log riêng); prefetch sequential chỉ khi đổi chapter thật (LoadSource chapterChange vs returnFromLog), batchStatus all-cached zero-API, miss sequential từng chapter batch lỗi-skip-tiếp; header spinner 12px trái capsule prev/next chỉ cho chapter hiện tại rewrite, xóa spinner content + bottom-sheet, prefetch silent (badge Log); back từ Nhật ký cùng chapter zero-API giữ status; CancellationError silent, chapter fail toast 1 lần + raw fallback.
+**Done**: Rewrite + Prefetch Correctness (consolidating feat-015/016/017, freezing 3 old feats as done-archived): parallel batch chunks joined in correct order, 1 retry on exactly the failed chunk (all error types, 2 attempts/chunk, stable requestId, attempt 1/2 logged separately); sequential prefetch only on real chapter change (LoadSource chapterChange vs returnFromLog), batchStatus all-cached zero-API, miss sequential per chapter with error-skip-continue; 12px header spinner left of prev/next capsule only for current rewrite chapter, removed content + bottom-sheet spinners, silent prefetch (Log badge); back from "Nhật ký" on same chapter zero-API keeps status; silent CancellationError, failed chapter 1 toast + raw fallback.
 **Evidence**: `features/feat-018.md` (acceptance 6/6), `docs/plans/feat-018.md` Tasks 1-6, `docs/contracts/ai-service.md` + `ai-reading.md` + `chapter-prefetch.md` + `docs/design/screens.md`, `AIClient` loop 1...2 + `ReaderViewModel.load(source:)` + `ReaderView` aiProgressHeader + `ReaderBottomSheet` no-spinner + stale `HardeningRegressionTests` header-only, `./init.sh` full PASS 2026-09-04 (format/lint/build TEST SUCCEEDED/drift; AIClient 12/12, AIReadingService 11/11, Prefetch 7/7+6/6, HeaderSpinner 3/3, ViewFix 18/18), `feature_index.json` feat-018 done (zero active)
-**Blockers**: none (tree còn uncommitted gộp 015/016/017+018 — chưa commit vì chưa được yêu cầu)
-**Next**: repo idle — user retest thiết bị thật (ch22 fail → toast+raw+header tắt; Log back zero-API; đổi chapter prefetch sequential), commit khi user yêu cầu
+**Blockers**: none (tree still uncommitted consolidating 015/016/017+018 — not committed as not requested)
+**Next**: repo idle — user retests on real device (ch22 fail → toast+raw+header off; Log back zero-API; chapter-change sequential prefetch), commit when user requests
 
 ## 2026-09-04 — feat-019
 
 **State**: done
-**Done**: Nhật ký gom 1 row = 1 chapter-1 lần xử lý (`runId` threading qua service/prefetch) với badge Thành công/Thất bại/Đang xử lý + số chunk; expand thấy events + retry; API có nút "Xem JSON thô" (request/response toàn bộ trong `BottomSheetView`, RAM-only, không persist/OSLog); xóa headers block + dòng Mô hình, Máy chủ full URL; xóa filter sách/chương, chips, segmentation; search chỉ theo chương/trạng thái/sự kiện/chi tiết.
+**Done**: Log groups 1 row = 1 chapter × 1 processing run (`runId` threading through service/prefetch) with Success/Failure/Processing badge + chunk count; expand shows events + retry; API has "Xem JSON thô" button (full request/response in `BottomSheetView`, RAM-only, no persist/OSLog); removed headers block + Model row, Server full URL; removed book/chapter filters, chips, segmentation; search only by chapter/status/event/detail.
 **Evidence**: `features/feat-019.md` (acceptance 7/7), ADR amendment + `screens.md` + `ai-service.md`, `LogRunBuilder` + `LogScreenGroupingTests` 11/11, bodies/runId tests, `./init.sh` full PASS 2026-09-04 (format/lint/build TEST SUCCEEDED/drift), `feature_index.json` feat-019 done (zero active)
-**Blockers**: none (tree uncommitted — chưa commit vì chưa được yêu cầu)
-**Next**: repo idle — user retest màn Nhật ký rồi bảo commit khi muốn
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests Log screen then requests commit when ready

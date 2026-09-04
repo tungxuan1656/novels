@@ -109,13 +109,13 @@
     },
     {
       "id": "feat-018",
-      "title": "Rewrite + Prefetch Correctness (gom feat-015/016/017)",
+      "title": "Rewrite + Prefetch Correctness (consolidating feat-015/016/017)",
       "status": "done",
       "depends_on": ["feat-015", "feat-016", "feat-017"]
     },
     {
       "id": "feat-019",
-      "title": "Log theo chapter-run, xem JSON thô",
+      "title": "Chapter-Run Log + Raw JSON View",
       "status": "done",
       "depends_on": ["feat-014", "feat-018"]
     }
