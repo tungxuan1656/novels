@@ -77,7 +77,7 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 
 ## Chunking
 
-- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. Values outside `500...10000` sanitize to `1300`. The app uses one chunk for short chapters. For long chapters the app splits text into chunks. Each chunk triggers one service call. The app waits for every chunk call to succeed, then joins chunk outputs in source order (`"\n"`), saves the joined text as one cache entry, and renders it.
+- Hint `AI_MIN_CHUNK_SIZE = 1300` characters. Values outside `500...10000` sanitize to `1300`. The app uses one chunk for short chapters. For long chapters the app packs paragraphs (split on any newline run, so every non-empty line is its own unit) greedily into chunks joined with `"\n\n"`, never splitting a paragraph that fits within the size hard cap. An oversize paragraph splits at sentence boundaries (`. ! ? …` plus trailing closers, never inside digit-dot-digit or short uppercase abbreviations, joined with `" "`); an oversize sentence splits at the last space within budget so words stay whole; only a spaceless token longer than budget is hard-cut. Each chunk triggers one service call. The app waits for every chunk call to succeed, then joins chunk outputs in source order (`"\n\n"`), saves the joined text as one cache entry, and renders it.
 - Within one chapter, chunk calls run in parallel (TaskGroup, index-keyed ordered join). Across prefetch chapters, chapters run sequentially — one chapter batch at a time, never all N chapters at once.
 - Prefetch processes chapters sequentially (BR-08, `chapter-prefetch.md`).
 
