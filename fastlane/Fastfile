@@ -8,13 +8,23 @@ DIAWI_UPLOAD_ENDPOINT = 'https://upload.diawi.com/'
 DIAWI_STATUS_ENDPOINT = 'https://upload.diawi.com/status'
 # No secrets in repo (SECURITY.md): Diawi token comes from the environment only.
 # Export locally before uploading: export DIAWI_TOKEN=...
-DIAWI_TOKEN = ENV['DIAWI_TOKEN']
 
 PROJECT_ROOT = File.expand_path('..', __dir__)
 XCODEPROJ_PATH = File.join(PROJECT_ROOT, 'apps', 'novels.xcodeproj')
 SCHEME_NAME = 'novels'
+TARGET_NAME = 'novels'
 BUILD_DIR = File.join(PROJECT_ROOT, 'build', 'ios')
 DEFAULT_IPA_NAME = 'app-release.ipa'
+
+def diawi_token
+  ENV['DIAWI_TOKEN'].to_s.strip
+end
+
+def parse_diawi_response!(raw, context)
+  JSON.parse(raw)
+rescue JSON::ParserError
+  UI.user_error!("Diawi #{context} failed: non-JSON response: #{raw}")
+end
 
 # Poll interval = 2s, max retries = 120 (~4 minutes)
 def poll_diawi_status(token:, job:, interval_seconds: 2, max_retries: 120)
@@ -28,7 +38,7 @@ def poll_diawi_status(token:, job:, interval_seconds: 2, max_retries: 120)
       log: false
     )
 
-    status_json = JSON.parse(status_raw)
+    status_json = parse_diawi_response!(status_raw, 'status check')
     status_code = status_json['status'].to_i
 
     if status_code == 2000
@@ -42,6 +52,10 @@ def poll_diawi_status(token:, job:, interval_seconds: 2, max_retries: 120)
       UI.user_error!("Diawi processing failed: #{status_json['message']}")
     end
 
+    if status_code >= 4000
+      UI.user_error!("Diawi processing failed (status #{status_code}): #{status_json['message'] || status_json}")
+    end
+
     retries += 1
     if retries >= max_retries
       UI.user_error!(
@@ -49,12 +63,14 @@ def poll_diawi_status(token:, job:, interval_seconds: 2, max_retries: 120)
       )
     end
 
+    UI.message("Diawi job #{job} pending (status #{status_code}): #{status_json['message'] || status_json} — retry #{retries}/#{max_retries}")
     sleep(interval_seconds)
   end
 end
 
 def upload_to_diawi!(file_path:)
-  UI.user_error!('DIAWI_TOKEN is required (export DIAWI_TOKEN=...)') if DIAWI_TOKEN.to_s.strip.empty?
+  token = diawi_token
+  UI.user_error!('DIAWI_TOKEN is required (export DIAWI_TOKEN=...)') if token.empty?
   UI.user_error!("File does not exist: #{file_path}") unless File.exist?(file_path)
 
   command = [
@@ -62,19 +78,19 @@ def upload_to_diawi!(file_path:)
     '-sS',
     DIAWI_UPLOAD_ENDPOINT,
     '-F',
-    "token=#{DIAWI_TOKEN}",
+    "token=#{token}",
     '-F',
     "file=@#{file_path}"
   ]
 
   upload_raw = sh(command.shelljoin, log: false)
-  upload_json = JSON.parse(upload_raw)
+  upload_json = parse_diawi_response!(upload_raw, 'upload')
   job = upload_json['job']
 
   UI.user_error!("Diawi upload failed: #{upload_raw}") if job.to_s.strip.empty?
   UI.message("Diawi job id: #{job}")
 
-  poll_diawi_status(token: DIAWI_TOKEN, job: job)
+  poll_diawi_status(token: token, job: job)
 end
 
 platform :ios do
@@ -93,7 +109,7 @@ platform :ios do
     update_code_signing_settings(
       path: XCODEPROJ_PATH,
       use_automatic_signing: true,
-      targets: SCHEME_NAME
+      targets: TARGET_NAME
     )
   end
 
@@ -107,7 +123,7 @@ platform :ios do
       configuration: 'Release',
       buildlog_path: File.join(BUILD_DIR, 'logs'),
       output_directory: BUILD_DIR,
-      archive_path: File.join(BUILD_DIR, 'archive'),
+      archive_path: File.join(BUILD_DIR, 'archive', "#{SCHEME_NAME}.xcarchive"),
       output_name: output_name,
       xcargs: '-allowProvisioningUpdates',
       export_method: options[:export_method] || 'development',
@@ -121,10 +137,13 @@ platform :ios do
     upload_to_diawi!(file_path: file_path)
   end
 
-  desc 'Prepare + build + upload iOS IPA to Diawi'
+  desc 'Prepare + build + upload iOS IPA to Diawi (path: bypasses fresh build output)'
   lane :distribute do |options|
+    output_name = options[:output_name] || DEFAULT_IPA_NAME
+    export_method = options[:export_method] || 'development'
     prepare
-    build(output_name: options[:output_name] || DEFAULT_IPA_NAME, export_method: options[:export_method] || 'development')
-    upload(options)
+    build(output_name: output_name, export_method: export_method)
+    file_path = options[:path] || File.join(BUILD_DIR, output_name)
+    upload(path: file_path)
   end
 end
