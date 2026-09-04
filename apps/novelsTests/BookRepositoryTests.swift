@@ -326,9 +326,54 @@ final class BookRepositoryTests: XCTestCase {
         try repo.deleteBook(slug: "a")
         XCTAssertEqual(try repo.listBooks().map(\.id), ["b"])
         XCTAssertTrue(fm.fileExists(atPath: booksRoot.appendingPathComponent("b").path))
-        // delete non-existing is no-op, not throw
-        try repo.deleteBook(slug: "nonexistent")
+        // delete non-existing surfaces an error instead of a silent no-op,
+        // so the UI never shows a fake success toast
+        XCTAssertThrowsError(try repo.deleteBook(slug: "nonexistent")) { error in
+            XCTAssertEqual(error as? BookRepositoryError, .bookNotFound(slug: "nonexistent"))
+        }
         XCTAssertEqual(try repo.listBooks().map(\.id), ["b"])
+        try fm.removeItem(at: tmp)
+    }
+
+    func testDeleteThrowsForInvalidSlug() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        try fm.createDirectory(at: booksRoot, withIntermediateDirectories: true)
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        XCTAssertThrowsError(try repo.deleteBook(slug: "../escape")) { error in
+            XCTAssertEqual(error as? BookRepositoryError, .invalidSlug(slug: "../escape"))
+        }
+        try fm.removeItem(at: tmp)
+    }
+
+    func testDeleteResolvesFolderWhenBookIdDiffersFromFolderName() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        // Folder name does not match book.json id (id drift / slugify fallback):
+        // listBooks surfaces book.id, delete must still remove the real folder.
+        let folder = booksRoot.appendingPathComponent("stale-folder-name", isDirectory: true)
+        try fm.createDirectory(at: folder.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try createValidBook(at: folder, id: "real-book-id", count: 1)
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        XCTAssertEqual(try repo.listBooks().map(\.id), ["real-book-id"])
+        try repo.deleteBook(slug: "real-book-id")
+        XCTAssertFalse(fm.fileExists(atPath: folder.path))
+        XCTAssertTrue(try repo.listBooks().isEmpty)
+        try fm.removeItem(at: tmp)
+    }
+
+    func testDeleteMatchesSlugCaseInsensitively() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        let folder = booksRoot.appendingPathComponent("My-Book", isDirectory: true)
+        try fm.createDirectory(at: folder.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try createValidBook(at: folder, id: "my-book", count: 1)
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        try repo.deleteBook(slug: "my-book")
+        XCTAssertFalse(fm.fileExists(atPath: folder.path))
         try fm.removeItem(at: tmp)
     }
 

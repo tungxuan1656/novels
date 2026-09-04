@@ -102,20 +102,35 @@ struct LibraryView: View {
                 BookInfoSheet(book: book)
             }
         }
-        .alert(item: $viewModel.showDeleteConfirm) { book in
-            Alert(
-                title: Text("Xóa sách?"),
-                message: Text("Bạn có chắc muốn xóa “\(book.name)” không?"),
-                primaryButton: .destructive(Text("Xóa")) {
+        // Value-based alert (not alert(item:)): the legacy Alert-struct API keys
+        // presentation off Identifiable identity, which silently breaks when two
+        // books share an id and can drop the destructive action on current iOS.
+        .alert(
+            "Xóa sách?",
+            isPresented: Binding(
+                get: { viewModel.showDeleteConfirm != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.showDeleteConfirm = nil
+                    }
+                }
+            ),
+            actions: {
+                Button("Xóa", role: .destructive) {
                     viewModel.deleteConfirmed()
-                },
-                secondaryButton: .cancel(Text("Hủy"))
-            )
-        }
+                }
+                Button("Hủy", role: .cancel) {
+                    viewModel.showDeleteConfirm = nil
+                }
+            },
+            message: {
+                if let book = viewModel.showDeleteConfirm {
+                    Text("Bạn có chắc muốn xóa “\(book.name)” không?")
+                }
+            }
+        )
         .task {
             viewModel.load()
         }
     }
 }
-
-extension Book: Identifiable {}

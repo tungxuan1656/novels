@@ -136,12 +136,48 @@ struct FileBookRepository: BookRepository {
 
     func deleteBook(slug: String) throws {
         guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
-        let destination = root.appendingPathComponent(slug, isDirectory: true)
-        guard fileManager.fileExists(atPath: destination.path) else { return }
-        try fileManager.removeItem(at: destination)
+        guard let folderURL = resolveFolderURL(forSlug: slug) else {
+            throw BookRepositoryError.bookNotFound(slug: slug)
+        }
+        try fileManager.removeItem(at: folderURL)
     }
 
     // MARK: - Private
+
+    /// Resolves the on-disk folder for a book id.
+    /// `listBooks()` surfaces `Book.id` decoded from `book.json` (with `slugify(name)`
+    /// fallback), which can drift from the actual folder name. Prefer the exact
+    /// `<root>/<slug>` folder when present; otherwise scan validated folders and match
+    /// `book.id` (or folder name) case-insensitively so delete never silently no-ops.
+    private func resolveFolderURL(forSlug slug: String) -> URL? {
+        let exact = root.appendingPathComponent(slug, isDirectory: true)
+        var isDirectory: ObjCBool = false
+        let exactExists = fileManager.fileExists(atPath: exact.path, isDirectory: &isDirectory)
+        if exactExists, isDirectory.boolValue {
+            return exact
+        }
+        guard fileManager.fileExists(atPath: root.path) else { return nil }
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: .skipsHiddenFiles
+        ) else { return nil }
+        let wanted = slug.lowercased()
+        var folderNameFallback: URL?
+        for folderURL in contents {
+            var isDir: ObjCBool = false
+            guard fileManager.fileExists(atPath: folderURL.path, isDirectory: &isDir),
+                  isDir.boolValue
+            else { continue }
+            if folderURL.lastPathComponent.lowercased() == wanted, folderNameFallback == nil {
+                folderNameFallback = folderURL
+            }
+            if let book = validatedBook(at: folderURL), book.id.lowercased() == wanted {
+                return folderURL
+            }
+        }
+        return folderNameFallback
+    }
 
     private func validatedBook(at folderURL: URL) -> Book? {
         let bookURL = folderURL.appendingPathComponent("book.json", isDirectory: false)

@@ -19,6 +19,187 @@ enum TolerantFixtures {
         try makeDeflateDescriptorZip(at: zipURL, entries: entries)
     }
 
+    /// Raw ZIP writer for device-parity fixtures: explicit name bytes, flag and
+    /// method per entry. Stored sizes/CRC live in the local header (no descriptor).
+    struct RawZipEntry {
+        let nameBytes: Data
+        let content: Data
+        /// Deflate payload bytes actually stored (raw deflate for method 8, content for method 0).
+        let storedBytes: Data
+        let method: UInt16
+        let flag: UInt16
+    }
+
+    static func rawDeflateBytes(_ data: Data) -> Data? {
+        // Hand-rolled raw deflate (RFC1951) using stored (uncompressed) blocks
+        // only. NSData's `.zlib` output framing varies by platform (it is NOT
+        // reliably header+payload+adler, so strip-first/strip-last truncation
+        // silently corrupts the stream -> Z_BUF_ERROR in the reader).
+        // Stored blocks are deterministic everywhere, always valid raw deflate,
+        // and always bypass the reader's NSData fast path — so the test
+        // genuinely exercises inflateInit2(-15).
+        guard !data.isEmpty else { return Data() }
+        var out = Data()
+        var offset = 0
+        while offset < data.count {
+            let chunk = min(65535, data.count - offset)
+            let isFinal = (offset + chunk) == data.count
+            out.append(isFinal ? 0x01 : 0x00) // BFINAL + BTYPE=00, byte-aligned
+            let len = UInt16(chunk)
+            out.append(UInt8(len & 0xFF))
+            out.append(UInt8(len >> 8))
+            let nlen = ~len
+            out.append(UInt8(nlen & 0xFF))
+            out.append(UInt8(nlen >> 8))
+            out.append(contentsOf: data[offset ..< offset + chunk])
+            offset += chunk
+        }
+        return out
+    }
+
+    static func makeRawZip(at url: URL, entries: [RawZipEntry]) throws {
+        var localData = Data()
+        var centralData = Data()
+        var offset: UInt32 = 0
+        for entry in entries {
+            let crc = tolerantCRC32(entry.content)
+            let compSize = UInt32(entry.storedBytes.count)
+            let uncompSize = UInt32(entry.content.count)
+            var local = Data()
+            tolerantAppend32(0x0403_4B50, to: &local)
+            tolerantAppend16(20, to: &local)
+            tolerantAppend16(entry.flag, to: &local)
+            tolerantAppend16(entry.method, to: &local)
+            tolerantAppend16(0, to: &local)
+            tolerantAppend16(0, to: &local)
+            tolerantAppend32(crc, to: &local)
+            tolerantAppend32(compSize, to: &local)
+            tolerantAppend32(uncompSize, to: &local)
+            tolerantAppend16(UInt16(entry.nameBytes.count), to: &local)
+            tolerantAppend16(0, to: &local)
+            local.append(entry.nameBytes)
+            local.append(entry.storedBytes)
+            localData.append(local)
+            var central = Data()
+            tolerantAppend32(0x0201_4B50, to: &central)
+            tolerantAppend16(20, to: &central)
+            tolerantAppend16(20, to: &central)
+            tolerantAppend16(entry.flag, to: &central)
+            tolerantAppend16(entry.method, to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend32(crc, to: &central)
+            tolerantAppend32(compSize, to: &central)
+            tolerantAppend32(uncompSize, to: &central)
+            tolerantAppend16(UInt16(entry.nameBytes.count), to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend16(0, to: &central)
+            tolerantAppend32(0, to: &central)
+            tolerantAppend32(offset, to: &central)
+            central.append(entry.nameBytes)
+            centralData.append(central)
+            offset += UInt32(local.count)
+        }
+        var eocd = Data()
+        tolerantAppend32(0x0605_4B50, to: &eocd)
+        tolerantAppend16(0, to: &eocd)
+        tolerantAppend16(0, to: &eocd)
+        tolerantAppend16(UInt16(entries.count), to: &eocd)
+        tolerantAppend16(UInt16(entries.count), to: &eocd)
+        tolerantAppend32(UInt32(centralData.count), to: &eocd)
+        tolerantAppend32(offset, to: &eocd)
+        tolerantAppend16(0, to: &eocd)
+        var final = Data()
+        final.append(localData)
+        final.append(centralData)
+        final.append(eocd)
+        try final.write(to: url)
+    }
+
+    /// Valid package with TRUE raw-deflate (method 8) entries — exercises the
+    /// inflateInit2(-15) path that Files/Windows producers emit and that failed
+    /// on device via the hardcoded zlib version / dylib paths.
+    static func makeRawDeflateZip(at zipURL: URL, id: String, count: Int) throws {
+        let refs = (0 ..< count).map { _ in "\"C\"" }.joined(separator: ",")
+        let bookJSON = "{\"id\":\"\(id)\",\"name\":\"Test\",\"count\":\(count),\"author\":\"A\",\"references\":[\(refs)]}"
+        var entries: [RawZipEntry] = []
+        func deflateEntry(name: String, content: Data) throws -> RawZipEntry {
+            guard let raw = rawDeflateBytes(content) else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            return RawZipEntry(
+                nameBytes: Data(name.utf8),
+                content: content,
+                storedBytes: raw,
+                method: 8,
+                flag: 0x0800
+            )
+        }
+        try entries.append(deflateEntry(name: "book.json", content: Data(bookJSON.utf8)))
+        for idx in 1 ... count {
+            let html = "<html><body><p>Nội dung chương \(idx) with enough text to make deflate worthwhile. "
+                + String(repeating: "lorem ipsum dolor sit amet. ", count: 20) + "</p></body></html>"
+            try entries.append(deflateEntry(
+                name: "chapters/chapter-\(idx).html",
+                content: Data(html.utf8)
+            ))
+        }
+        try makeRawZip(at: zipURL, entries: entries)
+    }
+
+    /// Wrapper whose folder name uses legacy 8-bit bytes with UTF8-flag=0
+    /// (Files/Windows ZIPs with VI names). Old code threw on decode; fallback
+    /// must preserve the entry and flatten by structure.
+    static func makeLegacyFilenameWrapperZip(
+        at zipURL: URL,
+        id: String,
+        outerNameBytes: Data,
+        flag: UInt16
+    ) throws {
+        let bookJSON = "{\"id\":\"\(id)\",\"name\":\"Test\",\"count\":1,\"author\":\"A\",\"references\":[\"C1\"]}"
+        func entry(suffix: String, content: Data) -> RawZipEntry {
+            RawZipEntry(
+                nameBytes: outerNameBytes + Data(suffix.utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: flag
+            )
+        }
+        var rawEntries: [RawZipEntry] = []
+        rawEntries.append(entry(suffix: "book.json", content: Data(bookJSON.utf8)))
+        rawEntries.append(entry(suffix: "chapters/chapter-1.html", content: Data("<p>hi</p>".utf8)))
+        try makeRawZip(at: zipURL, entries: rawEntries)
+    }
+
+    /// Multi-level wrapper + device/Windows system strays. `depth` counts
+    /// nested single folders above book.json.
+    static func makeDeepWrapperWithStraysZip(at zipURL: URL, id: String, depth: Int) throws {
+        let bookJSON = "{\"id\":\"\(id)\",\"name\":\"Test\",\"count\":1,\"author\":\"A\",\"references\":[\"C1\"]}"
+        let prefix = (0 ..< depth).map { "level-\($0)/" }.joined()
+        func stored(_ name: String, _ content: Data) -> RawZipEntry {
+            RawZipEntry(
+                nameBytes: Data(name.utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0800
+            )
+        }
+        var strayEntries: [RawZipEntry] = []
+        strayEntries.append(stored("\(prefix)book.json", Data(bookJSON.utf8)))
+        strayEntries.append(stored("\(prefix)chapters/chapter-1.html", Data("<p>hi</p>".utf8)))
+        strayEntries.append(stored("__macosx/._book.json", Data("junk".utf8)))
+        strayEntries.append(stored(".Spotlight-V100/Store-V2/abc", Data("junk".utf8)))
+        strayEntries.append(stored(".Trashes/501/x", Data("junk".utf8)))
+        strayEntries.append(stored("Thumbs.db", Data("junk".utf8)))
+        strayEntries.append(stored(".LSOverride", Data("junk".utf8)))
+        strayEntries.append(stored(".DS_Store", Data("junk".utf8)))
+        try makeRawZip(at: zipURL, entries: strayEntries)
+    }
+
     private static func deflateRaw(_ data: Data) -> Data {
         if data.isEmpty {
             return Data()

@@ -141,6 +141,48 @@ private func makeWrapperZip(at base: URL) -> URL {
     return zipURL
 }
 
+private func makeVersion45Zip(at zipURL: URL) throws {
+    // Single stored entry advertising version-needed 45 (ZIP64 signature).
+    let content = Data("{\"id\":\"z64\",\"name\":\"Z\",\"count\":0,\"author\":null,\"references\":[]}".utf8)
+    var crc: UInt32 = 0xFFFF_FFFF
+    var table = [UInt32](repeating: 0, count: 256)
+    for idx in 0 ..< 256 {
+        var value = UInt32(idx)
+        for _ in 0 ..< 8 {
+            value = (value & 1) != 0 ? (value >> 1) ^ 0xEDB8_8320 : value >> 1
+        }
+        table[idx] = value
+    }
+    for byte in content {
+        crc = (crc >> 8) ^ table[Int((crc ^ UInt32(byte)) & 0xFF)]
+    }
+    crc ^= 0xFFFF_FFFF
+    func append16(_ value: UInt16, to data: inout Data) {
+        var little = value.littleEndian
+        data.append(Data(bytes: &little, count: 2))
+    }
+    func append32(_ value: UInt32, to data: inout Data) {
+        var little = value.littleEndian
+        data.append(Data(bytes: &little, count: 4))
+    }
+    let nameData = Data("book.json".utf8)
+    var local = Data()
+    append32(0x0403_4B50, to: &local)
+    append16(45, to: &local)
+    append16(0, to: &local)
+    append16(0, to: &local)
+    append16(0, to: &local)
+    append16(0, to: &local)
+    append32(crc, to: &local)
+    append32(UInt32(content.count), to: &local)
+    append32(UInt32(content.count), to: &local)
+    append16(UInt16(nameData.count), to: &local)
+    append16(0, to: &local)
+    local.append(nameData)
+    local.append(content)
+    try local.write(to: zipURL)
+}
+
 // MARK: - Tests
 
 @MainActor
@@ -792,5 +834,854 @@ final class ImportViewModelTests: XCTestCase {
         } catch let err as ImportError {
             XCTAssertEqual(err, .invalidPackage)
         }
+    }
+
+    // MARK: - Device-parity hardening: legacy filenames, deep wrappers, raw deflate
+
+    func testImportLegacyCP437FilenameWrapperSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("legacy-name.zip")
+        // "café/" in Latin-1 bytes (0xE9 invalid alone in UTF-8), UTF8-flag=0:
+        // Files/Windows ZIPs with VI names. Old code threw on decode.
+        try TolerantFixtures.makeLegacyFilenameWrapperZip(
+            at: zipURL,
+            id: "legacy-vi",
+            outerNameBytes: Data([0x63, 0x61, 0x66, 0xE9, 0x2F]),
+            flag: 0x0000
+        )
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "legacy-vi", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/legacy-vi/book.json").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/legacy-vi/chapters/chapter-1.html").path))
+    }
+
+    func testImportUTF8BytesWithFlagZeroWrapperSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("utf8-flag0.zip")
+        // VI folder name in real UTF-8 bytes but UTF8-flag=0 (common producer).
+        var outer = Data("truyện-".utf8)
+        outer.append(0x2F) // "/"
+        try TolerantFixtures.makeLegacyFilenameWrapperZip(
+            at: zipURL,
+            id: "utf8-flag0",
+            outerNameBytes: outer,
+            flag: 0x0000
+        )
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "utf8-flag0", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/utf8-flag0/book.json").path))
+    }
+
+    func testImportDeepWrapperWithStraysSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("deep-strays.zip")
+        try TolerantFixtures.makeDeepWrapperWithStraysZip(at: zipURL, id: "deep-book", depth: 2)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "deep-book", exportUrl: zipURL.absoluteString))
+        let dest = tmp.appendingPathComponent("books/deep-book")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: dest.appendingPathComponent("book.json").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: dest.appendingPathComponent("chapters/chapter-1.html").path))
+        for stray in ["__macosx", ".Spotlight-V100", ".Trashes", "Thumbs.db", ".LSOverride", ".DS_Store"] {
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: dest.appendingPathComponent(stray).path),
+                "stray \(stray) must not be imported"
+            )
+        }
+    }
+
+    func testImportTooDeepWrapperRejectedAndLogged() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("too-deep.zip")
+        try TolerantFixtures.makeDeepWrapperWithStraysZip(at: zipURL, id: "too-deep", depth: 4)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "too-deep", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage beyond flatten depth")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertTrue(
+            entries.contains { $0.event == "import.fail" && ($0.detail?.contains("stage=validate") ?? false) },
+            "validator cause must be visible in Log viewer"
+        )
+        // Reason must be human-readable Vietnamese, never a bare "invalidPackage:0".
+        let fail = entries.first { $0.event == "import.fail" }
+        let detail = try XCTUnwrap(fail?.detail)
+        XCTAssertTrue(detail.contains("reason="), "import.fail must carry a reason, got: \(detail)")
+        XCTAssertTrue(detail.contains("book.json"), "validate reason must name book.json, got: \(detail)")
+        XCTAssertFalse(detail.contains("invalidPackage:0"), "must not surface bare error, got: \(detail)")
+        // start -> fail share one requestId for correlation.
+        let start = entries.first { $0.event == "import.start" }
+        XCTAssertEqual(start?.requestId, fail?.requestId, "start/fail must correlate by requestId")
+    }
+
+    func testImportCorruptZipFailsAtUnzipWithReason() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = makeValidZip(at: tmp, slug: "corrupt-unzip", count: 1)
+        // Flip a content byte so the stored CRC no longer matches -> unzip throws.
+        var data = try Data(contentsOf: zipURL)
+        if let range = data.range(of: Data("<html>c1</html>".utf8)) {
+            data[range.lowerBound] ^= 0xFF
+        } else {
+            XCTFail("fixture content not found"); return
+        }
+        try data.write(to: zipURL)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "corrupt-unzip", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for corrupt zip")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "corrupt zip must fail at unzip, got: \(detail)")
+        XCTAssertTrue(detail.contains("reason="), "import.fail must carry a reason, got: \(detail)")
+        XCTAssertTrue(detail.contains("cắt xén"), "crc reason must hint truncated download, got: \(detail)")
+    }
+
+    func testImportDownloadTimeoutFailsWithReason() async throws {
+        let repo = makeMockRepository()
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(error: URLError(.timedOut))
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "timeout-book", exportUrl: "https://cdn.example.com/b.zip"))
+            XCTFail("expected downloadFailed")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .downloadFailed)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        XCTAssertEqual(fail.host, "cdn.example.com", "must log host without token/query")
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=download"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("hết thời gian"), "timeout reason must be Vietnamese, got: \(detail)")
+    }
+
+    func testImportSuccessLogsStartAndSuccessWithSharedRequestId() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zip = makeValidZip(at: tmp, slug: "logged-book", count: 2)
+        let repo = FileBookRepository(
+            root: tmp.appendingPathComponent("books", isDirectory: true),
+            fileManager: .default
+        )
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zip)
+        )
+        await DiagnosticsLog.shared.clear()
+        try await vm.importBook(book(slug: "logged-book", exportUrl: zip.absoluteString))
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let start = try XCTUnwrap(entries.first { $0.event == "import.start" })
+        let success = try XCTUnwrap(entries.first { $0.event == "import.success" })
+        XCTAssertEqual(start.requestId, success.requestId, "start/success must correlate by requestId")
+        XCTAssertEqual(success.bookId, "logged-book")
+        XCTAssertTrue(
+            success.detail?.contains("chapters=2") ?? false,
+            "success must carry chapter count, got: \(success.detail ?? "-")"
+        )
+        XCTAssertFalse(entries.contains { $0.event == "import.fail" }, "no failure expected")
+    }
+
+    func testImportRawDeflateSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("raw-deflate.zip")
+        try TolerantFixtures.makeRawDeflateZip(at: zipURL, id: "deflate-book", count: 2)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "deflate-book", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/deflate-book/book.json").path))
+        let html = try String(
+            contentsOf: tmp.appendingPathComponent("books/deflate-book/chapters/chapter-1.html"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(html.contains("Nội dung chương 1"))
+    }
+
+    func testImportUppercaseNamesNormalized() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Device ZIPs with Book.JSON / CHAPTERS / CHAPTER-01.HTML casing must
+        // import on case-sensitive filesystems via canonical-root normalisation.
+        let src = tmp.appendingPathComponent("src-\(UUID().uuidString)", isDirectory: true)
+        let chapters = src.appendingPathComponent("CHAPTERS", isDirectory: true)
+        try FileManager.default.createDirectory(at: chapters, withIntermediateDirectories: true)
+        try #"{"id":"upper-book","name":"U","count":2,"author":"A","references":["C1","C2"]}"#
+            .write(to: src.appendingPathComponent("Book.JSON"), atomically: true, encoding: .utf8)
+        try "<p>one</p>".write(
+            to: chapters.appendingPathComponent("CHAPTER-01.HTML"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "<p>two</p>".write(
+            to: chapters.appendingPathComponent("Chapter-2.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let zipURL = tmp.appendingPathComponent("upper.zip")
+        try FileManager.default.zipItem(at: src, to: zipURL, shouldKeepParent: false)
+        try? FileManager.default.removeItem(at: src)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "upper-book", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/upper-book/book.json").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/upper-book/chapters/chapter-1.html").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/upper-book/chapters/chapter-2.html").path))
+    }
+
+    func testImportFailDetailCarriesDiag() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let src = tmp.appendingPathComponent("src", isDirectory: true)
+        let chapters = src.appendingPathComponent("chapters", isDirectory: true)
+        try FileManager.default.createDirectory(at: chapters, withIntermediateDirectories: true)
+        try "{\"id\":\"diag-import\",\"name\":\"D\",\"count\":1,\"author\":\"A\",\"references\":[\"C1\"]}".write(
+            to: src.appendingPathComponent("book.json"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "<p>1</p>".write(
+            to: chapters.appendingPathComponent("chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "cover".write(to: src.appendingPathComponent("cover.jpg"), atomically: true, encoding: .utf8)
+        let zipURL = tmp.appendingPathComponent("extra.zip")
+        try FileManager.default.zipItem(at: src, to: zipURL, shouldKeepParent: false)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "diag-import", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for extra file")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=validate"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("diag="), "got: \(detail)")
+        XCTAssertTrue(detail.contains("depth=0"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("extra=[cover.jpg]"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("thừa file"), "reason must name extra-file cause, got: \(detail)")
+    }
+
+    func testImportFailCarriesMethodSite() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Synthetic method-12 entry: reader only accepts 0/8.
+        let content = Data("{\"id\":\"m\",\"name\":\"M\",\"count\":0,\"author\":null,\"references\":[]}".utf8)
+        let zipURL = tmp.appendingPathComponent("method12.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("book.json".utf8),
+                content: content,
+                storedBytes: content,
+                method: 12,
+                flag: 0x0800
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "m", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for method 12")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("uz="), "got: \(detail)")
+        XCTAssertTrue(detail.contains("site=method"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("method=12"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("không hỗ trợ"), "reason must name unsupported method, got: \(detail)")
+    }
+
+    func testImportFailCarriesCrcSite() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = makeValidZip(at: tmp, slug: "crc-uz", count: 1)
+        // Flip one chapter content byte so stored CRC no longer matches.
+        var data = try Data(contentsOf: zipURL)
+        if let range = data.range(of: Data("<html>c1</html>".utf8)) {
+            data[range.lowerBound] ^= 0xFF
+        } else {
+            XCTFail("fixture content not found"); return
+        }
+        try data.write(to: zipURL)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "crc-uz", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for CRC mismatch")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("site=crc"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("cắt xén"), "reason must hint truncated download, got: \(detail)")
+    }
+
+    func testImportFailCarriesDescriptorSite() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let zipURL = tmp.appendingPathComponent("truncated-desc.zip")
+        try makeDescriptorFlagStoreZip(at: zipURL, files: [
+            "book.json": Data("{\"id\":\"d\",\"name\":\"D\",\"count\":0,\"author\":null,\"references\":[]}".utf8),
+            "chapters/chapter-1.html": Data("<p>hi</p>".utf8), // swiftlint:disable:this trailing_comma
+        ])
+        // Truncate inside the first entry's payload so no next header exists
+        // for the descriptor scan.
+        var data = try Data(contentsOf: zipURL)
+        let firstNameLen = Int(UInt16(data[26]) | UInt16(data[27]) << 8)
+        let firstExtraLen = Int(UInt16(data[28]) | UInt16(data[29]) << 8)
+        data = data.prefix(30 + firstNameLen + firstExtraLen + 5)
+        try data.write(to: zipURL)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "d", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for truncated descriptor zip")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("site=descriptor"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("mở rộng"), "reason must name descriptor format, got: \(detail)")
+    }
+
+    func testImportAbsolutePathWrapperSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Device shape: ZIP packed with absolute paths (`/cao-vo-…/book.json`).
+        // Relativized under the destination, then flattened like any wrapper.
+        let wrapper = "/cao-vo-toan-lop-lieu"
+        let bookData = Data("{\"id\":\"abs-book\",\"name\":\"A\",\"count\":1,\"author\":null,\"references\":[\"C1\"]}"
+            .utf8)
+        let chapterData = Data("<p>hi</p>".utf8)
+        func stored(_ name: String, _ content: Data) -> TolerantFixtures.RawZipEntry {
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data(name.utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0800
+            )
+        }
+        let zipURL = tmp.appendingPathComponent("absolute.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            stored("\(wrapper)/book.json", bookData),
+            stored("\(wrapper)/chapters/chapter-1.html", chapterData), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "abs-book", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/abs-book/book.json").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/abs-book/chapters/chapter-1.html").path))
+    }
+
+    func testImportBackslashSeparatorsSucceed() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Windows-packed separators normalize to subdirectories.
+        let bookData = Data("{\"id\":\"bs-book\",\"name\":\"B\",\"count\":1,\"author\":null,\"references\":[\"C1\"]}"
+            .utf8)
+        let chapterData = Data("<p>hi</p>".utf8)
+        let zipURL = tmp.appendingPathComponent("backslash.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("bs-pkg\\book.json".utf8),
+                content: bookData,
+                storedBytes: bookData,
+                method: 0,
+                flag: 0x0000
+            ),
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("bs-pkg\\chapters\\chapter-1.html".utf8),
+                content: chapterData,
+                storedBytes: chapterData,
+                method: 0,
+                flag: 0x0000
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "bs-book", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/bs-book/chapters/chapter-1.html").path))
+    }
+
+    func testEscapingPathsStillRejected() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Each shape must still fail closed after normalization.
+        let shapes: [(String, [String])] = [
+            ("dotdot", ["pkg/../../evil.html"]),
+            ("abs-dotdot", ["/../evil.html"]),
+            ("backslash-dotdot", ["..\\evil.html"]),
+            ("drive", ["C:\\evil.html"]), // swiftlint:disable:this trailing_comma
+        ]
+        for (label, names) in shapes {
+            let zipURL = tmp.appendingPathComponent("\(label).zip")
+            let content = Data("x".utf8)
+            try TolerantFixtures.makeRawZip(at: zipURL, entries: names.map {
+                TolerantFixtures.RawZipEntry(
+                    nameBytes: Data($0.utf8),
+                    content: content,
+                    storedBytes: content,
+                    method: 0,
+                    flag: 0x0000
+                )
+            })
+            let out = tmp.appendingPathComponent("out-\(label)", isDirectory: true)
+            do {
+                try FileManager.default.unzipItem(at: zipURL, to: out)
+                XCTFail("\(label) must be rejected")
+            } catch {
+                let token = UnzipFailure.token(from: error) ?? "<no-uz>"
+                XCTAssertTrue(token.contains("site=traversal"), "\(label) got: \(token)")
+                let ns = error as NSError
+                XCTAssertEqual(ns.domain, NSCocoaErrorDomain)
+                XCTAssertEqual(ns.code, NSFileReadCorruptFileError)
+            }
+        }
+        // Nothing escaped the destinations.
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tmp.appendingPathComponent("evil.html").path))
+    }
+
+    // MARK: - Group 1: BOM, encrypted, HTTP status, ZIP64
+
+    func testImportBOMBookJsonSucceeds() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Windows editors prepend EF BB BF; decoder must skip it.
+        var bookData = Data([0xEF, 0xBB, 0xBF])
+        let bomJSON = "{\"id\":\"bom-book\",\"name\":\"B\",\"count\":1,\"author\":null,\"references\":[\"C1\"]}"
+        bookData.append(contentsOf: Data(bomJSON.utf8))
+        let chapterData = Data("<p>hi</p>".utf8)
+        let zipURL = tmp.appendingPathComponent("bom.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("book.json".utf8),
+                content: bookData,
+                storedBytes: bookData,
+                method: 0,
+                flag: 0x0800
+            ),
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("chapters/chapter-1.html".utf8),
+                content: chapterData,
+                storedBytes: chapterData,
+                method: 0,
+                flag: 0x0800
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "bom-book", exportUrl: zipURL.absoluteString))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/bom-book/book.json").path))
+        XCTAssertTrue(FileManager.default
+            .fileExists(atPath: tmp.appendingPathComponent("books/bom-book/chapters/chapter-1.html").path))
+    }
+
+    func testImportEncryptedEntryFails() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let content = Data("secret".utf8)
+        let zipURL = tmp.appendingPathComponent("encrypted.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("book.json".utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0001
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "enc", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for encrypted entry")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("site=encrypted"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("mã hoá"), "reason must name encryption, got: \(detail)")
+    }
+
+    func testDownloaderStatusMapping() throws {
+        let url = try XCTUnwrap(URL(string: "https://cdn.example.com/a.zip"))
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        for code in [200, 201, 299] {
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: url,
+                statusCode: code,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            XCTAssertEqual(try URLSessionDownloader.validatedDownloadURL(fileURL: file, response: response), file)
+        }
+        for code in [199, 300, 404, 500] {
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: url,
+                statusCode: code,
+                httpVersion: nil,
+                headerFields: nil
+            ))
+            XCTAssertThrowsError(try URLSessionDownloader.validatedDownloadURL(
+                fileURL: file,
+                response: response
+            )) { error in
+                XCTAssertEqual((error as? URLError)?.code, .badServerResponse)
+            }
+        }
+        let plain = URLResponse(url: url, mimeType: nil, expectedContentLength: 0, textEncodingName: nil)
+        XCTAssertEqual(try URLSessionDownloader.validatedDownloadURL(fileURL: file, response: plain), file)
+    }
+
+    func testBadServerResponseRoutesToDownloadStage() async throws {
+        let repo = makeMockRepository()
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(error: URLError(.badServerResponse))
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "gone", exportUrl: "https://cdn.example.com/gone.zip"))
+            XCTFail("expected downloadFailed")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .downloadFailed)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        XCTAssertTrue(fail.detail?.contains("stage=download") ?? false, "got: \(fail.detail ?? "-")")
+    }
+
+    func testImportZIP64SignaturedEntryFails() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Hand-rolled local header advertising version-needed 45 (ZIP64).
+        let zipURL = tmp.appendingPathComponent("zip64.zip")
+        try makeVersion45Zip(at: zipURL)
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        await DiagnosticsLog.shared.clear()
+        do {
+            try await vm.importBook(book(slug: "z64", exportUrl: zipURL.absoluteString))
+            XCTFail("expected invalidPackage for ZIP64")
+        } catch let err as ImportError {
+            XCTAssertEqual(err, .invalidPackage)
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let fail = try XCTUnwrap(entries.first { $0.event == "import.fail" })
+        let detail = try XCTUnwrap(fail.detail)
+        XCTAssertTrue(detail.contains("stage=unzip"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("site=zip64"), "got: \(detail)")
+        XCTAssertTrue(detail.contains("ZIP64"), "reason must name ZIP64, got: \(detail)")
+    }
+
+    func testImportLargeMappedReadParity() async throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // ~4MB stored payload forces real multi-page mapped reads; bytes must
+        // round-trip identically through the memory-mapped parser.
+        var seed: UInt64 = 0x1234_5678
+        func pseudoRandom(_ count: Int, marker: String) -> Data {
+            var out = Data(marker.utf8)
+            out.reserveCapacity(count)
+            while out.count < count {
+                seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+                out.append(UInt8((seed >> 33) & 0xFF))
+            }
+            return out
+        }
+        let chapter1 = pseudoRandom(2 * 1024 * 1024, marker: "<html>CH1:")
+        let chapter2 = pseudoRandom(2 * 1024 * 1024, marker: "<html>CH2:")
+        let bigBookJSON = "{\"id\":\"big-book\",\"name\":\"B\",\"count\":2,\"author\":null,"
+            + "\"references\":[\"C1\",\"C2\"]}"
+        let bookData = Data(bigBookJSON.utf8)
+        func stored(_ name: String, _ content: Data) -> TolerantFixtures.RawZipEntry {
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data(name.utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0800
+            )
+        }
+        let zipURL = tmp.appendingPathComponent("big.zip")
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            stored("book.json", bookData),
+            stored("chapters/chapter-1.html", chapter1),
+            stored("chapters/chapter-2.html", chapter2), // swiftlint:disable:this trailing_comma
+        ])
+        let repo = FileBookRepository(root: tmp.appendingPathComponent("books"), fileManager: .default)
+        let vm = ImportViewModel(
+            catalogService: MockCatalog(books: []),
+            repository: repo,
+            downloader: MockDownloader(zipURL: zipURL)
+        )
+        try await vm.importBook(book(slug: "big-book", exportUrl: zipURL.absoluteString))
+        let saved1 = try Data(contentsOf: tmp.appendingPathComponent("books/big-book/chapters/chapter-1.html"))
+        let saved2 = try Data(contentsOf: tmp.appendingPathComponent("books/big-book/chapters/chapter-2.html"))
+        XCTAssertEqual(saved1, chapter1)
+        XCTAssertEqual(saved2, chapter2)
+    }
+
+    func testTraversalShowsFullNamePast40Chars() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Escape hidden past the old 40-char truncation must stay visible.
+        let longWrapper = String(repeating: "a", count: 50)
+        let zipURL = tmp.appendingPathComponent("hidden-tail.zip")
+        let content = Data("x".utf8)
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("\(longWrapper)/../../evil.html".utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0000
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let out = tmp.appendingPathComponent("out", isDirectory: true)
+        do {
+            try FileManager.default.unzipItem(at: zipURL, to: out)
+            XCTFail("hidden escape must be rejected")
+        } catch {
+            let token = try XCTUnwrap(UnzipFailure.token(from: error))
+            XCTAssertTrue(token.contains("site=traversal"), "got: \(token)")
+            XCTAssertTrue(token.contains("/../../evil.html"), "tail must stay visible, got: \(token)")
+            let ns = error as NSError
+            XCTAssertEqual(ns.domain, NSCocoaErrorDomain)
+            XCTAssertEqual(ns.code, NSFileReadCorruptFileError)
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tmp.appendingPathComponent("evil.html").path))
+    }
+
+    func testBackslashDeepEscapeStillRejected() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        // Prime suspect for the device prefix hit: long wrapper + backslash
+        // `..` tail. Normalized before the check, so it stays rejected.
+        let longWrapper = String(repeating: "b", count: 50)
+        let zipURL = tmp.appendingPathComponent("backslash-deep.zip")
+        let content = Data("x".utf8)
+        try TolerantFixtures.makeRawZip(at: zipURL, entries: [
+            TolerantFixtures.RawZipEntry(
+                nameBytes: Data("\(longWrapper)\\..\\..\\evil.html".utf8),
+                content: content,
+                storedBytes: content,
+                method: 0,
+                flag: 0x0000
+            ), // swiftlint:disable:this trailing_comma
+        ])
+        let out = tmp.appendingPathComponent("out", isDirectory: true)
+        do {
+            try FileManager.default.unzipItem(at: zipURL, to: out)
+            XCTFail("backslash escape must be rejected")
+        } catch {
+            let token = try XCTUnwrap(UnzipFailure.token(from: error))
+            XCTAssertTrue(token.contains("site=traversal"), "got: \(token)")
+            XCTAssertTrue(token.contains(".."), "normalized tail must stay visible, got: \(token)")
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: tmp.appendingPathComponent("evil.html").path))
+    }
+
+    func testUnzipTokenTailsAndCaps() {
+        let longName = String(repeating: "n", count: 100) + "/chapter-1.html"
+        let prefix = UnzipFailure(
+            site: "prefix",
+            entryIndex: 0,
+            method: 0,
+            compSize: 0,
+            isDescriptor: false,
+            uncompSize: 0,
+            entriesExtracted: 0,
+            entryName: String(longName.prefix(160)),
+            note: "base=\(String(repeating: "b", count: 70)) dest=\(String(repeating: "d", count: 70))"
+        ).token()
+        XCTAssertTrue(prefix.contains("name=\(longName)"), "prefix keeps full name, got: \(prefix)")
+        XCTAssertTrue(prefix.contains("base="), "got: \(prefix)")
+        XCTAssertTrue(prefix.contains("dest="), "got: \(prefix)")
+        let crc = UnzipFailure(
+            site: "crc",
+            entryIndex: 1,
+            method: 0,
+            compSize: 15,
+            isDescriptor: false,
+            uncompSize: 15,
+            entriesExtracted: 1,
+            entryName: String(longName.prefix(160))
+        ).token()
+        XCTAssertTrue(crc.contains("name=\(String(longName.prefix(40)))"), "other sites keep 40-cap, got: \(crc)")
+        XCTAssertFalse(crc.contains(longName), "got: \(crc)")
+        XCTAssertFalse(crc.contains("base="), "got: \(crc)")
+        // Method parse survives trailing free-form segments. Key literal mirrors
+        // the private unzipFailureUserInfoKey; a key change fails loudly here.
+        let parsed = UnzipFailure.siteAndMethod(from: NSError(
+            domain: NSCocoaErrorDomain,
+            code: NSFileReadCorruptFileError,
+            userInfo: ["com.novels.unzipFailure": prefix]
+        ))
+        XCTAssertEqual(parsed?.site, "prefix")
+        XCTAssertEqual(parsed?.method, 0)
     }
 }

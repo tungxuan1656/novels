@@ -86,4 +86,20 @@ final class RouterSettingsTests: XCTestCase {
         router.push(.settings)
         XCTAssertEqual(router.path.count, 2)
     }
+
+    func testSettingsLogRoutePushesApiLogWithNilBook() {
+        let router = Router()
+        router.push(.apiLog(bookId: nil, initialFilter: .all))
+        XCTAssertEqual(router.path.count, 1)
+    }
+
+    func testSettingsViewHasLogRow() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let candidate = root.appendingPathComponent("apps/novels/Features/Settings/SettingsView.swift")
+        let code = try String(contentsOfFile: candidate.path, encoding: .utf8)
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"settings-LOG\")"))
+        XCTAssertTrue(code.contains("Nhật ký"))
+        XCTAssertTrue(code.contains(".apiLog(bookId: nil"))
+    }
 }
