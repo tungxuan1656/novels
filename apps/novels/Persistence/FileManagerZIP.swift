@@ -656,8 +656,11 @@ extension FileManager {
             )
             return CocoaError(.fileReadCorruptFile, userInfo: [unzipFailureUserInfoKey: failure.token()])
         }
-        // Resolve destination for prefix check handling /var vs /private symlink
-        let baseResolved = destinationURL.resolvingSymlinksInPath().standardizedFileURL.path
+        // Resolve the root once and build child URLs from that canonical root.
+        // On iOS, resolving a not-yet-created child can leave /var unresolved
+        // while the existing root resolves to /private/var.
+        let canonicalDestinationURL = destinationURL.resolvingSymlinksInPath().standardizedFileURL
+        let baseResolved = canonicalDestinationURL.path
         try createDirectory(at: destinationURL, withIntermediateDirectories: true)
         // Memory-map the ZIP instead of slurping it: identical Data API and
         // offset semantics for the parser below, without spiking RAM on
@@ -865,7 +868,7 @@ extension FileManager {
                     throw corruptError("method") // mapped to ImportError.invalidPackage
                 }
                 // Ensure resolved dest has prefix destination (handle /var -> /private symlink)
-                let destURL = destinationURL.appendingPathComponent(fileName)
+                let destURL = canonicalDestinationURL.appendingPathComponent(fileName)
                 let destResolved = destURL.resolvingSymlinksInPath().standardizedFileURL.path
                 // Normalize base with trailing slash check
                 if destResolved != baseResolved && !destResolved.hasPrefix(baseResolved + "/") {

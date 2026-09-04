@@ -501,6 +501,34 @@ final class ImportViewModelTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: canonical.appendingPathComponent("book.json").path))
     }
 
+    func testUnzipCanonicalizesSymlinkedDestinationRoot() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let realDestination = tmp.appendingPathComponent("real-out", isDirectory: true)
+        let symlinkedDestination = tmp.appendingPathComponent("linked-out", isDirectory: true)
+        try FileManager.default.createDirectory(at: realDestination, withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(
+            at: symlinkedDestination,
+            withDestinationURL: realDestination
+        )
+        let zipURL = makeWrapperZip(at: tmp)
+
+        XCTAssertNoThrow(
+            try FileManager.default.unzipItem(at: zipURL, to: symlinkedDestination),
+            "unzip failed for symlinked destination"
+        )
+        let canonical = FileManager.default.resolveCanonicalRoot(at: realDestination)
+        XCTAssertTrue(
+            ZipValidator.isValidRoot(at: canonical),
+            "canonical root is invalid: \(canonical.path), diag=\(ZipValidator.diagnose(at: canonical))"
+        )
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: realDestination.appendingPathComponent("outer/book.json").path),
+            "book.json was not extracted to the real destination"
+        )
+    }
+
     func testResolverDoesNotFlattenTwoTopLevelFolders() throws {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
