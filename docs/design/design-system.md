@@ -18,17 +18,33 @@ Elevation: flat / raised / overlay
 
 Tokens map to values and uses.
 
-- **background** — #FDFCF8 paper for Reading, #FFFFFF white for Library and Settings, #F5F5F5 light gray for grouped sections
-- **surface** — #FFFFFF for cards and sheets
-- **text** — #111111 near-black for titles
-- **muted** — #6B7280 for meta and hints
-- **accent** — #2563EB blue for active states and info
+- **background (reading)** — trio theo `ReadingTheme` (feat-021, code canonical): Vàng giấy `#F5F1E5` (mặc định), Trắng `#FFFFFF`, Đen `#171512`. Drift `#FDFCF8` trong docs cũ đã resolved về `#F5F1E5` theo code `DesignTokens.swift`. `headerBg` trùng `background` để liền mạch khi cuộn.
+- **background (non-reading)** — #FFFFFF white for Library and Settings, #F5F5F5 light gray for grouped sections
+- **surface** — #FFFFFF for cards and sheets (non-reading; reading sheet dùng `ultraThinMaterial` + forced scheme theo theme)
+- **text (reading)** — theo theme: Vàng/Trắng `#111111`, Đen `#ECE7DF` (trắng ấm, không dùng `#FFFFFF` để đỡ lóa). Body contrast AAA (~12–19:1).
+- **text (non-reading)** — #111111 near-black for titles
+- **muted/icon (reading)** — theo theme: Vàng/Trắng `#6B7280`, Đen `#A8A29E` (`#6B7280` trên nền đen chỉ ~3.2:1 nên bắt buộc sáng lên để đạt AA ~6:1)
+- **muted (non-reading)** — #6B7280 for meta and hints
+- **chip (reading)** — Vàng `#E8DDC0`, Trắng `#EFEFF1`, Đen `#2A2724`
+- **border (reading)** — Vàng `#DCD2B6`, Trắng `#E5E7EB`, Đen `#3B3732`; divider trong sheet dùng theme border
+- **accent (reading)** — Vàng/Trắng `#2563EB`, Đen `#60A5FA` (`#2563EB` trên nền đen chỉ ~3.3:1 nên đổi riêng để đạt AA)
+- **accent (non-reading)** — #2563EB blue for active states and info
 - **success** — #16A34A green for confirm and enabled
 - **warning** — #EA580C orange for warnings
 - **error** — #DC2626 red for delete and errors
-- **border** — #E5E7EB light neutral, 1px for dividers
+- **border (non-reading)** — #E5E7EB light neutral, 1px for dividers
 
-Icons use muted for idle and surface for on-color. Contrast is 4.5:1 for text and 3:1 for icons.
+Reading trio (approved feat-021, giữ nguyên từng số):
+
+| Theme | bg/header | text | muted/icon | chip | border | accent |
+|---|---|---|---|---|---|---|
+| Vàng giấy (default) | `#F5F1E5` | `#111111` | `#6B7280` | `#E8DDC0` | `#DCD2B6` | `#2563EB` |
+| Trắng | `#FFFFFF` | `#111111` | `#6B7280` | `#EFEFF1` | `#E5E7EB` | `#2563EB` |
+| Đen | `#171512` | `#ECE7DF` | `#A8A29E` | `#2A2724` | `#3B3732` | `#60A5FA` |
+
+Nguyên tắc: theme đọc override system dark mode chỉ trong Reader stack (`preferredColorScheme` .light cho Vàng/Trắng, .dark cho Đen); disabled icon opacity 0.35 (sáng) / 0.42 (tối), giữ `.disabled`; sheet force scheme theo theme để `ultraThinMaterial` không chói.
+
+Icons use muted/iconTint for idle and surface for on-color. Contrast is 4.5:1 for text and 3:1 for icons.
 
 ## 3. Typography Scale
 

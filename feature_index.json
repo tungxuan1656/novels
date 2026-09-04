@@ -124,6 +124,12 @@
       "title": "Fastlane iOS Diawi Distribution",
       "status": "done",
       "depends_on": []
+    },
+    {
+      "id": "feat-021",
+      "title": "Reading Themes Trio (Vàng giấy / Trắng / Đen)",
+      "status": "done",
+      "depends_on": ["feat-004", "feat-005"]
     }
   ]
 }

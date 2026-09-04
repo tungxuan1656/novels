@@ -37,17 +37,17 @@ private extension UIColor {
 
 enum DesignTokens {
     #if canImport(UIKit)
-    static let backgroundPaper = Color(uiColor: .adapted(lightHex: 0xF5F1E5, dark: .systemBackground))
-    static let backgroundWhite = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: .systemBackground))
-    static let backgroundGrouped = Color(uiColor: .adapted(lightHex: 0xF5F5F5, dark: .secondarySystemBackground))
-    static let surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: .secondarySystemBackground))
+    static let backgroundPaper = Color(uiColor: .adapted(lightHex: 0xF5F1E5, dark: UIColor(hex: 0x0F1419)))
+    static let backgroundWhite = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: UIColor(hex: 0x0F1419)))
+    static let backgroundGrouped = Color(uiColor: .adapted(lightHex: 0xF5F5F5, dark: UIColor(hex: 0x171D23)))
+    static let surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: UIColor(hex: 0x171D23)))
     static let text = Color(uiColor: .adapted(lightHex: 0x111111, dark: .label))
     static let muted = Color(uiColor: .adapted(lightHex: 0x6B7280, dark: .secondaryLabel))
     static let accent = Color(hex: 0x2563EB)
     static let success = Color(hex: 0x16A34A)
     static let warning = Color(hex: 0xEA580C)
     static let error = Color(hex: 0xDC2626)
-    static let border = Color(uiColor: .adapted(lightHex: 0xE5E7EB, dark: .separator))
+    static let border = Color(uiColor: .adapted(lightHex: 0xE5E7EB, dark: UIColor(hex: 0x232B33)))
     #else
     static let backgroundPaper = Color(hex: 0xF5F1E5)
     static let backgroundWhite = Color(hex: 0xFFFFFF)
@@ -76,4 +76,113 @@ enum DesignTokens {
 
     static let rowMinHeight: CGFloat = 56
     static let sidePadding: CGFloat = 16
+}
+
+// MARK: - Reading themes (feat-021, approved trio, exact hex)
+
+extension ReadingTheme {
+    var background: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0xF5F1E5)
+            case .trang:
+                return Color(hex: 0xFFFFFF)
+            case .den:
+                return Color(hex: 0x171512)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var headerBackground: Color {
+        background
+    }
+
+    var textPrimary: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0x111111)
+            case .trang:
+                return Color(hex: 0x111111)
+            case .den:
+                return Color(hex: 0xECE7DF)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var textMuted: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0x6B7280)
+            case .trang:
+                return Color(hex: 0x6B7280)
+            case .den:
+                return Color(hex: 0xA8A29E)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var iconTint: Color {
+        textMuted
+    }
+
+    var chipBackground: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0xE8DDC0)
+            case .trang:
+                return Color(hex: 0xEFEFF1)
+            case .den:
+                return Color(hex: 0x2A2724)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var borderColor: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0xDCD2B6)
+            case .trang:
+                return Color(hex: 0xE5E7EB)
+            case .den:
+                return Color(hex: 0x3B3732)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var accentColor: Color {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay:
+                return Color(hex: 0x2563EB)
+            case .trang:
+                return Color(hex: 0x2563EB)
+            case .den:
+                return Color(hex: 0x60A5FA)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var preferredColorScheme: ColorScheme {
+        // swiftlint:disable switch_case_alignment
+        switch self {
+            case .vangGiay, .trang:
+                return .light
+            case .den:
+                return .dark
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    var isDark: Bool {
+        self == .den
+    }
+
+    var disabledIconOpacity: Double {
+        isDark ? 0.42 : 0.35
+    }
 }

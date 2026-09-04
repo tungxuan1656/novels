@@ -145,7 +145,7 @@ struct AddBookView: View {
                         .contentShape(Rectangle())
                     }
                     .listRowSeparator(.hidden)
-                    .listRowBackground(DesignTokens.surface)
+                    .listRowBackground(DesignTokens.backgroundWhite)
                     .listRowInsets(
                         EdgeInsets(
                             top: 4,
@@ -153,10 +153,6 @@ struct AddBookView: View {
                             bottom: 4,
                             trailing: DesignTokens.sidePadding
                         )
-                    )
-                    .background(DesignTokens.surface)
-                    .clipShape(
-                        RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
                     )
                     .accessibilityIdentifier("addbook.row.\(exp.book.slug)")
                 }

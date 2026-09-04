@@ -227,3 +227,11 @@
 **Evidence**: `ruby -c fastlane/Fastfile` Syntax OK; `bundle exec fastlane lanes` 4/4; grep old token 0 + android 0; `./init.sh` full PASS (format/lint/build/test/drift); `feature_index.json` feat-020 done (zero active)
 **Blockers**: none
 **Next**: repo idle — export `DIAWI_TOKEN` then `bundle exec fastlane ios distribute` to ship IPA to Diawi
+
+## 2026-09-05 — feat-021
+
+**State**: done
+**Done**: Reading Themes Trio — `ReadingTheme` vangGiay (default) / trang / den persist `UserDefaults` key `readingTheme` (unknown → vangGiay), per-theme palette exact approved hex, `ReaderView` full theme tokens + `preferredColorScheme` Reader-only + disabled 0.35/0.42, `ReaderBottomSheet` section `Màu nền` 3 swatch 48pt VI + ring accent 2.5pt + live + haptic + a11y + theme border + force scheme, docs resolve `#FDFCF8`→`#F5F1E5`
+**Evidence**: `features/feat-021.md` (acceptance 7/7), `feature_index.json` feat-021 done (zero active), `apps/novels/Domain/ReadingTheme.swift`, `apps/novels/Persistence/DefaultsKeys.swift` + `SettingsStore.swift` (`loadReadingTheme` + `loadDiagnosticsTypographySession` refactor), `apps/novels/Resources/DesignTokens.swift` palette extension, `apps/novels/Features/Reading/ReaderView.swift` (no `backgroundPaper`/`systemGray5`), `apps/novels/Features/Reading/ReaderBottomSheet.swift` (`themePicker`/`theme-vangGiay`/`Màu nền`), `apps/novelsTests/ReadingThemeTests.swift` 6/6, `docs/contracts/settings-schema.md` + `docs/design/design-system.md`; `./init.sh` full PASS 2026-09-05 (format 0/96, lint 0/96, build PASS, test PASS incl. ReadingTheme 6/6 + UITests, drift PASS 21/22)
+**Blockers**: none (tree uncommitted incl. prior feats + feat-021 — not committed as not requested)
+**Next**: repo idle — user retests 3 themes live + relaunch persist + Đen + Light sheet on Simulator

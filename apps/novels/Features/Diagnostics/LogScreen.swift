@@ -74,8 +74,11 @@ struct LogScreen: View {
             List(filteredGroups) { group in
                 groupCell(group)
                     .listRowSeparator(.hidden)
+                    .listRowBackground(DesignTokens.backgroundWhite)
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(DesignTokens.backgroundWhite)
             .accessibilityIdentifier("logList")
             .accessibilityLabel("Danh sách nhật ký, \(filteredGroups.count) nhóm")
         }

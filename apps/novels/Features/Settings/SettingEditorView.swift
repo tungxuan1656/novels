@@ -18,6 +18,7 @@ struct SettingEditorView: View {
                     .font(.caption)
                     .foregroundStyle(DesignTokens.muted)
             }
+            .listRowBackground(DesignTokens.surface)
             Section("Giá trị") {
                 if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
@@ -40,7 +41,10 @@ struct SettingEditorView: View {
                         .foregroundStyle(DesignTokens.error)
                 }
             }
+            .listRowBackground(DesignTokens.surface)
         }
+        .scrollContentBackground(.hidden)
+        .background(DesignTokens.backgroundWhite)
         .navigationTitle(descriptor.label)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

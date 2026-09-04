@@ -36,6 +36,10 @@ struct ReaderView: View {
         _settingsStore = State(initialValue: store)
     }
 
+    private var theme: ReadingTheme {
+        settingsStore.readingTheme
+    }
+
     var body: some View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
@@ -51,7 +55,7 @@ struct ReaderView: View {
                                 aiSection
                             } else if viewModel.blocks.isEmpty {
                                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                                    .foregroundStyle(DesignTokens.muted)
+                                    .foregroundStyle(theme.textMuted)
                             } else {
                                 content
                             }
@@ -113,7 +117,8 @@ struct ReaderView: View {
                 }
             }
         }
-        .background(DesignTokens.backgroundPaper)
+        .background(theme.background)
+        .colorScheme(theme.preferredColorScheme)
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .interactiveDismissDisabled(true)
@@ -121,6 +126,7 @@ struct ReaderView: View {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
                 .presentationDetents([.medium])
                 .presentationBackground(.ultraThinMaterial)
+                .preferredColorScheme(theme.preferredColorScheme)
         }
     }
 
@@ -130,7 +136,7 @@ struct ReaderView: View {
                 aiProcessedContent(processed)
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                    .foregroundStyle(DesignTokens.muted)
+                    .foregroundStyle(theme.textMuted)
             } else {
                 content
             }
@@ -146,7 +152,7 @@ struct ReaderView: View {
                     }
                     var piece = Text(span.text)
                         .font(fontFor(block: block, span: span))
-                        .foregroundStyle(DesignTokens.text)
+                        .foregroundStyle(theme.textPrimary)
                     if span.kind == .bold || span.kind == .boldItalic {
                         piece = piece.bold()
                     }
@@ -170,7 +176,7 @@ struct ReaderView: View {
 
         return Text(text)
             .font(font)
-            .foregroundStyle(DesignTokens.text)
+            .foregroundStyle(theme.textPrimary)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
             .kerning(CGFloat(settingsStore.typography.letterSpacing))
             .multilineTextAlignment(.leading)
@@ -207,14 +213,14 @@ struct ReaderView: View {
             HStack {
                 Text(topChapterTitleText)
                     .font(.system(size: 10, weight: .regular))
-                    .foregroundStyle(DesignTokens.text)
+                    .foregroundStyle(theme.textPrimary)
                     .lineLimit(1)
                     .accessibilityIdentifier("chapterText")
                 Spacer(minLength: 0)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 2)
-            .background(DesignTokens.backgroundPaper)
+            .background(theme.headerBackground)
 
             HStack {
                 Button {
@@ -222,9 +228,9 @@ struct ReaderView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(DesignTokens.muted)
+                        .foregroundStyle(theme.iconTint)
                         .frame(width: 28, height: 28)
-                        .background(Color(uiColor: .systemGray5))
+                        .background(theme.chipBackground)
                         .clipShape(Circle())
                 }
                 .a11yHitTarget()
@@ -241,7 +247,7 @@ struct ReaderView: View {
                                 .frame(width: 22, height: 28)
                             Text("Đang xử lý")
                                 .font(.caption)
-                                .foregroundStyle(DesignTokens.muted)
+                                .foregroundStyle(theme.textMuted)
                                 .lineLimit(1)
                         }
                         .frame(height: 28)
@@ -262,8 +268,8 @@ struct ReaderView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(
                                     viewModel.canGoPrev
-                                        ? DesignTokens.muted
-                                        : DesignTokens.muted.opacity(0.3)
+                                        ? theme.iconTint
+                                        : theme.iconTint.opacity(theme.disabledIconOpacity)
                                 )
                                 .frame(width: 22, height: 28)
                                 .contentShape(Rectangle())
@@ -285,8 +291,8 @@ struct ReaderView: View {
                                 .font(.system(size: 10, weight: .bold))
                                 .foregroundStyle(
                                     viewModel.canGoNext
-                                        ? DesignTokens.muted
-                                        : DesignTokens.muted.opacity(0.3)
+                                        ? theme.iconTint
+                                        : theme.iconTint.opacity(theme.disabledIconOpacity)
                                 )
                                 .frame(width: 22, height: 28)
                                 .contentShape(Rectangle())
@@ -297,7 +303,7 @@ struct ReaderView: View {
                     }
                     .padding(.horizontal, 2)
                     .frame(height: 28)
-                    .background(Color(uiColor: .systemGray5))
+                    .background(theme.chipBackground)
                     .clipShape(Capsule())
 
                     Button {
@@ -305,9 +311,9 @@ struct ReaderView: View {
                     } label: {
                         Image(systemName: "line.3.horizontal")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(DesignTokens.muted)
+                            .foregroundStyle(theme.iconTint)
                             .frame(width: 28, height: 28)
-                            .background(Color(uiColor: .systemGray5))
+                            .background(theme.chipBackground)
                             .clipShape(Circle())
                     }
                     .a11yHitTarget()
@@ -329,9 +335,9 @@ struct ReaderView: View {
             } label: {
                 Image(systemName: "arrow.down")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(DesignTokens.muted)
+                    .foregroundStyle(theme.iconTint)
                     .frame(width: 24, height: 24)
-                    .background(Color(uiColor: .systemGray5).opacity(0.7))
+                    .background(theme.chipBackground.opacity(0.7))
                     .clipShape(Circle())
             }
             .a11yHitTarget()
@@ -347,9 +353,9 @@ struct ReaderView: View {
             } label: {
                 Image(systemName: "textformat.size")
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DesignTokens.muted)
+                    .foregroundStyle(theme.iconTint)
                     .frame(width: 28, height: 28)
-                    .background(Color(uiColor: .systemGray5))
+                    .background(theme.chipBackground)
                     .clipShape(Circle())
             }
             .a11yHitTarget()
