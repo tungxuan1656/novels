@@ -128,8 +128,8 @@ final class SettingsStoreCoercionTests: XCTestCase {
         store.typography.fontSize = 20.0
         XCTAssertEqual(store.value(forKey: "fontSize"), "20")
         XCTAssertNotEqual(store.value(forKey: "fontSize"), "20.0")
-        store.typography.lineHeight = 1.5
-        XCTAssertEqual(store.value(forKey: "lineHeight"), "1.5")
+        store.typography.lineHeight = 5
+        XCTAssertEqual(store.value(forKey: "lineHeight"), "5.0")
         store.typography.letterSpacing = 0
         XCTAssertEqual(store.value(forKey: "letterSpacing"), "0.0")
         store.typography.fontSize = 16

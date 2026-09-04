@@ -163,7 +163,7 @@ import Observation
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
-        if !(1.0 ... 10).contains(typography.lineHeight) {
+        if !(1.0 ... 50).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
         if !(0 ... 3.0).contains(typography.letterSpacing) {

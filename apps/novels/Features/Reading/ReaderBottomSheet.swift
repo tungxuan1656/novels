@@ -79,8 +79,8 @@ struct ReaderBottomSheet: View {
                         get: { settingsStore.typography.lineHeight },
                         set: { clampAndSaveLineHeight($0) }
                     ),
-                    range: 1.0 ... 10,
-                    step: 0.2,
+                    range: 1.0 ... 50,
+                    step: 0.5,
                     format: "%.1f"
                 )
 
@@ -221,7 +221,7 @@ struct ReaderBottomSheet: View {
     }
 
     private func clampAndSaveLineHeight(_ value: Double) {
-        settingsStore.typography.lineHeight = min(max(1.0, value), 10)
+        settingsStore.typography.lineHeight = min(max(1.0, value), 50)
         settingsStore.save()
     }
 

@@ -9,7 +9,7 @@ struct TypographySetting: Codable, Equatable {
     static let `default` = TypographySetting(
         font: "System",
         fontSize: 16,
-        lineHeight: 1.5,
+        lineHeight: 5,
         letterSpacing: 0
     )
 }

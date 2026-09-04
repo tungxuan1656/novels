@@ -145,7 +145,7 @@ struct AddBookView: View {
                         .contentShape(Rectangle())
                     }
                     .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
+                    .listRowBackground(DesignTokens.surface)
                     .listRowInsets(
                         EdgeInsets(
                             top: 4,
@@ -154,7 +154,7 @@ struct AddBookView: View {
                             trailing: DesignTokens.sidePadding
                         )
                     )
-                    .background(Color.white)
+                    .background(DesignTokens.surface)
                     .clipShape(
                         RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
                     )

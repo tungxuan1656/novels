@@ -18,7 +18,7 @@ final class TypographySheetTests: XCTestCase {
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 1.8)
         store.typography.lineHeight = 99
         store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 1.5)
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 5)
         store.typography.letterSpacing = 0.5
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 0.5)
@@ -57,7 +57,7 @@ final class TypographySheetTests: XCTestCase {
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.fontSize, 16)
         store.typography.lineHeight = 0.9
         store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 1.5)
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 5)
         store.typography.letterSpacing = -0.1
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 0)

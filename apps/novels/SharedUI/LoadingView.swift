@@ -19,7 +19,7 @@ struct LoadingView: View {
                     .foregroundStyle(DesignTokens.muted)
             }
             .padding(DesignTokens.spacing24)
-            .background(Color.white)
+            .background(DesignTokens.surface)
             .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusLarge))
             .shadow(color: .black.opacity(0.1), radius: 12)
         }

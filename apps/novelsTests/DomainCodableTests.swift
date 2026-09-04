@@ -106,7 +106,7 @@ final class DomainCodableTests: XCTestCase {
         let defaults = TypographySetting.default
         XCTAssertEqual(defaults.font, "System")
         XCTAssertEqual(defaults.fontSize, 16)
-        XCTAssertEqual(defaults.lineHeight, 1.5)
+        XCTAssertEqual(defaults.lineHeight, 5)
         XCTAssertEqual(defaults.letterSpacing, 0)
     }
 
