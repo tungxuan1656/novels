@@ -27,9 +27,15 @@ final class Router {
         case settings
         case cacheManager
         case settingEditor(settingKey: String)
+        case apiLog(bookId: String?, initialFilter: LogKindFilter)
     }
 
     func restoreInitialRoute() {
+        if CommandLine.arguments.contains("--reset-session") {
+            settingsStore.session = nil
+            settingsStore.save()
+            return
+        }
         settingsStore.load()
         settingsStore.sanitize()
         guard let session = settingsStore.session, session.onScreen else { return }

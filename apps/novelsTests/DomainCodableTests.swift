@@ -38,8 +38,7 @@ final class DomainCodableTests: XCTestCase {
 
     func testAIModeRawValues() {
         XCTAssertEqual(AIMode.none.rawValue, "none")
-        XCTAssertEqual(AIMode.translate.rawValue, "translate")
-        XCTAssertEqual(AIMode.summary.rawValue, "summary")
+        XCTAssertEqual(AIMode.rewrite.rawValue, "rewrite")
     }
 
     func testAIModeCodableRoundTrip() throws {
@@ -56,7 +55,7 @@ final class DomainCodableTests: XCTestCase {
         let chapter = ProcessedChapter(
             bookId: "s",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "hi",
             contentHash: SHA256.hex("hi"),
             createdAt: now,
@@ -111,21 +110,9 @@ final class DomainCodableTests: XCTestCase {
         XCTAssertEqual(defaults.letterSpacing, 0)
     }
 
-    func testAIActionCodableRoundTrip() throws {
-        let action = AIAction(key: "translate", name: "Dich", prompt: "Translate faithfully")
-        let data = try JSONEncoder().encode(action)
-        let decoded = try JSONDecoder().decode(AIAction.self, from: data)
-        XCTAssertEqual(decoded, action)
-    }
-
-    func testAIActionSettingsDefaults() throws {
-        let actions = SettingsDefaults.defaultActions
-        XCTAssertEqual(actions.count, 2)
-        XCTAssertTrue(actions.contains(where: { $0.key == "translate" }))
-        XCTAssertTrue(actions.contains(where: { $0.key == "summary" }))
-        let data = try XCTUnwrap(SettingsDefaults.defaultActionsJSON.data(using: .utf8))
-        let decoded = try JSONDecoder().decode([AIAction].self, from: data)
-        XCTAssertEqual(decoded, actions)
+    func testSettingsDefaultsPrompt() {
+        XCTAssertFalse(SettingsDefaults.defaultPrompt.isEmpty)
+        XCTAssertTrue(SettingsDefaults.defaultPrompt.contains("tiếng Việt"))
     }
 
     func testBookAuthorOptionalMissing() throws {

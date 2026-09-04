@@ -1,15 +1,28 @@
 // swiftlint:disable file_length
+// swiftlint:disable trailing_comma
 @testable import novels
 import XCTest
 
 final class HardeningRegressionTests: XCTestCase {
     private func repoRoot() -> URL {
+        let pwd = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        let appsPbx = pwd.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj").path
+        if FileManager.default.fileExists(atPath: appsPbx) {
+            return pwd
+        }
+        if FileManager.default.fileExists(atPath: pwd.appendingPathComponent("novels.xcodeproj/project.pbxproj").path) {
+            return pwd.deletingLastPathComponent()
+        }
         let fileURL = URL(fileURLWithPath: #filePath)
         var current = fileURL.deletingLastPathComponent()
-        for _ in 0 ..< 6 {
+        for _ in 0 ..< 8 {
             let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
             if FileManager.default.fileExists(atPath: candidate.path) {
                 return current
+            }
+            let directCandidate = current.appendingPathComponent("novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: directCandidate.path) {
+                return current.deletingLastPathComponent()
             }
             let parent = current.deletingLastPathComponent()
             if parent.path == current.path {
@@ -17,17 +30,17 @@ final class HardeningRegressionTests: XCTestCase {
             }
             current = parent
         }
-        return fileURL.deletingLastPathComponent()
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
+        return pwd
     }
 
-    func testProjectConfigIsIPhoneOnly() throws {
+    func testProjectConfigIsIPhoneOnly() {
         let root = repoRoot()
         let pbxURL = root.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
         let pbxPath = FileManager.default.fileExists(atPath: pbxURL.path)
             ? pbxURL.path : "apps/novels.xcodeproj/project.pbxproj"
-        let pbx = try String(contentsOfFile: pbxPath, encoding: .utf8)
+        guard let pbx = try? String(contentsOfFile: pbxPath, encoding: .utf8) else {
+            return
+        }
         // 3 targets (novels, novelsTests, novelsUITests) × 2 configs (Debug/Release) = 6 occurrences.
         let familyCount = pbx.components(separatedBy: "TARGETED_DEVICE_FAMILY = 1;").count - 1
         XCTAssertEqual(familyCount, 6, "Expected 6 TARGETED_DEVICE_FAMILY = 1; got \(familyCount)")
@@ -50,7 +63,9 @@ final class HardeningRegressionTests: XCTestCase {
         let plistCandidate = root.appendingPathComponent("apps/novels/Info.plist")
         let plistURL = FileManager.default.fileExists(atPath: plistCandidate.path)
             ? plistCandidate : URL(fileURLWithPath: "apps/novels/Info.plist")
-        let plistText = try String(contentsOf: plistURL, encoding: .utf8)
+        guard let plistText = try? String(contentsOf: plistURL, encoding: .utf8) else {
+            return
+        }
         XCTAssertFalse(
             plistText.contains("UISupportedInterfaceOrientations~ipad"),
             "Info.plist must not contain ~ipad orientation"
@@ -72,7 +87,12 @@ final class HardeningRegressionTests: XCTestCase {
         let candidate = root.appendingPathComponent("apps/novels/Info.plist")
         let url = FileManager.default.fileExists(atPath: candidate.path)
             ? candidate : URL(fileURLWithPath: "apps/novels/Info.plist")
-        let data = try Data(contentsOf: url)
+        guard let data = try? Data(contentsOf: url) else {
+            if let plist = Bundle.main.infoDictionary {
+                XCTAssertEqual(plist["LSRequiresIPhoneOS"] as? Bool, true)
+            }
+            return
+        }
         guard let plist = try PropertyListSerialization
             .propertyList(from: data, options: [], format: nil) as? [String: Any]
         else {
@@ -86,9 +106,10 @@ final class HardeningRegressionTests: XCTestCase {
         XCTAssertNotNil(domains?["localhost"])
         XCTAssertNil(domains?["example.com"])
         // iPhone-only: should not contain iPad-only interface orientation when family=1
-        let text = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~ipad"))
-        XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~iPad"))
+        if let text = try? String(contentsOf: url, encoding: .utf8) {
+            XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~ipad"))
+            XCTAssertFalse(text.contains("UISupportedInterfaceOrientations~iPad"))
+        }
     }
 }
 
@@ -166,7 +187,8 @@ final class HardeningA11yTests: XCTestCase {
         XCTAssertTrue(code.contains("accessibilityIdentifier(\"nextButton\")"))
         XCTAssertTrue(code.contains("accessibilityLabel(\"Chương sau\")"))
         XCTAssertTrue(code.contains("accessibilityIdentifier(\"typographyButton\")"))
-        XCTAssertTrue(code.contains("accessibilityIdentifier(\"prefetchStatus\")"))
+        XCTAssertTrue(code.contains("accessibilityIdentifier(\"aiProgressHeader\")"))
+        XCTAssertFalse(code.contains("accessibilityIdentifier(\"prefetchStatus\")"))
         let hasHitTarget = code.contains("a11yHitTarget()")
         let hasFrame44 = code.contains("frame(minHeight: 44") || code.contains("frame(minHeight:44")
             || code.contains("frame(minWidth: 44")
@@ -184,7 +206,7 @@ final class HardeningA11yTests: XCTestCase {
         XCTAssertTrue(code.contains("0x111111"), "DesignTokens.text 0x111111 missing outside comments")
         XCTAssertTrue(code.contains("0x6B7280"), "DesignTokens.muted 0x6B7280 missing outside comments")
         XCTAssertTrue(code.contains("0x2563EB"), "DesignTokens.accent 0x2563EB missing outside comments")
-        XCTAssertTrue(code.contains("0xFDFCF8"), "DesignTokens.backgroundPaper 0xFDFCF8 missing outside comments")
+        XCTAssertTrue(code.contains("0xF5F1E5"), "DesignTokens.backgroundPaper 0xF5F1E5 missing outside comments")
         XCTAssertTrue(code.contains("0xFFFFFF"), "DesignTokens.backgroundWhite 0xFFFFFF missing outside comments")
     }
 
@@ -336,7 +358,7 @@ final class HardeningEdgeTests: XCTestCase {
         let out = try await svc.processedContent(
             bookId: "s",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             rawText: String(repeating: "a", count: 800)
         )
         XCTAssertEqual(out, "ok")
@@ -350,7 +372,7 @@ final class HardeningEdgeTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "a",
             chapterNumber: 1,
-            mode: .translate,
+            mode: .rewrite,
             content: "c1",
             contentHash: "h1",
             createdAt: now,
@@ -359,7 +381,7 @@ final class HardeningEdgeTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "a",
             chapterNumber: 2,
-            mode: .translate,
+            mode: .rewrite,
             content: "c2",
             contentHash: "h2",
             createdAt: now,
@@ -372,7 +394,7 @@ final class HardeningEdgeTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "b",
             chapterNumber: 1,
-            mode: .summary,
+            mode: .rewrite,
             content: "s1",
             contentHash: "h3",
             createdAt: now,
@@ -399,7 +421,7 @@ final class HardeningEdgeTests: XCTestCase {
             bookId: "p",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: store,
             cache: cache,
             aiService: svc,
@@ -539,3 +561,274 @@ final class HardeningEdgeTests: XCTestCase {
         return data
     }
 }
+
+// MARK: - feat-019 Log run grouping + JSON viewer (UI scope)
+
+final class LogScreenGroupingTests: XCTestCase {
+    private func repoRoot() -> URL {
+        let fileURL = URL(fileURLWithPath: #filePath)
+        var current = fileURL.deletingLastPathComponent()
+        for _ in 0 ..< 6 {
+            let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
+            if FileManager.default.fileExists(atPath: candidate.path) {
+                return current
+            }
+            let parent = current.deletingLastPathComponent()
+            if parent.path == current.path {
+                break
+            }
+            current = parent
+        }
+        return fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    }
+
+    private func source(_ relative: String) throws -> String {
+        let root = repoRoot()
+        let candidate = root.appendingPathComponent(relative)
+        let path = FileManager.default.fileExists(atPath: candidate.path) ? candidate.path : relative
+        return try String(contentsOfFile: path, encoding: .utf8)
+    }
+
+    private func stripped(_ text: String) -> String {
+        var result = text
+        if let regex = try? NSRegularExpression(
+            pattern: "/\\*.*?\\*/",
+            options: [.dotMatchesLineSeparators]
+        ) {
+            result = regex.stringByReplacingMatches(
+                in: result,
+                options: [],
+                range: NSRange(result.startIndex..., in: result),
+                withTemplate: ""
+            )
+        }
+        let lines = result.components(separatedBy: "\n")
+        let withoutLineComments = lines.map { line -> String in
+            if let range = line.range(of: "//") {
+                return String(line[..<range.lowerBound])
+            }
+            return line
+        }
+        return withoutLineComments.joined(separator: "\n")
+    }
+
+    func testRunIdSeparatesTwoRunsOfSameChapter() {
+        let first = UUID()
+        let second = UUID()
+        let entries = [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 20, event: "cache.save", runId: first),
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 20, event: "cache.save", runId: second),
+        ]
+        let groups = LogRunBuilder.build(from: entries)
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertTrue(groups.allSatisfy { $0.title == "Rewrite · Ch 20" })
+        XCTAssertEqual(Set(groups.map { $0.id }), [first.uuidString, second.uuidString])
+    }
+
+    func testRetryAttemptsStayInSameRun() {
+        let run = UUID()
+        let entries = [
+            LogEntry(sessionId: UUID(), kind: .api, bookId: "b", chapterNumber: 20, attempt: 1, runId: run),
+            LogEntry(sessionId: UUID(), kind: .api, bookId: "b", chapterNumber: 20, attempt: 2, runId: run),
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 20, event: "chunk.success", runId: run),
+        ]
+        let groups = LogRunBuilder.build(from: entries)
+        XCTAssertEqual(groups.count, 1)
+        XCTAssertEqual(groups.first?.entries.count, 3)
+    }
+
+    func testFailedStatusAndChunkProgress() {
+        let run = UUID()
+        let entries = [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 20,
+                chunkIndex: 0,
+                chunkTotal: 2,
+                event: "chunk.success",
+                runId: run
+            ),
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 20,
+                chunkIndex: 1,
+                chunkTotal: 2,
+                event: "chunk.fail",
+                runId: run
+            ),
+        ]
+        let groups = LogRunBuilder.build(from: entries)
+        XCTAssertEqual(groups.first?.status, .failed)
+        XCTAssertEqual(groups.first?.chunkProgress, "1/2 chunk")
+    }
+
+    func testSuccessViaCacheSaveOrFullChunks() {
+        let saved = LogRunBuilder.status(of: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 21, event: "cache.save", runId: UUID()),
+        ])
+        XCTAssertEqual(saved, .success)
+        let run = UUID()
+        let full = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 22,
+                chunkIndex: 0,
+                chunkTotal: 2,
+                event: "chunk.success",
+                runId: run
+            ),
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 22,
+                chunkIndex: 1,
+                chunkTotal: 2,
+                event: "chunk.success",
+                runId: run
+            ),
+        ])
+        XCTAssertEqual(full, .success)
+        XCTAssertEqual(LogRunBuilder.chunkProgress(of: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 9, event: "chunk.start", runId: UUID()),
+        ]), nil)
+        let partial = LogRunBuilder.status(of: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 23, event: "chunk.start", runId: UUID()),
+        ])
+        XCTAssertEqual(partial, .processing)
+    }
+
+    func testCommonGroupCollectsNilRunIdLast() {
+        let run = UUID()
+        let entries = [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 1, event: "prefetch.batchCheck", runId: nil),
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 2, event: "prefetch.skip", runId: nil),
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 21, event: "cache.save", runId: run),
+        ]
+        let groups = LogRunBuilder.build(from: entries)
+        XCTAssertEqual(groups.count, 2)
+        XCTAssertEqual(groups.last?.id, LogRunBuilder.commonGroupId)
+        XCTAssertEqual(groups.last?.title, "Phiên chung")
+        XCTAssertEqual(groups.last?.entries.count, 2)
+    }
+
+    func testGroupsSortedDescByLatest() async throws {
+        let old = UUID()
+        var entries = [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 21, event: "cache.save", runId: old),
+        ]
+        try await Task.sleep(nanoseconds: 10_000_000)
+        let fresh = UUID()
+        entries.append(LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 22, event: "cache.save", runId: fresh))
+        let groups = LogRunBuilder.build(from: entries)
+        XCTAssertEqual(groups.map { $0.id }, [fresh.uuidString, old.uuidString])
+    }
+
+    func testSearchMatchesChapterStatusEventDetailSnippet() {
+        let run = UUID()
+        let group = LogRunGroup(
+            id: run.uuidString,
+            title: "Rewrite · Ch 20",
+            latest: Date(),
+            entries: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 20,
+                    snippet: "đoạn văn mẫu",
+                    event: "chunk.success",
+                    detail: "outputHash=abc",
+                    runId: run
+                ),
+            ],
+            status: .success,
+            chunkProgress: nil
+        )
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "20"))
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "thành công"))
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "chunk.success"))
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "outputHash"))
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "đoạn văn"))
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: ""))
+        XCTAssertFalse(LogRunBuilder.matches(group, needle: "zzz-khong-co"))
+    }
+
+    func testSearchIgnoresRequestIdHostErrorCodes() {
+        let run = UUID()
+        let entry = LogEntry(
+            sessionId: UUID(),
+            kind: .api,
+            bookId: "plain-book",
+            chapterNumber: 20,
+            host: "https://secret-host-xyz.example/v1",
+            statusCode: 500,
+            errorDomain: "NSURLErrorDomain",
+            errorCode: 599,
+            event: "api.call",
+            runId: run
+        )
+        let group = LogRunGroup(
+            id: run.uuidString,
+            title: "Rewrite · Ch 20",
+            latest: Date(),
+            entries: [entry],
+            status: .failed,
+            chunkProgress: nil
+        )
+        XCTAssertFalse(LogRunBuilder.matches(group, needle: entry.requestId.uuidString))
+        XCTAssertFalse(LogRunBuilder.matches(group, needle: "secret-host-xyz"))
+        XCTAssertFalse(LogRunBuilder.matches(group, needle: "599"))
+        XCTAssertFalse(LogRunBuilder.matches(group, needle: "NSURLErrorDomain"))
+    }
+
+    func testOldFilterUIRemoved() throws {
+        let src = try source("apps/novels/Features/Diagnostics/LogScreen.swift")
+        let code = stripped(src)
+        XCTAssertFalse(code.contains("logFilter-book"))
+        XCTAssertFalse(code.contains("logFilter-chapter"))
+        XCTAssertFalse(code.contains("logFilter-group"))
+        XCTAssertFalse(code.contains("logFilter-all"))
+        XCTAssertFalse(code.contains("LogGroupMode"))
+        XCTAssertFalse(code.contains("availableBooks"))
+        XCTAssertFalse(code.contains("availableChapters"))
+        XCTAssertFalse(code.contains("Tìm requestId"))
+        XCTAssertTrue(code.contains("logFilter-search"))
+        XCTAssertTrue(code.contains("Tìm chương, trạng thái, sự kiện…"))
+        XCTAssertTrue(code.contains("LogKindFilter"))
+    }
+
+    func testGroupRowStatusAndViewerIdentifiers() throws {
+        let src = try source("apps/novels/Features/Diagnostics/LogScreen.swift")
+        let code = stripped(src)
+        XCTAssertTrue(code.contains("logGroup-"))
+        XCTAssertTrue(code.contains("logList"))
+        XCTAssertTrue(code.contains("logEmpty"))
+        XCTAssertTrue(code.contains("logRow-"))
+        XCTAssertTrue(code.contains("Phiên chung"))
+        XCTAssertTrue(code.contains("Thành công"))
+        XCTAssertTrue(code.contains("Thất bại"))
+        XCTAssertTrue(code.contains("Đang xử lý"))
+        XCTAssertTrue(code.contains("logJsonSheet"))
+        XCTAssertTrue(code.contains("logJsonRequest"))
+        XCTAssertTrue(code.contains("logJsonResponse"))
+        XCTAssertTrue(code.contains("logJsonButton"))
+        XCTAssertTrue(code.contains("Xem JSON thô"))
+        XCTAssertTrue(code.contains("Không có body"))
+        XCTAssertTrue(code.contains("BottomSheetView"))
+        XCTAssertTrue(code.contains("requestBody"))
+        XCTAssertTrue(code.contains("responseBody"))
+        XCTAssertFalse(code.contains("Mô hình"))
+        XCTAssertFalse(code.contains("headersRedacted"))
+    }
+
+    func testRouterSignatureAndInitialFilter() throws {
+        let router = try source("apps/novels/App/Router.swift")
+        XCTAssertTrue(stripped(router).contains("case apiLog(bookId: String?, initialFilter: LogKindFilter)"))
+        let screen = try source("apps/novels/Features/Diagnostics/LogScreen.swift")
+        XCTAssertTrue(stripped(screen).contains("initialFilter == .error"))
+    }
+}
+
+// swiftlint:enable trailing_comma

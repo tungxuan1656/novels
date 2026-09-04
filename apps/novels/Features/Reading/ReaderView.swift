@@ -6,15 +6,13 @@ struct ReaderView: View {
     @Bindable var router: Router
     @State private var viewModel: ReaderViewModel
     @State private var settingsStore: SettingsStore
-    @State private var offsetY: Double = 0
-    @State private var overscrollLock = false
+    @State private var currentOffset: Double = 0
+    @State private var lastEdgeSwitch = Date.distantPast
     @State private var showSheet = false
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var contentHeight: CGFloat = 0
-    @State private var viewportHeight: CGFloat = 0
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
-    @State private var isProgrammaticScrolling = false
+    @State private var hapticTrigger = 0
 
     init(
         bookId: String,
@@ -41,141 +39,95 @@ struct ReaderView: View {
     var body: some View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
-                        header
-                        if viewModel.isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                        } else if viewModel.aiMode != .none {
-                            aiSection
-                        } else if viewModel.blocks.isEmpty {
-                            Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                                .foregroundStyle(DesignTokens.muted)
-                        } else {
-                            content
+                ZStack(alignment: .top) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
+                            Color.clear.frame(height: 54)
+
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .frame(maxWidth: .infinity)
+                            } else if viewModel.aiMode != .none {
+                                aiSection
+                            } else if viewModel.blocks.isEmpty {
+                                Text(viewModel.errorMessage ?? "Không tìm thấy chương")
+                                    .foregroundStyle(DesignTokens.muted)
+                            } else {
+                                content
+                            }
+                            Color.clear
+                                .frame(height: 120)
+                                .id("bottom")
                         }
-                        prefetchIndicator
-                        footerNav
-                        Color.clear
-                            .frame(height: 1)
-                            .id("bottom")
+                        .padding(DesignTokens.spacing16)
+                        .id("top")
                     }
-                    .padding(DesignTokens.spacing16)
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ContentHeightKey.self,
-                                value: geometry.size.height
-                            )
-                        }
+                    .scrollBounceBehavior(.always, axes: .vertical)
+                    .scrollPosition($scrollPosition)
+                    .onChange(of: viewModel.chapterNumber) { _, _ in
+                        scrollToTop()
+                    }
+                    .onScrollGeometryChange(for: Double.self) { geometry in
+                        geometry.contentOffset.y + geometry.contentInsets.top
+                    } action: { _, scrolled in
+                        currentOffset = scrolled
+                        debouncedSave(scrolled)
+                    }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10)
+                            .onEnded { value in
+                                handleEdgeSwipe(value: value, width: outer.size.width)
+                            }
                     )
-                    .background(
-                        GeometryReader { geometry in
-                            Color.clear.preference(
-                                key: ScrollOffsetKey.self,
-                                value: geometry.frame(in: .named("reader")).minY
-                            )
-                        }
-                    )
-                    .id("top")
+
+                    topHeader
+
+                    VStack {
+                        Spacer()
+                        bottomFloatingBar(proxy)
+                    }
                 }
-                .coordinateSpace(name: "reader")
-                .scrollPosition($scrollPosition)
-                .onPreferenceChange(ScrollOffsetKey.self) { value in
-                    handleOffset(value)
-                }
-                .onPreferenceChange(ContentHeightKey.self) { value in
-                    contentHeight = value
-                }
-                .onPreferenceChange(ViewportHeightKey.self) { value in
-                    viewportHeight = value
-                }
-                .background(
-                    Color.clear.preference(key: ViewportHeightKey.self, value: outer.size.height)
-                )
+                .sensoryFeedback(.impact(weight: .light), trigger: hapticTrigger)
                 .onAppear {
                     scrollProxy = proxy
-                    viewportHeight = outer.size.height
+                    let disappearingChapter = viewModel.lastVisibleChapter
+                    let disappearingMode = viewModel.lastVisibleMode
                     viewModel.onAppear()
+                    let source: LoadSource =
+                        (disappearingChapter == viewModel.chapterNumber
+                            && disappearingMode == viewModel.aiMode)
+                        ? .returnFromLog : .chapterChange
                     Task {
-                        await viewModel.load()
+                        await viewModel.load(source: source)
                         restoreOffset()
                     }
                 }
                 .onDisappear {
                     // Flush pending offset before cancelling debounce
                     if debounceTask != nil {
-                        viewModel.saveOffset(Double(-offsetY))
+                        viewModel.saveOffset(currentOffset)
                     }
                     debounceTask?.cancel()
                     debounceTask = nil
                     viewModel.onDisappear()
                 }
-                .onChange(of: outer.size.height) { _, newValue in
-                    viewportHeight = newValue
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    toBottomButton(proxy)
-                }
             }
         }
         .background(DesignTokens.backgroundPaper)
-        .navigationTitle(viewModel.book?.name ?? "Đọc sách")
-        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    router.popReading()
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                        Text("Thư viện")
-                    }
-                }
-                .a11yHitTarget()
-                .accessibilityLabel("Quay lại Thư viện")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showSheet = true
-                } label: {
-                    Image(systemName: "textformat.size")
-                }
-                .accessibilityIdentifier("typographyButton")
-                .a11yHitTarget()
-            }
-        }
+        .toolbar(.hidden, for: .navigationBar)
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
                 .presentationDetents([.medium])
+                .presentationBackground(.ultraThinMaterial)
         }
     }
 
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
-            if viewModel.isAIProcessing {
-                ProgressView("Đang xử lý...")
-                    .frame(maxWidth: .infinity)
-                    .accessibilityIdentifier("aiProgress")
-            }
-            if let error = viewModel.aiError {
-                Text(error)
-                    .foregroundStyle(DesignTokens.error)
-                    .font(.caption)
-                    .accessibilityIdentifier("aiError")
-            }
             if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
                 aiProcessedContent(processed)
-            } else if !viewModel.isAIProcessing, viewModel.aiError == nil {
-                if viewModel.blocks.isEmpty {
-                    Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                        .foregroundStyle(DesignTokens.muted)
-                } else {
-                    content
-                }
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(DesignTokens.muted)
@@ -212,11 +164,12 @@ struct ReaderView: View {
     }
 
     private func aiProcessedContent(_ text: String) -> some View {
-        Text(text)
-            .font(.system(
-                size: CGFloat(settingsStore.typography.fontSize),
-                design: ReaderFontDesign.design(for: settingsStore.typography.font)
-            ))
+        let base = CGFloat(settingsStore.typography.fontSize)
+        let fontName = settingsStore.typography.font
+        let font = ReaderFontMapper.font(name: fontName, size: base)
+
+        return Text(text)
+            .font(font)
             .foregroundStyle(DesignTokens.text)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
             .kerning(CGFloat(settingsStore.typography.letterSpacing))
@@ -227,141 +180,233 @@ struct ReaderView: View {
 
     private func fontFor(block: TextBlock, span: TextSpan) -> Font {
         let base = CGFloat(settingsStore.typography.fontSize)
-        let design = ReaderFontDesign.design(for: settingsStore.typography.font)
+        let fontName = settingsStore.typography.font
+
         if block.isHeading {
             let level = CGFloat(block.headingLevel ?? 3)
-            return .system(size: base + CGFloat(7 - level) * 2, weight: .bold, design: design)
+            let size = base + CGFloat(7 - level) * 2
+            return ReaderFontMapper.font(name: fontName, size: size, weight: .bold)
         }
-        return .system(size: base, design: design)
+        return ReaderFontMapper.font(name: fontName, size: base)
     }
 
-    private var header: some View {
-        HStack {
-            Text("Chương \(viewModel.chapterNumber)/\(viewModel.book?.count ?? 0)")
-                .font(.caption)
-                .foregroundStyle(DesignTokens.muted)
-                .accessibilityIdentifier("chapterText")
-            Spacer()
-            Button("Mục lục") {
-                router.push(.references(bookId: bookId))
+    private var topChapterTitleText: String {
+        let num = viewModel.chapterNumber
+        let headingBlock = viewModel.blocks.first(where: { $0.isHeading })
+        if let headingText = headingBlock?.spans.first?.text, !headingText.isEmpty {
+            return "【\(num)】 \(headingText)"
+        }
+        if let bookName = viewModel.book?.name, !bookName.isEmpty {
+            return "【\(num)】 Chương \(num): \(bookName)"
+        }
+        return "【\(num)】 Chương \(num)"
+    }
+
+    private var topHeader: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(topChapterTitleText)
+                    .font(.system(size: 10, weight: .regular))
+                    .foregroundStyle(DesignTokens.text)
+                    .lineLimit(1)
+                    .accessibilityIdentifier("chapterText")
+                Spacer(minLength: 0)
             }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("tocButton")
+            .padding(.horizontal, 16)
+            .padding(.vertical, 2)
+            .background(DesignTokens.backgroundPaper)
+
+            HStack {
+                Button {
+                    router.popReading()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DesignTokens.muted)
+                        .frame(width: 30, height: 30)
+                        .background(Color(uiColor: .systemGray5).opacity(0.85))
+                        .clipShape(Circle())
+                }
+                .a11yHitTarget()
+                .accessibilityIdentifier("backButton")
+                .accessibilityLabel("Quay lại Thư viện")
+
+                Spacer()
+
+                HStack(spacing: 4) {
+                    if viewModel.isAIProcessing {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 22, height: 28)
+                            Text("Đang xử lý")
+                                .font(.caption)
+                                .foregroundStyle(DesignTokens.muted)
+                                .lineLimit(1)
+                        }
+                        .frame(height: 28)
+                        .accessibilityIdentifier("aiProgressHeader")
+                        .accessibilityLabel("Đang xử lý")
+                    }
+                    HStack(spacing: 2) {
+                        Button {
+                            debounceTask?.cancel()
+                            debounceTask = nil
+                            lastEdgeSwitch = Date()
+                            Task {
+                                await viewModel.goPrev()
+                                scrollToTop()
+                            }
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(
+                                    viewModel.canGoPrev
+                                        ? DesignTokens.muted
+                                        : DesignTokens.muted.opacity(0.3)
+                                )
+                                .frame(width: 22, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(!viewModel.canGoPrev)
+                        .accessibilityIdentifier("prevButton")
+                        .accessibilityLabel("Chương trước")
+
+                        Button {
+                            debounceTask?.cancel()
+                            debounceTask = nil
+                            lastEdgeSwitch = Date()
+                            Task {
+                                await viewModel.goNext()
+                                scrollToTop()
+                            }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(
+                                    viewModel.canGoNext
+                                        ? DesignTokens.muted
+                                        : DesignTokens.muted.opacity(0.3)
+                                )
+                                .frame(width: 22, height: 28)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(!viewModel.canGoNext)
+                        .accessibilityIdentifier("nextButton")
+                        .accessibilityLabel("Chương sau")
+                    }
+                    .padding(.horizontal, 2)
+                    .frame(height: 28)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .clipShape(Capsule())
+
+                    Button {
+                        router.push(.references(bookId: bookId))
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(DesignTokens.muted)
+                            .frame(width: 28, height: 28)
+                            .background(Color(uiColor: .systemGray5).opacity(0.85))
+                            .clipShape(Circle())
+                    }
+                    .a11yHitTarget()
+                    .accessibilityIdentifier("tocButton")
+                    .accessibilityLabel("Mục lục")
+                }
+            }
+            .padding(.horizontal, 8)
         }
         .accessibilityIdentifier("header")
     }
 
-    @ViewBuilder
-    private var prefetchIndicator: some View {
-        if viewModel.prefetchStatus.isRunning {
-            HStack(spacing: 8) {
-                ProgressView().scaleEffect(0.8)
-                Text(
-                    "Đang tải trước \(viewModel.prefetchStatus.processedChapters)/\(viewModel.prefetchStatus.totalChapters)"
-                )
-                .font(.caption)
-                .foregroundStyle(DesignTokens.muted)
-            }
-            .accessibilityIdentifier("prefetchStatus")
-            .padding(.vertical, 4)
-        } else if !viewModel.prefetchStatus.errors.isEmpty {
-            Text("Tải trước: \(viewModel.prefetchStatus.errors.count) lỗi")
-                .font(.caption)
-                .foregroundStyle(DesignTokens.error)
-                .accessibilityIdentifier("prefetchStatusError")
-        }
-    }
-
-    private var footerNav: some View {
+    private func bottomFloatingBar(_ proxy: ScrollViewProxy) -> some View {
         HStack {
-            Button("Trước") {
-                debounceTask?.cancel()
-                debounceTask = nil
-                beginProgrammaticScrolling()
-                Task {
-                    await viewModel.goPrev()
-                    scrollToTop()
-                }
-            }
-            .disabled(!viewModel.canGoPrev)
-            .opacity(viewModel.canGoPrev ? 1 : 0.4)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("prevButton")
-            .accessibilityLabel("Chương trước")
             Spacer()
-            Button("Sau") {
-                debounceTask?.cancel()
-                debounceTask = nil
-                beginProgrammaticScrolling()
-                Task {
-                    await viewModel.goNext()
-                    scrollToTop()
-                }
+
+            Button {
+                scrollToBottom()
+            } label: {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DesignTokens.muted)
+                    .frame(width: 24, height: 24)
+                    .background(Color(uiColor: .systemGray5).opacity(0.7))
+                    .clipShape(Circle())
             }
-            .disabled(!viewModel.canGoNext)
-            .opacity(viewModel.canGoNext ? 1 : 0.4)
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-            .accessibilityIdentifier("nextButton")
-            .accessibilityLabel("Chương sau")
+            .a11yHitTarget()
+            .accessibilityIdentifier("toBottomButton")
+            .accessibilityLabel("Cuộn xuống cuối")
+            .offset(y: 12)
+
+            Spacer()
         }
+        .overlay(alignment: .trailing) {
+            Button {
+                showSheet = true
+            } label: {
+                Image(systemName: "textformat.size")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DesignTokens.muted)
+                    .frame(width: 32, height: 32)
+                    .background(Color(uiColor: .systemGray5).opacity(0.85))
+                    .clipShape(Circle())
+            }
+            .a11yHitTarget()
+            .accessibilityIdentifier("typographyButton")
+            .accessibilityLabel("Cài đặt phông chữ")
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, -6)
     }
 
-    private func toBottomButton(_ proxy: ScrollViewProxy) -> some View {
-        Button {
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            withAnimation {
-                proxy.scrollTo("bottom", anchor: .bottom)
-            }
-        } label: {
-            Image(systemName: "arrow.down.to.line")
-                .padding(12)
-                .background(DesignTokens.accent)
-                .foregroundStyle(.white)
-                .clipShape(Circle())
-                .shadow(radius: 4)
-        }
-        .padding()
-        .a11yHitTarget()
-        .accessibilityIdentifier("toBottomButton")
-    }
-
-    private func handleOffset(_ value: CGFloat) {
-        let y = Double(value)
-        offsetY = y
-        debouncedSave(-y)
-        guard !isProgrammaticScrolling else { return }
-        let isOverscrolled = ReaderOverscrollLogic.isOverscrolledBeyondBottom(
-            offsetY: value,
-            contentHeight: contentHeight,
-            viewportHeight: viewportHeight
+    private func handleEdgeSwipe(value: DragGesture.Value, width: CGFloat) {
+        let direction = EdgeSwipeDecision.decision(
+            startX: value.startLocation.x,
+            width: width,
+            dx: value.translation.width,
+            dy: value.translation.height
         )
-        if isOverscrolled, !overscrollLock, viewModel.canGoNext {
-            overscrollLock = true
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            Task {
-                await viewModel.goNext()
-                scrollToTop()
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                overscrollLock = false
-            }
-        } else if value > 40, !overscrollLock, viewModel.canGoPrev {
-            overscrollLock = true
-            debounceTask?.cancel()
-            debounceTask = nil
-            beginProgrammaticScrolling()
-            Task {
-                await viewModel.goPrev()
-                scrollToTop()
-                try? await Task.sleep(nanoseconds: 400_000_000)
-                overscrollLock = false
-            }
+        guard let direction else { return }
+        let now = Date()
+        guard EdgeSwipeDecision.isThrottleOk(now: now, lastSwitch: lastEdgeSwitch) else { return }
+        // swiftlint:disable switch_case_alignment
+        switch direction {
+            case .prev:
+                edgeGoPrev(now: now)
+            case .next:
+                edgeGoNext(now: now)
+        }
+        // swiftlint:enable switch_case_alignment
+    }
+
+    private func edgeGoPrev(now: Date) {
+        guard viewModel.canGoPrev else {
+            router.toast.show("Đã là chương đầu", type: .info)
+            return
+        }
+        lastEdgeSwitch = now
+        debounceTask?.cancel()
+        debounceTask = nil
+        hapticTrigger += 1
+        Task {
+            await viewModel.goPrev()
+            scrollToTop()
+        }
+    }
+
+    private func edgeGoNext(now: Date) {
+        guard viewModel.canGoNext else {
+            router.toast.show("Đã là chương cuối", type: .info)
+            return
+        }
+        lastEdgeSwitch = now
+        debounceTask?.cancel()
+        debounceTask = nil
+        hapticTrigger += 1
+        Task {
+            await viewModel.goNext()
+            scrollToTop()
         }
     }
 
@@ -379,11 +424,20 @@ struct ReaderView: View {
     private func scrollToTop() {
         debounceTask?.cancel()
         debounceTask = nil
-        beginProgrammaticScrolling()
-        scrollPosition = ScrollPosition(point: .zero)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            scrollPosition = ScrollPosition(point: .zero)
+            scrollProxy?.scrollTo("top", anchor: .top)
+        }
+    }
+
+    private func scrollToBottom() {
+        debounceTask?.cancel()
+        debounceTask = nil
         if let proxy = scrollProxy {
-            withAnimation {
-                proxy.scrollTo("top", anchor: .top)
+            withAnimation(.easeOut(duration: 0.35)) {
+                proxy.scrollTo("bottom", anchor: .bottom)
             }
         }
     }
@@ -395,21 +449,10 @@ struct ReaderView: View {
             sessionOffset: session?.offset,
             currentBookId: bookId
         ) else { return }
-        beginProgrammaticScrolling()
         Task {
             try? await Task.sleep(nanoseconds: 10_000_000)
             await MainActor.run {
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
-            }
-        }
-    }
-
-    private func beginProgrammaticScrolling() {
-        isProgrammaticScrolling = true
-        Task {
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            await MainActor.run {
-                isProgrammaticScrolling = false
             }
         }
     }

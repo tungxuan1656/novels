@@ -10,7 +10,7 @@ Book 1──* Chapter
 Book 1──* Reference (ordered chapter index)
 Book 1──* ProcessedChapter
 Book 1──* ReadingSession (one active per book)
-AIAction *──* ProcessedChapter (via mode key)
+AI_PROMPT 1──* ProcessedChapter (via mode rewrite)
 ReadingSession *──1 Book
 ReadingSession *──1 Chapter (current)
 TypographySetting 1──* ReadingSession (render)
@@ -24,13 +24,13 @@ Flow: Import → Local Book Repository → Reader → Processed Chapter Cache.
 ### AI Mode
 
 ```
-none ──► translate ──► summary ──┐
-  ▲          │            │       │
-  └──────────┴────────────┘───────┘
+none ──► rewrite
+  ▲          │
+  └──────────┘
 ```
 
-- `none`: Render original. `translate`/`summary`: Check cache first; on miss process and cache.
-- Switch mode at any time.
+- `none` ("Không"): Render original raw text. `rewrite` ("Rewrite"): Check cache first; on miss process using `AI_PROMPT` setting and cache.
+- Switch mode at any time in the reading sheet.
 
 ### Reading Position
 
@@ -60,7 +60,7 @@ idle ──► checking cache ──► processing sequentially ──► done
 | **ExportedBook** | Remote catalog entry for import | `id`, `bookId`, `exportUrl`, `fileSize`, `exportFormat`, `exportedAt`, `book` | Remote catalog |
 | **BookMeta** | Descriptive metadata of an ExportedBook | `id`, `name`, `slug`, `author`, `chapterCount`, `status`, `synopsis`, `lastUpdated` | Remote catalog |
 | **ProcessedChapter** | Cached AI result for one chapter and mode | `bookId`, `chapterNumber`, `mode`, `content`, `contentHash`, `createdAt`, `updatedAt` | Processed chapter cache |
-| **AIAction** | Configurable AI transformation | `key`, `name`, `prompt` | Persistent settings store |
+| **AI_PROMPT** | Configurable AI system prompt | `prompt` | Persistent settings store |
 | **ReadingSession** | Persisted reading position | `bookId`, `onScreen`, `offset` | Persistent settings store |
 | **TypographySetting** | Reader appearance | `font`, `fontSize`, `lineHeight`, `letterSpacing` | Persistent settings store |
 | **PrefetchStatus** | Background prefetch progress (runtime only) | `isRunning`, `currentBookId`, `totalChapters`, `processedChapters`, `message`, `errors[]` | Runtime |
@@ -71,7 +71,7 @@ idle ──► checking cache ──► processing sequentially ──► done
 - ZIP lifecycle follows [business-rules.md](./business-rules.md) BR-02.
 - Cache key follows [business-rules.md](./business-rules.md) BR-07.
 - Prefetch N and trigger follow [business-rules.md](./business-rules.md) BR-08.
-- Treat `AIAction.key` as `ProcessedChapter.mode`.
+- Treat `AIMode.rawValue` (`none` / `rewrite`) as `ProcessedChapter.mode`.
 - Offset storage follows [business-rules.md](./business-rules.md) BR-09.
 - Keep AI cache separate from files and settings. See [business-rules.md](./business-rules.md) BR-07.
 

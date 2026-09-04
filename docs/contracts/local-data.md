@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 ## 3. Persistent Settings Store (plus Session & Typography)
 
 - **Store:** `UserDefaults` via `@Observable` wrapper (see `../decisions/local-persistence.md`). No `Keychain`, no `SwiftData`/`Core Data`.
-- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_PROCESS_ACTIONS`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight`, `letterSpacing` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
+- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_PROMPT`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight`, `letterSpacing` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
 - **Sanitize:** on launch offline — missing/invalid → defaults; unknown/legacy keys → ignored (no migration); `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON → treated as empty, stored verbatim otherwise. See `../../docs/product/business-rules.md` BR-12.
 
 ## Dependencies

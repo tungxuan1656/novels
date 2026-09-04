@@ -14,21 +14,23 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_PROVIDER` | `string` | `openai` | Only `openai` supported; unknown → `openai` |
 | `AI_CUSTOM_HEADERS` | `string` (JSON object) | `""` / empty | User-entered JSON; API key lives here as `Authorization` header if needed; stored with normal settings (no Keychain) — see `../../SECURITY.md`; invalid JSON → ignored |
 | `AI_EXTRA_BODY` | `string` (JSON object) | `""` / empty | User-entered JSON merged into AI body; invalid JSON → ignored |
-| `AI_PROCESS_ACTIONS` | `string` (JSON array) | `translate` + `summary` | Each `{ key, name, prompt }`; invalid/empty → reset to defaults |
+| `AI_PROMPT` | `string` | `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` | System prompt for AI rewrite; missing/empty → reset to default |
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `1..10`, else `3` on read (BR-08) |
+| `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
-UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/actions), prefetch N, typography (font/size/line height/spacing) — see `settings-management.md` Flow step 2.
+UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height/spacing) — see `settings-management.md` Flow step 2.
 
 ## Validation Rules
 
 - **URLs:** non-empty string; on invalid fall back to default on next launch; edit screen blocks save and shows error.
 - **Headers/Body:** must be valid JSON object when non-empty; invalid → treated as empty, request proceeds without merge. No throw.
 - **Provider:** case-insensitive compare; only `openai` accepted.
-- **Actions:** must be array of `{ key:string, name:string, prompt:string }` with `key` in `{translate, summary}`. If malformed/empty → sanitize to two defaults (translate keeps honorifics, summary 50–60%).
+- **Prompt:** non-empty string. If empty → sanitize to default prompt.
 - **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
-- **Typography:** `fontSize 12..24 step 1`, `lineHeight 1.2..2.0 step 0.1`, `letterSpacing 0..1.0 step 0.1`; invalid → defaults.
+- **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
+- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..10 step 0.2`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
 
 ## Current Keys Only
 

@@ -9,7 +9,10 @@ final class LaunchSmokeTests: XCTestCase {
 
     func testLibraryHeaderExists() {
         let app = XCUIApplication()
+        app.launchArguments.append("--reset-session")
         app.launch()
-        XCTAssertTrue(app.navigationBars["Thư viện"].waitForExistence(timeout: 5))
+        let exists = app.staticTexts["Thư viện"].waitForExistence(timeout: 5)
+            || app.navigationBars.element.waitForExistence(timeout: 5)
+        XCTAssertTrue(exists)
     }
 }

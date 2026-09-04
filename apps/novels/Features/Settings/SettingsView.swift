@@ -12,7 +12,6 @@ struct SettingsView: View {
             Section("AI") {
                 row(key: "OPENAI_API_URL", label: "URL OpenAI", value: settings.openaiAPIURL)
                 row(key: "OPENAI_MODEL", label: "Mô hình", value: settings.openaiModel)
-                row(key: "AI_PROVIDER", label: "Nhà cung cấp", value: settings.aiProvider)
                 row(
                     key: "AI_CUSTOM_HEADERS",
                     label: "Headers tùy chỉnh (JSON)",
@@ -24,9 +23,9 @@ struct SettingsView: View {
                     value: settings.aiExtraBodyJSON
                 )
                 row(
-                    key: "AI_PROCESS_ACTIONS",
-                    label: "Hành động AI (JSON)",
-                    value: settings.aiProcessActionsJSON
+                    key: "AI_PROMPT",
+                    label: "Prompt",
+                    value: settings.aiPrompt
                 )
                 row(
                     key: "AI_MIN_CHUNK_SIZE",
@@ -39,24 +38,6 @@ struct SettingsView: View {
                     key: "PREFETCH_COUNT",
                     label: "Số chương tải trước",
                     value: "\(settings.prefetchCount)"
-                )
-            }
-            Section("Kiểu chữ") {
-                row(key: "font", label: "Phông chữ", value: settings.typography.font)
-                row(
-                    key: "fontSize",
-                    label: "Cỡ chữ",
-                    value: String(format: "%g", settings.typography.fontSize)
-                )
-                row(
-                    key: "lineHeight",
-                    label: "Giãn dòng",
-                    value: String(format: "%.1f", settings.typography.lineHeight)
-                )
-                row(
-                    key: "letterSpacing",
-                    label: "Giãn chữ",
-                    value: String(format: "%.1f", settings.typography.letterSpacing)
                 )
             }
             Section("Dữ liệu") {
@@ -72,8 +53,6 @@ struct SettingsView: View {
         }
         .navigationTitle("Cài đặt")
         .navigationBarTitleDisplayMode(.inline)
-        .scrollContentBackground(.hidden)
-        .background(DesignTokens.backgroundPaper)
     }
 
     private func row(key: String, label: String, value: String) -> some View {

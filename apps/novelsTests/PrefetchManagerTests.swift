@@ -137,7 +137,7 @@ final class PrefetchManagerTests: XCTestCase {
     func makeManagerEnv(
         prefetchCount: Int = 3,
         totalChapters: Int = 10,
-        mode: AIMode = .translate
+        mode: AIMode = .rewrite
     ) throws -> (PrefetchManager, SQLiteProcessedChapterCache, SettingsStore, MockBookRepo, TrackingAIClient) {
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let suite = UserDefaults(suiteName: "pref.\(UUID().uuidString)")!
@@ -175,7 +175,7 @@ final class PrefetchManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "book-slug",
             chapterNumber: 2,
-            mode: .translate,
+            mode: .rewrite,
             content: "cached2",
             contentHash: "h2",
             createdAt: now,
@@ -184,7 +184,7 @@ final class PrefetchManagerTests: XCTestCase {
         try cache.upsert(ProcessedChapter(
             bookId: "book-slug",
             chapterNumber: 3,
-            mode: .translate,
+            mode: .rewrite,
             content: "cached3",
             contentHash: "h3",
             createdAt: now,
@@ -195,7 +195,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -217,7 +217,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 5,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -235,7 +235,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -257,7 +257,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 5,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -268,12 +268,12 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertEqual(status.errors.count, 1, "errors \(status.errors) calls \(client.calls)")
         XCTAssertTrue(client.calls.contains(2), "should contain 2, got \(client.calls)")
         XCTAssertTrue(client.calls.contains(4), "should contain 4, got \(client.calls)")
-        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 2, mode: .translate), "2 should be cached")
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 2, mode: .rewrite), "2 should be cached")
         XCTAssertNil(
-            try cache.get(bookId: "book-slug", chapterNumber: 3, mode: .translate),
+            try cache.get(bookId: "book-slug", chapterNumber: 3, mode: .rewrite),
             "3 should not be cached, calls \(client.calls)"
         )
-        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 4, mode: .translate), "4 should be cached")
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 4, mode: .rewrite), "4 should be cached")
     }
 
     func testInvalidPrefetchCountCoercedTo3() async throws {
@@ -283,7 +283,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -308,7 +308,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "s",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings2,
             cache: cache,
             aiService: svc2,
@@ -354,7 +354,7 @@ final class PrefetchManagerTests: XCTestCase {
             bookId: "book-slug",
             currentChapter: 1,
             totalChapters: 10,
-            mode: .translate,
+            mode: .rewrite,
             settings: settings,
             cache: cache,
             aiService: svc,
@@ -364,5 +364,64 @@ final class PrefetchManagerTests: XCTestCase {
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning)
         XCTAssertTrue(client.calls.count <= 2)
+    }
+
+    func testEffectivePrefetchCountClampsOutOfRange() async throws {
+        let (_, _, settings, _, _) = try await makeManagerEnv()
+        let cases: [(input: Int, expected: Int)] = [
+            (0, 3),
+            (-1, 3),
+            (99, 3),
+            (100, 3),
+            (Int.max, 3),
+            (1, 1),
+            (10, 10),
+        ]
+        for (input, expected) in cases {
+            await MainActor.run { settings.prefetchCount = input }
+            let actual = await MainActor.run { settings.effectivePrefetchCount() }
+            XCTAssertEqual(actual, expected, "effectivePrefetchCount(\(input))")
+            // Read-only: stored value stays untouched until save().
+            let stored = await MainActor.run { settings.prefetchCount }
+            XCTAssertEqual(stored, input, "stored prefetchCount must stay \(input)")
+        }
+    }
+
+    func testMissingChapterErrorCarriesOwnRunId() async throws {
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)
+        // Chapter 3 vanished from disk; 2 and 4 prefetch normally.
+        repo.fileExists = { _, number in number != 3 }
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning)
+        XCTAssertEqual(status.errors.count, 1)
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let missing = entries.filter {
+            $0.event == "prefetch.error-continue" && $0.chapterNumber == 3
+        }
+        XCTAssertEqual(missing.count, 1, "one missing-chapter error entry")
+        let missingRun = try XCTUnwrap(missing.first?.runId, "missing-chapter error must carry a runId")
+        // Chapters 2 and 4 each ran under their own distinct runs.
+        let starts2 = entries.filter { $0.event == "chunk.start" && $0.chapterNumber == 2 }
+        let starts4 = entries.filter { $0.event == "chunk.start" && $0.chapterNumber == 4 }
+        XCTAssertFalse(starts2.isEmpty)
+        XCTAssertFalse(starts4.isEmpty)
+        let run2 = try XCTUnwrap(starts2.first?.runId)
+        let run4 = try XCTUnwrap(starts4.first?.runId)
+        XCTAssertNotEqual(run2, run4, "each prefetched chapter is its own run")
+        XCTAssertNotEqual(missingRun, run2)
+        XCTAssertNotEqual(missingRun, run4)
     }
 }

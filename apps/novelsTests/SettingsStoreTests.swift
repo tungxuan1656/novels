@@ -40,8 +40,8 @@ final class SettingsStoreTests: XCTestCase {
         store.prefetchCount = 99
         store.aiMinChunkSize = 100
         store.typography.fontSize = 100
-        store.typography.lineHeight = 5.0
-        store.typography.letterSpacing = 2.0
+        store.typography.lineHeight = 99
+        store.typography.letterSpacing = 5.0
         store.sanitize()
         XCTAssertEqual(store.prefetchCount, 3)
         XCTAssertEqual(store.aiMinChunkSize, 1300)
@@ -56,36 +56,31 @@ final class SettingsStoreTests: XCTestCase {
         store.sanitize()
         XCTAssertEqual(store.prefetchCount, 5)
 
-        store.aiMinChunkSize = 6000
+        store.aiMinChunkSize = 15000
         store.sanitize()
         XCTAssertEqual(store.aiMinChunkSize, 1300)
+        store.aiMinChunkSize = 6000
+        store.sanitize()
+        XCTAssertEqual(store.aiMinChunkSize, 6000)
         store.aiMinChunkSize = 2000
         store.sanitize()
         XCTAssertEqual(store.aiMinChunkSize, 2000)
     }
 
-    func testProviderFallbackAndActionsReset() throws {
+    func testProviderFallbackAndPromptReset() throws {
         let suite = UUID().uuidString
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let store = SettingsStore(userDefaults: userDefaults)
         store.load()
         store.aiProvider = "DEEPSEEK"
-        store.aiProcessActionsJSON = "not json"
+        store.aiPrompt = "   "
         store.sanitize()
         XCTAssertEqual(store.aiProvider, "openai")
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
+        XCTAssertEqual(store.aiPrompt, SettingsDefaults.defaultPrompt)
 
         store.aiProvider = "OpenAI"
         store.sanitize()
         XCTAssertEqual(store.aiProvider, "openai")
-
-        store.aiProcessActionsJSON = #"[{"key":"bad","name":"x","prompt":"y"}]"#
-        store.sanitize()
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
-
-        store.aiProcessActionsJSON = "[]"
-        store.sanitize()
-        XCTAssertEqual(store.aiProcessActionsJSON, SettingsDefaults.defaultActionsJSON)
     }
 
     func testValidHeadersAndBodyParsed() throws {

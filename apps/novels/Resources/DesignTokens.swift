@@ -14,7 +14,7 @@ extension Color {
 }
 
 enum DesignTokens {
-    static let backgroundPaper = Color(hex: 0xFDFCF8)
+    static let backgroundPaper = Color(hex: 0xF5F1E5)
     static let backgroundWhite = Color(hex: 0xFFFFFF)
     static let backgroundGrouped = Color(hex: 0xF5F5F5)
     static let surface = backgroundWhite

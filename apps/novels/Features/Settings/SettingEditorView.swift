@@ -21,7 +21,7 @@ struct SettingEditorView: View {
             Section("Giá trị") {
                 if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
-                    || descriptor.key == "AI_PROCESS_ACTIONS"
+                    || descriptor.key == "AI_PROMPT"
                 // swiftlint:disable:next opening_brace
                 {
                     TextEditor(text: $draft)
@@ -40,34 +40,21 @@ struct SettingEditorView: View {
                         .foregroundStyle(DesignTokens.error)
                 }
             }
-            Section {
-                HStack {
-                    Button("Xóa") {
-                        draft = descriptor.defaultValue
-                        errorMessage = nil
-                    }
-                    .foregroundStyle(DesignTokens.error)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityLabel("Xóa")
-                    Spacer()
-                    Button("Lưu") {
-                        save()
-                    }
-                    .bold()
-                    .disabled(shouldBlockSave)
-                    .opacity(shouldBlockSave ? 0.4 : 1)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityLabel("Lưu")
-                }
-                .frame(minHeight: 44)
-            }
         }
         .navigationTitle(descriptor.label)
         .navigationBarTitleDisplayMode(.inline)
-        .scrollContentBackground(.hidden)
-        .background(DesignTokens.backgroundPaper)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Lưu") {
+                    save()
+                }
+                .bold()
+                .disabled(shouldBlockSave)
+                .opacity(shouldBlockSave ? 0.4 : 1)
+                .accessibilityLabel("Lưu")
+                .accessibilityIdentifier("saveSettingButton")
+            }
+        }
         .onAppear {
             draft = settings.value(forKey: settingKey)
             errorMessage = descriptor.validate(draft)

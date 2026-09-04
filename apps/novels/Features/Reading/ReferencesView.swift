@@ -7,46 +7,54 @@ struct ReferencesView: View {
     @Bindable var router: Router
 
     var body: some View {
-        List {
-            ForEach(Array(book.references.enumerated()), id: \.offset) { idx, title in
-                let chapter = idx + 1
-                Button {
-                    onSelect(chapter)
-                    router.pop()
-                } label: {
-                    HStack {
-                        Text("Chương \(chapter): \(title)")
-                            .foregroundStyle(DesignTokens.text)
-                        Spacer()
-                        if chapter == current {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(DesignTokens.accent)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(0 ..< book.references.count, id: \.self) { idx in
+                        let chapter = idx + 1
+                        let title = book.references[idx]
+                        Button {
+                            onSelect(chapter)
+                            router.pop()
+                        } label: {
+                            VStack(spacing: 0) {
+                                HStack(spacing: 8) {
+                                    Text("\(chapter)")
+                                        .font(.footnote)
+                                        .foregroundStyle(DesignTokens.muted)
+                                        .frame(width: 36, alignment: .leading)
+                                    Text(title)
+                                        .font(.body)
+                                        .foregroundStyle(DesignTokens.text)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    if chapter == current {
+                                        Image(systemName: "checkmark")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(DesignTokens.accent)
+                                    }
+                                }
+                                .padding(.horizontal, DesignTokens.spacing16)
+                                .padding(.vertical, 12)
+
+                                Divider()
+                                    .padding(.leading, 56)
+                            }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .id(chapter)
+                        .accessibilityIdentifier("ref-\(chapter)")
+                        .accessibilityLabel("Chương \(chapter): \(A11yHelpers.cleanedTitle(title))")
                     }
                 }
-                .a11yHitTarget()
-                .listRowBackground(chapter == current ? DesignTokens.accent.opacity(0.08) : Color.clear)
-                .fontWeight(chapter == current ? .bold : .regular)
-                .accessibilityIdentifier("ref-\(chapter)")
-                .accessibilityLabel("Chương \(chapter): \(A11yHelpers.cleanedTitle(title))")
+            }
+            .onAppear {
+                proxy.scrollTo(current, anchor: .center)
             }
         }
-        .navigationTitle("Tài liệu tham khảo")
+        .background(DesignTokens.backgroundWhite)
+        .navigationTitle("Mục lục")
         .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button {
-                    router.pop()
-                } label: {
-                    HStack {
-                        Image(systemName: "chevron.left")
-                        Text("Đọc sách")
-                    }
-                }
-                .a11yHitTarget()
-                .accessibilityLabel("Quay lại Đọc sách")
-            }
-        }
     }
 }

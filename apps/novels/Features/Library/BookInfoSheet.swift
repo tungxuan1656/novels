@@ -18,9 +18,14 @@ struct BookInfoSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Đóng") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.subheadline)
+                            .foregroundStyle(DesignTokens.muted)
                     }
+                    .accessibilityLabel("Đóng")
                 }
             }
         }
@@ -56,23 +61,26 @@ struct BookInfoSheet: View {
             Text("Danh mục chương")
                 .font(.headline)
                 .foregroundStyle(DesignTokens.text)
-            ForEach(Array(book.references.enumerated()), id: \.offset) { index, title in
-                VStack(spacing: 0) {
-                    HStack {
-                        Text("\(index + 1)")
-                            .font(.footnote)
-                            .foregroundStyle(DesignTokens.muted)
-                            .frame(width: 28, alignment: .leading)
-                        Text(title)
-                            .font(.body)
-                            .foregroundStyle(DesignTokens.text)
-                            .lineLimit(1)
-                        Spacer()
-                    }
-                    .padding(.vertical, 6)
-                    if index < book.references.count - 1 {
-                        Divider()
-                            .background(DesignTokens.border)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(0 ..< book.references.count, id: \.self) { index in
+                    let title = book.references[index]
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text("\(index + 1)")
+                                .font(.footnote)
+                                .foregroundStyle(DesignTokens.muted)
+                                .frame(width: 28, alignment: .leading)
+                            Text(title)
+                                .font(.body)
+                                .foregroundStyle(DesignTokens.text)
+                                .lineLimit(1)
+                            Spacer()
+                        }
+                        .padding(.vertical, 12)
+                        if index < book.references.count - 1 {
+                            Divider()
+                                .background(DesignTokens.border)
+                        }
                     }
                 }
             }

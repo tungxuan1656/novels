@@ -20,6 +20,7 @@ struct AppRoot: View {
                     switch route {
                         case let .reading(bookId):
                             ReaderView(bookId: bookId, router: router)
+                                .toolbar(.hidden, for: .navigationBar)
                         case let .references(bookId):
                             let repo = router.repository
                             if let book = try? repo.book(slug: bookId) {
@@ -43,6 +44,8 @@ struct AppRoot: View {
                             CacheManagerView()
                         case let .settingEditor(settingKey):
                             SettingEditorView(settingKey: settingKey)
+                        case let .apiLog(bookId, initialFilter):
+                            LogScreen(bookId: bookId, initialFilter: initialFilter)
                     }
                     // swiftlint:enable switch_case_alignment
                 }

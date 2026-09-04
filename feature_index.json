@@ -64,6 +64,60 @@
       "title": "Tolerant ZIP Ingestion Hotfix",
       "status": "done",
       "depends_on": ["feat-003"]
+    },
+    {
+      "id": "feat-011",
+      "title": "AI Prompt Setting & Inline Rewrite Reading Sheet",
+      "status": "done",
+      "depends_on": ["feat-005", "feat-006"]
+    },
+    {
+      "id": "feat-012",
+      "title": "Prompt Sync & Inline AI Rewrite Picker",
+      "status": "done",
+      "depends_on": ["feat-011"]
+    },
+    {
+      "id": "feat-013",
+      "title": "Edge Swipe Prev/Next Chapter",
+      "status": "done",
+      "depends_on": ["feat-004"]
+    },
+    {
+      "id": "feat-014",
+      "title": "Diagnostic Log Viewer (in-session, timeline)",
+      "status": "done",
+      "depends_on": ["feat-006", "feat-007", "feat-011"]
+    },
+    {
+      "id": "feat-015",
+      "title": "Parallel Chunks + Bounded Retry + Loading-Only UI",
+      "status": "done",
+      "depends_on": ["feat-006", "feat-014"]
+    },
+    {
+      "id": "feat-016",
+      "title": "No Auto-Retry + Fix Stuck Loading",
+      "status": "done",
+      "depends_on": ["feat-015"]
+    },
+    {
+      "id": "feat-017",
+      "title": "Tolerant 200 Decode + Shape Logging",
+      "status": "done",
+      "depends_on": ["feat-016"]
+    },
+    {
+      "id": "feat-018",
+      "title": "Rewrite + Prefetch Correctness (consolidating feat-015/016/017)",
+      "status": "done",
+      "depends_on": ["feat-015", "feat-016", "feat-017"]
+    },
+    {
+      "id": "feat-019",
+      "title": "Chapter-Run Log + Raw JSON View",
+      "status": "done",
+      "depends_on": ["feat-014", "feat-018"]
     }
   ]
 }

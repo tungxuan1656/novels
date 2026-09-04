@@ -74,24 +74,26 @@ struct LibraryView: View {
         .navigationTitle("Thư viện")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    router.push(.addBook)
-                } label: {
-                    Image(systemName: "plus")
-                        .accessibilityLabel("Thêm sách")
+            if router.path.isEmpty {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.push(.addBook)
+                    } label: {
+                        Image(systemName: "plus")
+                            .accessibilityLabel("Thêm sách")
+                    }
+                    .a11yHitTarget()
                 }
-                .a11yHitTarget()
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    router.push(.settings)
-                } label: {
-                    Image(systemName: "gearshape")
-                        .accessibilityLabel("Cài đặt")
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        router.push(.settings)
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .accessibilityLabel("Cài đặt")
+                    }
+                    .accessibilityIdentifier("settingsButton")
+                    .a11yHitTarget()
                 }
-                .accessibilityIdentifier("settingsButton")
-                .a11yHitTarget()
             }
         }
         .loadingOverlay(isLoading: viewModel.isLoading)

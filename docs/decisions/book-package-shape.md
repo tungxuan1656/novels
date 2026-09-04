@@ -29,9 +29,9 @@ Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but pr
 
 ## Amendment 2026-08-26 — Tolerant ingest
 
-- Producer ZIPs thực tế là Finder ZIP với flag 0x08 + outer-folder + `__MACOSX` (như sample). Strict reject gây false invalid.
-- Decision: App tolerant single outer-folder + hygiene ignore + data-descriptor support, vẫn giữ strict cho 2+ top-level / missing chapter / CRC fail.
-- Consequences: Sample `van-gioi-...zip` giờ import được qua flatten; docs/plans/feat-010 implements.
+- Real producer ZIPs are Finder ZIPs with flag `0x08` + outer-folder + `__MACOSX` (like the sample). Strict rejection causes false invalid results.
+- Decision: App tolerates a single outer-folder + hygiene ignore + data-descriptor support, while keeping strict checks for 2+ top-level entries / missing chapter / CRC failure.
+- Consequences: Sample `van-gioi-...zip` now imports via flatten; see `docs/plans/feat-010`.
 
 ## Links
 

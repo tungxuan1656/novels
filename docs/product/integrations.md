@@ -24,7 +24,7 @@
 
 ## 2. AI Processing Service (OpenAI-Compatible)
 
-**Purpose:** Transform raw chapter text into natural Vietnamese (translate) or a shorter faithful version (summary) using a configurable prompt.
+**Purpose:** Transform raw chapter text via single Prompt (`AI_PROMPT`, modes `none`/`rewrite` — the prompt text determines the transformation) using a configurable prompt, one chunk per request.
 
 **Business request:** App sends the active prompt and one chunk of chapter text. Long chapters are split into chunks; each chunk is one request.
 
@@ -36,7 +36,7 @@
 
 **Failure mapping:** No content → "no response from AI service." Network/server error → show provider error or "AI processing failed." Invalid header/body settings are ignored.
 
-**Retry:** Retry 3× (1000 ms / 2000 ms) per ai-service.md. After final failure, cache is not written. Prefetch logs the error and continues.
+**Retry:** Up to 2 attempts (1 retry) per ai-service.md. After final failure, cache is not written. Prefetch logs the error and continues.
 
 **Details:** See [ai-reading](./functional-specs/ai-reading.md).
 

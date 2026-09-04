@@ -37,10 +37,10 @@ Request → User opens book → System marks `onScreen=true` → Loads current c
 
 ### 5 — AI Mode with Cache
 
-Request → User switches `none` | `translate` | `summary`.
+Request → User switches `none` ("Không") | `rewrite` ("Rewrite").
 - `none` → Raw text parsed from HTML in file storage → Render with SwiftUI.Text.
-- `translate`/`summary` → Check processed chapter cache by `bookId + chapterNumber + mode` → Hit → Render cached text with SwiftUI.Text.
-- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with prompt. Retry three times (1000 ms / 2000 ms) per ai-service.md. Then join, clean, and save to cache as text. Then render with SwiftUI.Text.
+- `rewrite` → Check processed chapter cache by `bookId + chapterNumber + "rewrite"` → Hit → Render cached text with SwiftUI.Text.
+- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with system `AI_PROMPT`. Up to 2 attempts (1 retry) per ai-service.md. Then join, clean, and save to cache as text. Then render with SwiftUI.Text.
 - Failure or empty → Show error. Do not write cache.
 
 ### 6 — Prefetch Background
@@ -62,7 +62,7 @@ Request → User opens Settings → System shows groups: catalog, AI, download, 
 | Case | Result |
 |---|---|
 | ZIP missing `book.json` or chapters | Fail import |
-| No network on catalog or AI | Show error. AI retries three times. No cache write |
+| No network on catalog or AI | Show error. AI up to 2 attempts (1 retry). No cache write |
 | Empty AI response | "No response from AI service" |
 | Invalid N | Use default 3 |
 | Invalid chunk | Use default 1300 |

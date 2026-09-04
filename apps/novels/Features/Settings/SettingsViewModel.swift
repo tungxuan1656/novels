@@ -8,7 +8,7 @@ struct SettingDescriptor {
     let defaultValue: String
     let allowsVerbatimSave: Bool
 
-    // swiftlint:disable cyclomatic_complexity function_body_length switch_case_alignment
+    // swiftlint:disable cyclomatic_complexity switch_case_alignment
     func validate(_ value: String) -> String? {
         switch key {
             case "BOOKS_API_URL", "OPENAI_API_URL":
@@ -32,21 +32,9 @@ struct SettingDescriptor {
                     return "JSON phải là object, ví dụ {\"Authorization\":\"Bearer ...\"}"
                 }
                 return nil
-            case "AI_PROCESS_ACTIONS":
+            case "AI_PROMPT":
                 if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return "Rỗng sẽ về mặc định, dùng Xóa để khôi phục"
-                }
-                guard let data = value.data(using: .utf8),
-                      let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-                else {
-                    return "JSON phải là mảng [{key,name,prompt}]"
-                }
-                for item in arr {
-                    guard let keyValue = item["key"] as? String,
-                          keyValue == "translate" || keyValue == "summary"
-                    else {
-                        return "key chỉ translate/summary"
-                    }
                 }
                 return nil
             case "PREFETCH_COUNT":
@@ -55,33 +43,42 @@ struct SettingDescriptor {
                 }
                 return "1..10, ngoài khoảng sẽ về 3"
             case "AI_MIN_CHUNK_SIZE":
-                if let number = Int(value), (500 ... 5000).contains(number) {
+                if let number = Int(value), (500 ... 10000).contains(number) {
                     return nil
                 }
-                return "500..5000, ngoài khoảng sẽ về 1300"
+                return "500..10000, ngoài khoảng sẽ về 1300"
             case "fontSize":
-                if let number = Double(value), (12 ... 24).contains(number) {
+                if let number = Double(value), (12 ... 40).contains(number) {
                     return nil
                 }
-                return "12..24"
+                return "12..40"
             case "lineHeight":
-                if let number = Double(value), (1.2 ... 2.0).contains(number) {
+                if let number = Double(value), (1.0 ... 10).contains(number) {
                     return nil
                 }
-                return "1.2..2.0"
+                return "1.0..10"
             case "font":
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                return trimmed.isEmpty ? "Phông chữ không được để trống" : nil
+                return Self.fontError(value)
             case "letterSpacing":
-                if let number = Double(value), (0 ... 1.0).contains(number) {
+                if let number = Double(value), (0 ... 3.0).contains(number) {
                     return nil
                 }
-                return "0..1.0"
+                return "0..3.0"
             default:
                 return nil
         }
     }
-    // swiftlint:enable cyclomatic_complexity function_body_length switch_case_alignment
+
+    // swiftlint:enable cyclomatic_complexity switch_case_alignment
+
+    private static func fontError(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return "Phông chữ không được để trống"
+        }
+        let normalized = ReaderFontMapper.normalizedFontName(value)
+        return normalized == "System" && trimmed.lowercased() != "system" ? "Phông chữ không hợp lệ" : nil
+    }
 }
 
 enum SettingsViewModel {
@@ -135,12 +132,12 @@ enum SettingsViewModel {
             defaultValue: "",
             allowsVerbatimSave: true
         ),
-        "AI_PROCESS_ACTIONS": SettingDescriptor(
-            key: "AI_PROCESS_ACTIONS",
-            label: "Hành động AI (JSON)",
-            placeholder: "[{\"key\":\"translate\",\"name\":\"...\",\"prompt\":\"...\"}]",
-            description: "Mảng translate/summary, rỗng sẽ về mặc định 2 action",
-            defaultValue: SettingsDefaults.defaultActionsJSON,
+        "AI_PROMPT": SettingDescriptor(
+            key: "AI_PROMPT",
+            label: "Prompt",
+            placeholder: "Dịch truyện sang...",
+            description: "Prompt hệ thống cho AI Rewrite (dịch, tóm tắt, viết lại)",
+            defaultValue: SettingsDefaults.defaultPrompt,
             allowsVerbatimSave: false
         ),
         "PREFETCH_COUNT": SettingDescriptor(
@@ -155,7 +152,7 @@ enum SettingsViewModel {
             key: "AI_MIN_CHUNK_SIZE",
             label: "Kích thước chunk",
             placeholder: "1300",
-            description: "500..5000, ngoài khoảng về 1300",
+            description: "500..10000, ngoài khoảng về 1300",
             defaultValue: "1300",
             allowsVerbatimSave: false
         ),
@@ -171,7 +168,7 @@ enum SettingsViewModel {
             key: "fontSize",
             label: "Cỡ chữ",
             placeholder: "16",
-            description: "12..24, bước 1",
+            description: "12..40, bước 1",
             defaultValue: "16",
             allowsVerbatimSave: false
         ),
@@ -179,7 +176,7 @@ enum SettingsViewModel {
             key: "lineHeight",
             label: "Giãn dòng",
             placeholder: "1.5",
-            description: "1.2..2.0, bước 0.1",
+            description: "1.0..10, bước 0.2",
             defaultValue: "1.5",
             allowsVerbatimSave: false
         ),
@@ -187,7 +184,7 @@ enum SettingsViewModel {
             key: "letterSpacing",
             label: "Giãn chữ",
             placeholder: "0",
-            description: "0..1.0, bước 0.1",
+            description: "0..3.0, bước 0.1",
             defaultValue: "0",
             allowsVerbatimSave: false
         ),

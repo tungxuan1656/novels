@@ -14,6 +14,7 @@ import Observation
         static let aiExtraBodyJSON = ""
         static let prefetchCount = 3
         static let aiMinChunkSize = 1300
+        static let diagnosticsVerbose = false
     }
 
     private let userDefaults: UserDefaults
@@ -24,9 +25,10 @@ import Observation
     var aiCustomHeadersJSON: String
     var aiExtraBodyJSON: String
     var aiProvider: String
-    var aiProcessActionsJSON: String
+    var aiPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
+    var diagnosticsVerbose: Bool
     var typography: TypographySetting
     var session: ReadingSession?
 
@@ -40,9 +42,10 @@ import Observation
         aiCustomHeadersJSON = Defaults.aiCustomHeadersJSON
         aiExtraBodyJSON = Defaults.aiExtraBodyJSON
         aiProvider = Defaults.aiProvider
-        aiProcessActionsJSON = SettingsDefaults.defaultActionsJSON
+        aiPrompt = SettingsDefaults.defaultPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
+        diagnosticsVerbose = Defaults.diagnosticsVerbose
         typography = .default
         session = nil
         load()
@@ -81,8 +84,8 @@ import Observation
         } else if userDefaults.object(forKey: DefaultsKeys.aiProvider) != nil {
             aiProvider = Defaults.aiProvider
         }
-        if userDefaults.object(forKey: DefaultsKeys.aiProcessActionsJSON) != nil, let value = userDefaults.string(forKey: DefaultsKeys.aiProcessActionsJSON) { // swiftlint:disable:this line_length
-            aiProcessActionsJSON = value
+        if let value = userDefaults.string(forKey: DefaultsKeys.aiPrompt) {
+            aiPrompt = value
         }
         if let value = intValue(forKey: DefaultsKeys.prefetchCount) {
             prefetchCount = value
@@ -90,8 +93,11 @@ import Observation
         if let value = intValue(forKey: DefaultsKeys.aiMinChunkSize) {
             aiMinChunkSize = value
         }
+        if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
+            diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
+        }
         if let value = userDefaults.string(forKey: DefaultsKeys.font) {
-            typography.font = value
+            typography.font = ReaderFontMapper.normalizedFontName(value)
         }
         if let value = doubleValue(forKey: DefaultsKeys.fontSize) {
             typography.fontSize = value
@@ -127,7 +133,8 @@ import Observation
             openaiModel = Defaults.openaiModel
         }
         prefetchCount = clampedPrefetchCount(prefetchCount)
-        if !(500 ... 5000).contains(aiMinChunkSize) {
+        // BR-12: Bool is self-validating — missing key already defaults to false on load.
+        if !(500 ... 10000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
         }
         if aiProvider.lowercased() != "openai" {
@@ -135,22 +142,17 @@ import Observation
         } else {
             aiProvider = "openai"
         }
-        let allowedKeys: Set = ["translate", "summary"]
-        if let data = aiProcessActionsJSON.data(using: .utf8), let actions = try? JSONDecoder().decode([AIAction].self, from: data), !actions.isEmpty, actions.allSatisfy({ allowedKeys.contains($0.key) }) { // swiftlint:disable:this line_length
-            // valid
-        } else {
-            aiProcessActionsJSON = SettingsDefaults.defaultActionsJSON
+        if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            aiPrompt = SettingsDefaults.defaultPrompt
         }
-        if typography.font.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            typography.font = TypographySetting.default.font
-        }
-        if !(12 ... 24).contains(typography.fontSize) {
+        typography.font = ReaderFontMapper.normalizedFontName(typography.font)
+        if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
-        if !(1.2 ... 2.0).contains(typography.lineHeight) {
+        if !(1.0 ... 10).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
-        if !(0 ... 1.0).contains(typography.letterSpacing) {
+        if !(0 ... 3.0).contains(typography.letterSpacing) {
             typography.letterSpacing = TypographySetting.default.letterSpacing
         }
         if let session, !SlugValidator.isValid(session.bookId) {
@@ -172,12 +174,14 @@ import Observation
             return aiExtraBodyJSON
         case "AI_PROVIDER":
             return aiProvider
-        case "AI_PROCESS_ACTIONS":
-            return aiProcessActionsJSON
+        case "AI_PROMPT":
+            return aiPrompt
         case "PREFETCH_COUNT":
             return "\(prefetchCount)"
         case "AI_MIN_CHUNK_SIZE":
             return "\(aiMinChunkSize)"
+        case "DIAGNOSTICS_VERBOSE":
+            return diagnosticsVerbose ? "true" : "false"
         case "font":
             return typography.font
         case "fontSize":
@@ -206,8 +210,8 @@ import Observation
             aiExtraBodyJSON = value
         case "AI_PROVIDER":
             aiProvider = value
-        case "AI_PROCESS_ACTIONS":
-            aiProcessActionsJSON = value
+        case "AI_PROMPT":
+            aiPrompt = value
         case "PREFETCH_COUNT":
             if let intValue = Int(value) {
                 prefetchCount = intValue
@@ -216,8 +220,10 @@ import Observation
             if let intValue = Int(value) {
                 aiMinChunkSize = intValue
             } // keep prior valid value on parse failure
+        case "DIAGNOSTICS_VERBOSE":
+            diagnosticsVerbose = ["true", "1", "yes"].contains(value.lowercased())
         case "font":
-            typography.font = value
+            typography.font = ReaderFontMapper.normalizedFontName(value)
         case "fontSize":
             if let doubleValue = Double(value) {
                 typography.fontSize = doubleValue
@@ -243,9 +249,10 @@ import Observation
         userDefaults.set(aiCustomHeadersJSON, forKey: DefaultsKeys.aiCustomHeadersJSON)
         userDefaults.set(aiExtraBodyJSON, forKey: DefaultsKeys.aiExtraBodyJSON)
         userDefaults.set(aiProvider, forKey: DefaultsKeys.aiProvider)
-        userDefaults.set(aiProcessActionsJSON, forKey: DefaultsKeys.aiProcessActionsJSON)
+        userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
+        userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
         userDefaults.set(typography.fontSize, forKey: DefaultsKeys.fontSize)
         userDefaults.set(typography.lineHeight, forKey: DefaultsKeys.lineHeight)
