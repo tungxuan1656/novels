@@ -35,6 +35,8 @@ struct AppRoot: View {
                                 )
                             } else {
                                 Text("Không tìm thấy chương")
+                                    .font(.subheadline)
+                                    .foregroundStyle(DesignTokens.muted)
                             }
                         case .addBook:
                             AddBookView(viewModel: makeImportViewModel())

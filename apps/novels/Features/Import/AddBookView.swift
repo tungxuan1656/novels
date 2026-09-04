@@ -119,28 +119,37 @@ struct AddBookView: View {
                             }
                         }
                     } label: {
-                        VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text(exp.book.name)
-                                .font(.headline)
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(DesignTokens.text)
                                 .lineLimit(2)
+                                .truncationMode(.tail)
+                                .lineSpacing(2)
+                                .multilineTextAlignment(.leading)
                             Text(exp.book.author ?? "Không rõ")
                                 .font(.footnote)
                                 .foregroundStyle(DesignTokens.muted)
                                 .lineLimit(1)
+                                .truncationMode(.tail)
                             Text(
                                 "\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))"
                             )
                             .font(.caption)
                             .foregroundStyle(DesignTokens.muted)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                             if let syn = exp.book.synopsis, !syn.isEmpty {
                                 Text(syn)
                                     .font(.caption)
                                     .foregroundStyle(DesignTokens.muted)
                                     .lineLimit(2)
+                                    .truncationMode(.tail)
+                                    .lineSpacing(1)
+                                    .multilineTextAlignment(.leading)
                             }
                         }
-                        .padding(.vertical, DesignTokens.spacing8)
+                        .padding(.vertical, 6)
                         .frame(minHeight: DesignTokens.rowMinHeight, alignment: .leading)
                         .contentShape(Rectangle())
                     }

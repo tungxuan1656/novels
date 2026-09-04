@@ -120,7 +120,7 @@ struct CacheManagerView: View {
                     }
                     VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                         Text(total == 0 ? "Chưa lưu chương nào" : "\(total) chương đã lưu")
-                            .font(.title2)
+                            .font(.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(DesignTokens.text)
                             .lineLimit(1)

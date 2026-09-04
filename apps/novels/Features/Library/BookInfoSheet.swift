@@ -59,7 +59,7 @@ struct BookInfoSheet: View {
     private var chaptersCard: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
             Text("Danh mục chương")
-                .font(.headline)
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(DesignTokens.text)
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(0 ..< book.references.count, id: \.self) { index in

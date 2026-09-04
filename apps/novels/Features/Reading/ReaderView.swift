@@ -212,7 +212,7 @@ struct ReaderView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(topChapterTitleText)
-                    .font(.system(size: 10, weight: .regular))
+                    .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(theme.textPrimary)
                     .lineLimit(1)
                     .accessibilityIdentifier("chapterText")
