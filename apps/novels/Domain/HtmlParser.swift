@@ -84,6 +84,12 @@ enum HtmlParser {
         }
 
         func emitBlock() {
+            while let first = currentSpans.first, first.isLineBreak {
+                currentSpans.removeFirst()
+            }
+            while let last = currentSpans.last, last.isLineBreak {
+                currentSpans.removeLast()
+            }
             if currentSpans.isEmpty {
                 return
             }
@@ -146,8 +152,10 @@ enum HtmlParser {
 
                 if tagName == "br" {
                     flush()
-                    let span = TextSpan(text: "\n", kind: currentKind(), isLineBreak: true)
-                    currentSpans.append(span)
+                    if currentSpans.last?.isLineBreak != true {
+                        let span = TextSpan(text: "\n\n", kind: currentKind(), isLineBreak: true)
+                        currentSpans.append(span)
+                    }
                 } else if tagName == "b" || tagName == "strong" {
                     flush()
                     if isClosing {
@@ -217,6 +225,12 @@ enum HtmlParser {
         }
 
         flush()
+        while let first = currentSpans.first, first.isLineBreak {
+            currentSpans.removeFirst()
+        }
+        while let last = currentSpans.last, last.isLineBreak {
+            currentSpans.removeLast()
+        }
         if !currentSpans.isEmpty {
             if let last = currentSpans.last, last.text.hasSuffix(" ") {
                 var trimmed = last.text

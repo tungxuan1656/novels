@@ -258,8 +258,10 @@ final class ReaderViewModel {
     private func readRawTextForAI() -> String? {
         guard let html = readChapterHTML(number: chapterNumber) else { return nil }
         let parsed = HtmlParser.parse(html: html)
-        let text = parsed.flatMap { $0.spans.map { $0.text } }.joined(separator: " ")
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let joined = parsed.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
+        var normalized = joined.replacingOccurrences(of: "[ \\t]*\\n[ \\t]*", with: "\n", options: .regularExpression)
+        normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
 

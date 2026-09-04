@@ -20,7 +20,42 @@ final class HtmlParserTests: XCTestCase {
         XCTAssertEqual(blocks[0].headingLevel, 2)
         XCTAssertEqual(blocks[0].spans[0].text, "Title")
         XCTAssertEqual(blocks[1].spans.filter { !$0.isLineBreak }.map { $0.text }.joined(separator: "|"), "Line1|Line2")
-        XCTAssertTrue(blocks[1].spans.contains(where: { $0.isLineBreak }))
+        let breaks = blocks[1].spans.filter { $0.isLineBreak }
+        XCTAssertEqual(breaks.count, 1)
+        XCTAssertEqual(breaks.first?.text, "\n\n")
+    }
+
+    func testSingleBrBecomesDoubleNewline() {
+        let blocks = HtmlParser.parse(html: "<p>Line1<br>Line2</p>")
+        let breaks = blocks[0].spans.filter { $0.isLineBreak }
+        XCTAssertEqual(breaks.count, 1)
+        XCTAssertEqual(breaks.first?.text, "\n\n")
+    }
+
+    func testDoubleBrCollapsesToSingleBreak() {
+        let blocks = HtmlParser.parse(html: "<p>A<br><br>B</p>")
+        let breaks = blocks[0].spans.filter { $0.isLineBreak }
+        XCTAssertEqual(breaks.count, 1)
+        XCTAssertEqual(breaks.first?.text, "\n\n")
+    }
+
+    func testTripleBrCollapsesToSingleBreak() {
+        let blocks = HtmlParser.parse(html: "<p>A<br><br><br>B</p>")
+        let breaks = blocks[0].spans.filter { $0.isLineBreak }
+        XCTAssertEqual(breaks.count, 1)
+        XCTAssertEqual(breaks.first?.text, "\n\n")
+    }
+
+    func testTrailingBrStripped() {
+        let blocks = HtmlParser.parse(html: "<div>A<br><br></div>")
+        XCTAssertFalse(blocks[0].spans.contains(where: { $0.isLineBreak }))
+        XCTAssertEqual(blocks[0].spans.map { $0.text }.joined(), "A")
+    }
+
+    func testLeadingBrStripped() {
+        let blocks = HtmlParser.parse(html: "<div><br><br>A</div>")
+        XCTAssertFalse(blocks[0].spans.contains(where: { $0.isLineBreak }))
+        XCTAssertEqual(blocks[0].spans.map { $0.text }.joined(), "A")
     }
 
     func testParseNestedBoldItalicAndWhitespace() {

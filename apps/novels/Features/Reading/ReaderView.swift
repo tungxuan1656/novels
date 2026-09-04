@@ -142,7 +142,7 @@ struct ReaderView: View {
             ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
                 let combined = block.spans.reduce(Text("")) { accumulator, span in
                     if span.isLineBreak {
-                        return accumulator + Text("\n")
+                        return accumulator + Text(span.text)
                     }
                     var piece = Text(span.text)
                         .font(fontFor(block: block, span: span))
