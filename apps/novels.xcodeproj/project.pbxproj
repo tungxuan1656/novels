@@ -152,8 +152,6 @@
 				E2DB6181303C43F300D20F8F /* novels */,
 			);
 			name = novels;
-			packageProductDependencies = (
-			);
 			productName = novels;
 			productReference = E2DB617F303C43F300D20F8F /* novels.app */;
 			productType = "com.apple.product-type.application";
@@ -175,8 +173,6 @@
 				E2DB6191303C43F300D20F8F /* novelsTests */,
 			);
 			name = novelsTests;
-			packageProductDependencies = (
-			);
 			productName = novelsTests;
 			productReference = E2DB6190303C43F300D20F8F /* novelsTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -198,8 +194,6 @@
 				E2DB619C303C43F300D20F8F /* novelsUITests */,
 			);
 			name = novelsUITests;
-			packageProductDependencies = (
-			);
 			productName = novelsUITests;
 			productReference = E2DB619B303C43F300D20F8F /* novelsUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -443,6 +437,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = novels/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Truyện";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -481,6 +477,8 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = novels/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Truyện";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.books";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
