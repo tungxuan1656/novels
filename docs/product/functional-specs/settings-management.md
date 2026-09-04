@@ -17,6 +17,7 @@
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 - Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).
+- AI reading mode persists app-wide via `AI_MODE` (default `none`); unknown or missing → `none`.
 
 ## States
 
@@ -33,6 +34,7 @@
 | Prompt empty/missing | Fallback to default prompt |
 | Prefetch N is 0 | Valid, disables prefetch |
 | Prefetch N is 1001, -1, "abc" | Use 3 |
+| `AI_MODE` unknown or missing | Use `none` |
 | Unknown or legacy key present | Ignored. Current defaults apply |
 
 ## Acceptance

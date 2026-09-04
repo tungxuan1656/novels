@@ -73,6 +73,20 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store.aiMinChunkSize, 2000)
     }
 
+    func testAiModeRoundTripAndUnknownFallback() throws {
+        let suite = UUID().uuidString
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let store = SettingsStore(userDefaults: userDefaults)
+        XCTAssertEqual(store.aiMode, .none)
+        store.aiMode = .rewrite
+        store.save()
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMode, .rewrite)
+        userDefaults.set("weird", forKey: "AI_MODE")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMode, .none)
+        userDefaults.set(123, forKey: "AI_MODE")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).aiMode, .none)
+    }
+
     func testProviderFallbackAndPromptReset() throws {
         let suite = UUID().uuidString
         let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))

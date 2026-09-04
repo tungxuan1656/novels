@@ -13,6 +13,7 @@ import Observation
         static let aiCustomHeadersJSON = ""
         static let aiExtraBodyJSON = ""
         static let prefetchCount = 3
+        static let aiMode = AIMode.none
         static let aiMinChunkSize = 1300
         static let diagnosticsVerbose = false
     }
@@ -28,6 +29,7 @@ import Observation
     var aiPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
+    var aiMode: AIMode
     var diagnosticsVerbose: Bool
     var typography: TypographySetting
     var session: ReadingSession?
@@ -45,6 +47,7 @@ import Observation
         aiPrompt = SettingsDefaults.defaultPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
+        aiMode = Defaults.aiMode
         diagnosticsVerbose = Defaults.diagnosticsVerbose
         typography = .default
         session = nil
@@ -93,6 +96,7 @@ import Observation
         if let value = intValue(forKey: DefaultsKeys.aiMinChunkSize) {
             aiMinChunkSize = value
         }
+        loadAiMode()
         if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
             diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
         }
@@ -122,6 +126,15 @@ import Observation
         (0 ... 1000).contains(value) ? value : Defaults.prefetchCount
     }
 
+    /// Restores app-wide AI mode; unknown rawValues coerce to .none (BR-12).
+    private func loadAiMode() {
+        if let raw = userDefaults.string(forKey: DefaultsKeys.aiMode) {
+            aiMode = AIMode(rawValue: raw) ?? Defaults.aiMode
+        } else if userDefaults.object(forKey: DefaultsKeys.aiMode) != nil {
+            aiMode = Defaults.aiMode
+        }
+    }
+
     func sanitize() {
         if booksAPIURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             booksAPIURL = Defaults.booksAPIURL
@@ -133,6 +146,7 @@ import Observation
             openaiModel = Defaults.openaiModel
         }
         prefetchCount = clampedPrefetchCount(prefetchCount)
+        // BR-12: aiMode is a closed enum — load() already coerces unknown rawValues to .none.
         // BR-12: Bool is self-validating — missing key already defaults to false on load.
         if !(500 ... 10000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
@@ -252,6 +266,7 @@ import Observation
         userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
+        userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)
         userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
         userDefaults.set(typography.fontSize, forKey: DefaultsKeys.fontSize)

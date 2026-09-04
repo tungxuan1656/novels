@@ -66,6 +66,7 @@ final class ReaderViewModel {
             fatalError("Unable to create ProcessedChapter cache")
         }()
         processedCache = resolvedCache
+        aiMode = settingsStore.aiMode
         if let session = settingsStore.session, session.bookId == bookId {
             chapterNumber = max(1, session.chapterNumber)
         }
@@ -197,6 +198,8 @@ final class ReaderViewModel {
     func setAIMode(_ mode: AIMode) async {
         await cancelPrefetch()
         aiMode = mode
+        settingsStore.aiMode = mode
+        settingsStore.save()
         aiError = nil
         if mode == .none {
             processedContent = nil

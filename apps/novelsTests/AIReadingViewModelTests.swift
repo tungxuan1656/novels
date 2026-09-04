@@ -240,4 +240,42 @@ final class AIReadingViewModelTests: XCTestCase {
         XCTAssertEqual(vm.processedContent, "DỊCH 2")
         XCTAssertEqual(callCount, 2)
     }
+
+    func testAiModeInitFromStoreAndPersistAcrossRestart() async throws {
+        let slug = "aimode-persist-slug"
+        let repo = try makeTempRepoWithBook(slug: slug, chapters: ["raw chapter text"])
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "test.aimode.\(UUID().uuidString)"))
+        let settings = SettingsStore(userDefaults: suite)
+        XCTAssertEqual(settings.aiMode, .none)
+        let service = makeService(cache: cache, settings: settings)
+        let vm = ReaderViewModel(
+            bookId: slug,
+            repository: repo,
+            settingsStore: settings,
+            cache: cache,
+            aiService: service
+        )
+        XCTAssertEqual(vm.aiMode, .none)
+        AIMockURLProtocol.handler = { request in
+            let json = "{\"choices\":[{\"message\":{\"content\":\"DỊCH\"}}]}"
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, json.data(using: .utf8)!)
+        }
+        await vm.setAIMode(.rewrite)
+        XCTAssertEqual(vm.aiMode, .rewrite)
+        XCTAssertEqual(settings.aiMode, .rewrite)
+        // Simulate restart: fresh store + fresh VM over the same suite.
+        XCTAssertEqual(SettingsStore(userDefaults: suite).aiMode, .rewrite)
+        let restarted = ReaderViewModel(
+            bookId: slug,
+            repository: repo,
+            settingsStore: SettingsStore(userDefaults: suite),
+            cache: cache,
+            aiService: service
+        )
+        XCTAssertEqual(restarted.aiMode, .rewrite)
+        await restarted.setAIMode(.none)
+        XCTAssertEqual(SettingsStore(userDefaults: suite).aiMode, .none)
+    }
 }

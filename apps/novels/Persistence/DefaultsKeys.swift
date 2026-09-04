@@ -11,6 +11,7 @@ enum DefaultsKeys {
     static let aiPrompt = "AI_PROMPT"
     static let aiMinChunkSize = "AI_MIN_CHUNK_SIZE"
     static let prefetchCount = "PREFETCH_COUNT"
+    static let aiMode = "AI_MODE"
     static let font = "font"
     static let fontSize = "fontSize"
     static let lineHeight = "lineHeight"
@@ -28,6 +29,7 @@ enum DefaultsKeys {
         aiPrompt,
         aiMinChunkSize,
         prefetchCount,
+        aiMode,
         font,
         fontSize,
         lineHeight,
