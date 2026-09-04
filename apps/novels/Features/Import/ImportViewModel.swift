@@ -1,44 +1,6 @@
 import Foundation
 import Observation
 
-protocol CatalogFetching: Sendable {
-    func fetchCatalog() async throws -> [ExportedBook]
-}
-
-extension CatalogService: CatalogFetching {}
-
-protocol Downloader: Sendable {
-    func download(from url: URL) async throws -> URL
-}
-
-struct URLSessionDownloader: Downloader {
-    private let session: URLSession
-
-    init(session: URLSession? = nil) {
-        if let session {
-            self.session = session
-        } else {
-            let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 30
-            // Resource budget for slow large-package downloads (100MB unzip cap); stalls trip the 30s request timer.
-            config.timeoutIntervalForResource = 600
-            self.session = URLSession(configuration: config)
-        }
-    }
-
-    func download(from url: URL) async throws -> URL {
-        let result = try await session.download(from: url)
-        return try Self.validatedDownloadURL(fileURL: result.0, response: result.1)
-    }
-
-    static func validatedDownloadURL(fileURL: URL, response: URLResponse) throws -> URL {
-        if let http = response as? HTTPURLResponse, !(200 ... 299).contains(http.statusCode) {
-            throw URLError(.badServerResponse)
-        }
-        return fileURL
-    }
-}
-
 @MainActor
 @Observable
 final class ImportViewModel {
@@ -163,11 +125,18 @@ final class ImportViewModel {
             try? FileManager.default.removeItem(at: zipURL)
         }
         do {
-            // Off-main ingest: unzip, Data read, repository.save
+            // Off-main ingest: unzip, Data read, repository.save.
             // Hoisted for the detached task (all Sendable; ExportedBook is MainActor-bound here).
-            let bookId: String = try await Task.detached(priority: .userInitiated) {
+            // Forward parent cancellation: Task.detached does not inherit it, so cancelling
+            // during large unzip would otherwise run to completion and still write to repo.
+            let ingestTask = Task.detached(priority: .userInitiated) {
                 try await Self.ingest(zipURL: zipURL, tmpUnzip: tmpUnzip, repoRoot: repoRoot, logCtx: logCtx)
-            }.value
+            }
+            let bookId: String = try await withTaskCancellationHandler {
+                try await ingestTask.value
+            } onCancel: {
+                ingestTask.cancel()
+            }
             // Hop back to MainActor for state updates
             importState = .idle
             onImportSuccess?(bookId)
@@ -232,6 +201,9 @@ final class ImportViewModel {
             await Self.logImportFailure(logCtx, stage: "decode-book", error: error, zipBytes: zipBytes)
             throw ImportError.invalidPackage
         }
+        // Cancellation may arrive after the earlier check (during decode); re-check
+        // before the repo write so a cancelled ingest never writes.
+        try Task.checkCancellation()
         do {
             let repo = FileBookRepository(root: repoRoot, fileManager: .default)
             try repo.save(validatedRoot: canonical, slug: book.id)

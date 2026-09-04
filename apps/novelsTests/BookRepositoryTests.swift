@@ -377,6 +377,42 @@ final class BookRepositoryTests: XCTestCase {
         try fm.removeItem(at: tmp)
     }
 
+    func testBookAndChapterResolveDriftedFolder() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        // Folder name drifted from book.json id: read must resolve via book.id scan, not just exact path.
+        let folder = booksRoot.appendingPathComponent("stale-folder-name", isDirectory: true)
+        try fm.createDirectory(at: folder.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        try createValidBook(at: folder, id: "real-book-id", count: 1)
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        XCTAssertEqual(try repo.book(slug: "real-book-id")?.id, "real-book-id")
+        XCTAssertEqual(try repo.chapterHTML(slug: "real-book-id", number: 1), "<html>c1</html>")
+        try fm.removeItem(at: tmp)
+    }
+
+    func testBookReadsBOMBookJSON() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        let folder = booksRoot.appendingPathComponent("bom-book", isDirectory: true)
+        try fm.createDirectory(at: folder.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+        let json = #"{"id":"bom-book","name":"B","count":1,"references":["C1"]}"#
+        var bomData = Data([0xEF, 0xBB, 0xBF])
+        bomData.append(Data(json.utf8))
+        try bomData.write(to: folder.appendingPathComponent("book.json"))
+        try "<html>c1</html>".write(
+            to: folder.appendingPathComponent("chapters/chapter-1.html"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        XCTAssertEqual(try repo.listBooks().map(\.id), ["bom-book"])
+        XCTAssertEqual(try repo.book(slug: "bom-book")?.id, "bom-book")
+        XCTAssertEqual(try repo.chapterHTML(slug: "bom-book", number: 1), "<html>c1</html>")
+        try fm.removeItem(at: tmp)
+    }
+
     // MARK: - save
 
     func testSaveAtomic() throws {
@@ -417,6 +453,23 @@ final class BookRepositoryTests: XCTestCase {
         XCTAssertFalse(fm.fileExists(atPath: booksRoot.path))
         try repo.save(validatedRoot: validatedRoot, slug: "new-slug")
         XCTAssertTrue(fm.fileExists(atPath: booksRoot.appendingPathComponent("new-slug/book.json").path))
+        try fm.removeItem(at: tmp)
+    }
+
+    func testListDedupesDuplicateBookIdsFirstWins() throws {
+        let fm = FileManager.default
+        let tmp = makeTempRoot()
+        let booksRoot = tmp.appendingPathComponent("books", isDirectory: true)
+        // Two folders decode to the same book.id (id drift): list must return
+        // one row so List(books, id: \.id) never diffs duplicate ids.
+        for folder in ["aaa-folder", "zzz-folder"] {
+            let folderURL = booksRoot.appendingPathComponent(folder, isDirectory: true)
+            try fm.createDirectory(at: folderURL.appendingPathComponent("chapters"), withIntermediateDirectories: true)
+            try createValidBook(at: folderURL, id: "dupe-id", count: 1)
+        }
+        let repo = FileBookRepository(root: booksRoot, fileManager: fm)
+        let books = try repo.listBooks()
+        XCTAssertEqual(books.map(\.id), ["dupe-id"])
         try fm.removeItem(at: tmp)
     }
 

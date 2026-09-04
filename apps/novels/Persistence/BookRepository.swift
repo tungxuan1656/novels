@@ -33,12 +33,17 @@ struct FileBookRepository: BookRepository {
             options: .skipsHiddenFiles
         )
         var books: [Book] = []
-        for folderURL in contents {
+        var seenIds = Set<String>()
+        // Sort folders first so first-wins dedupe by book.id is deterministic.
+        // Two folders can decode to the same book.id (id drift / slugify
+        // fallback); without dedupe, List(books, id: \.id) diffs duplicate ids.
+        for folderURL in contents.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             var isDirectory: ObjCBool = false
             guard fileManager.fileExists(atPath: folderURL.path, isDirectory: &isDirectory),
                   isDirectory.boolValue
             else { continue }
             guard let book = validatedBook(at: folderURL) else { continue }
+            guard seenIds.insert(book.id).inserted else { continue }
             books.append(book)
         }
         return books.sorted { $0.id < $1.id }
@@ -46,21 +51,21 @@ struct FileBookRepository: BookRepository {
 
     func book(slug: String) throws -> Book? {
         guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
-        let folderURL = root.appendingPathComponent(slug, isDirectory: true)
-        guard fileManager.fileExists(atPath: folderURL.path) else { return nil }
+        guard let folderURL = resolveFolderURL(forSlug: slug) else { return nil }
         return validatedBook(at: folderURL)
     }
 
     func chapterHTML(slug: String, number: Int) throws -> String {
         guard SlugValidator.isValid(slug) else { throw BookRepositoryError.invalidSlug(slug: slug) }
-        guard let book = try book(slug: slug) else {
+        guard let folderURL = resolveFolderURL(forSlug: slug),
+              let book = validatedBook(at: folderURL)
+        else {
             throw BookRepositoryError.bookNotFound(slug: slug)
         }
         guard number >= 1, number <= book.count else {
             throw BookRepositoryError.invalidChapterNumber(number: number, count: book.count)
         }
-        let chapterURL = root
-            .appendingPathComponent(slug, isDirectory: true)
+        let chapterURL = folderURL
             .appendingPathComponent("chapters/chapter-\(number).html", isDirectory: false)
         guard fileManager.fileExists(atPath: chapterURL.path) else {
             throw BookRepositoryError.missingChapterFile(slug: slug, number: number)
@@ -183,7 +188,7 @@ struct FileBookRepository: BookRepository {
         let bookURL = folderURL.appendingPathComponent("book.json", isDirectory: false)
         guard fileManager.fileExists(atPath: bookURL.path) else { return nil }
         guard let data = try? Data(contentsOf: bookURL) else { return nil }
-        guard let book = try? JSONDecoder().decode(Book.self, from: data) else { return nil }
+        guard let book = try? JSONDecoder().decode(Book.self, from: stripUTF8BOM(data)) else { return nil }
         guard book.count == book.references.count else { return nil }
         // swiftlint:disable:next empty_count - book.count is domain Int, not collection.count
         if book.count == 0 {

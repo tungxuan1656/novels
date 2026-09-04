@@ -216,6 +216,70 @@ final class LibraryViewModelTests: XCTestCase {
         try? FileManager.default.removeItem(at: tmp)
     }
 
+    func testDeleteConfirmedClearsProcessedCacheForBook() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("books", isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        let folder = tmp.appendingPathComponent("cached-book", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: folder.appendingPathComponent("chapters", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+        try #"{"id":"cached-book","name":"Sách Cache","count":0,"author":null,"references":[]}"#
+            .write(to: folder.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        try cache.upsert(ProcessedChapter(
+            bookId: "cached-book",
+            chapterNumber: 1,
+            mode: .rewrite,
+            content: "cached",
+            contentHash: "h",
+            createdAt: Date(),
+            updatedAt: Date()
+        ))
+        XCTAssertEqual(try cache.count(bookId: "cached-book"), 1)
+        let toast = ToastCenter()
+        let repo = FileBookRepository(root: tmp, fileManager: .default)
+        let viewModel = LibraryViewModel(repository: repo, toastCenter: toast, chapterCache: cache)
+        viewModel.load()
+        try viewModel.confirmDelete(XCTUnwrap(viewModel.books.first))
+        viewModel.deleteConfirmed()
+        XCTAssertTrue(viewModel.books.isEmpty)
+        XCTAssertEqual(try cache.count(bookId: "cached-book"), 0)
+        XCTAssertTrue(toast.lastMessage?.contains("Đã xóa") ?? false)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
+    func testDeleteConfirmedCacheFailureKeepsSuccess() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString)
+            .appendingPathComponent("books", isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        let folder = tmp.appendingPathComponent("cache-fail-book", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: folder.appendingPathComponent("chapters", isDirectory: true),
+            withIntermediateDirectories: true
+        )
+        try #"{"id":"cache-fail-book","name":"Sách Lỗi Cache","count":0,"author":null,"references":[]}"#
+            .write(to: folder.appendingPathComponent("book.json"), atomically: true, encoding: .utf8)
+        let toast = ToastCenter()
+        let repo = FileBookRepository(root: tmp, fileManager: .default)
+        let viewModel = LibraryViewModel(
+            repository: repo,
+            toastCenter: toast,
+            chapterCache: ThrowingClearCache()
+        )
+        viewModel.load()
+        try viewModel.confirmDelete(XCTUnwrap(viewModel.books.first))
+        viewModel.deleteConfirmed()
+        // Cache clear threw, but delete still succeeds: folder gone, success toast kept.
+        XCTAssertTrue(viewModel.books.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
+        XCTAssertTrue(toast.lastMessage?.contains("Đã xóa") ?? false)
+        try? FileManager.default.removeItem(at: tmp)
+    }
+
     func testInfoSheetBookFields() {
         let book = Book(
             id: "s",
@@ -226,5 +290,34 @@ final class LibraryViewModelTests: XCTestCase {
         )
         XCTAssertEqual(book.name, "Vạn Giới")
         XCTAssertEqual(book.references.count, 2)
+    }
+}
+
+private struct ThrowingClearCache: ProcessedChapterCaching {
+    struct ClearFailure: Error {}
+    func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
+        nil
+    }
+
+    func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+        []
+    }
+
+    func upsert(_ pc: ProcessedChapter) throws {}
+    func clearAll() throws {}
+    func clear(bookId: String) throws {
+        throw ClearFailure()
+    }
+
+    func countAll() throws -> Int {
+        0
+    }
+
+    func count(bookId: String) throws -> Int {
+        0
+    }
+
+    func allBookIds() throws -> [String] {
+        []
     }
 }

@@ -102,9 +102,10 @@ struct LibraryView: View {
                 BookInfoSheet(book: book)
             }
         }
-        // Value-based alert (not alert(item:)): the legacy Alert-struct API keys
-        // presentation off Identifiable identity, which silently breaks when two
-        // books share an id and can drop the destructive action on current iOS.
+        // Delete confirmation uses a single boolean-driven alert, so presentation
+        // does not depend on row identity. Duplicate book ids are removed
+        // upstream by first-wins dedupe in FileBookRepository.listBooks(),
+        // keeping List(id: \.id) diffing stable.
         .alert(
             "Xóa sách?",
             isPresented: Binding(

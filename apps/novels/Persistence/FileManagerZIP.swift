@@ -155,6 +155,58 @@ private func openLibz() -> LibzHandle? {
     return nil
 }
 
+private typealias LibzInflateInit2Fn = @convention(c) (
+    UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>, Int32
+) -> Int32
+private typealias LibzInflateFn = @convention(c) (UnsafeMutableRawPointer, Int32) -> Int32
+private typealias LibzInflateEndFn = @convention(c) (UnsafeMutableRawPointer) -> Int32
+private typealias LibzVersionFn = @convention(c) () -> UnsafePointer<CChar>
+
+/// Cached libz bindings: openLibz()/dlsym()/zlibVersion() run once per process
+/// instead of once per method-8 entry. Swift `static let` is lazily initialized
+/// exactly once and thread-safe (dispatch_once semantics).
+/// The global-namespace handle (ownsHandle:false) must never be closed; a
+/// path-opened handle is intentionally kept open for process lifetime to avoid
+/// per-entry dlopen/dlclose churn (OS reclaims on exit).
+private struct CachedLibz {
+    let inflateInit2: LibzInflateInit2Fn
+    let inflate: LibzInflateFn
+    let inflateEnd: LibzInflateEndFn
+    let runtimeVersion: String
+}
+
+private enum LibzCache {
+    static let shared: CachedLibz? = {
+        guard let opened = openLibz() else { return nil }
+        let lib = opened.lib
+        // Cached handle is never closed (global handle must stay open; owned
+        // handle lives for process lifetime). Close only on init failure.
+        guard let symInit = dlsym(lib, "inflateInit2_"),
+              let symInflate = dlsym(lib, "inflate"),
+              let symEnd = dlsym(lib, "inflateEnd")
+        else {
+            if opened.ownsHandle {
+                dlclose(lib)
+            }
+            return nil
+        }
+        let inflateInit2 = unsafeBitCast(symInit, to: LibzInflateInit2Fn.self)
+        let inflate = unsafeBitCast(symInflate, to: LibzInflateFn.self)
+        let inflateEnd = unsafeBitCast(symEnd, to: LibzInflateEndFn.self)
+        let runtimeVersion: String = {
+            guard let symVer = dlsym(lib, "zlibVersion") else { return "1.2.11" }
+            let fn = unsafeBitCast(symVer, to: LibzVersionFn.self)
+            return String(cString: fn())
+        }()
+        return CachedLibz(
+            inflateInit2: inflateInit2,
+            inflate: inflate,
+            inflateEnd: inflateEnd,
+            runtimeVersion: runtimeVersion
+        )
+    }()
+}
+
 private struct ZStream {
     var nextIn: UnsafePointer<UInt8>?
     var availIn: UInt32
@@ -174,42 +226,18 @@ private struct ZStream {
 
 // swiftlint:disable:next function_body_length
 private func inflateRawDeflate(_ data: Data, expectedSize: Int) throws -> Data {
-    guard let opened = openLibz() else {
+    // Cached handle + function pointers: no per-entry dlopen/dlsym.
+    guard let cached = LibzCache.shared else {
         throw CocoaError(.fileReadCorruptFile)
     }
-    let lib = opened.lib
-    // Only dlclose handles we opened by path; the global-namespace handle must stay open.
-    defer {
-        if opened.ownsHandle {
-            dlclose(lib)
-        }
-    }
+    let inflateInit2 = cached.inflateInit2
+    let inflate = cached.inflate
+    let inflateEnd = cached.inflateEnd
 
-    guard let symInit = dlsym(lib, "inflateInit2_"),
-          let symInflate = dlsym(lib, "inflate"),
-          let symEnd = dlsym(lib, "inflateEnd")
-    else {
-        throw CocoaError(.fileReadCorruptFile)
-    }
-
-    typealias InflateInit2Fn = @convention(c) (
-        UnsafeMutableRawPointer, Int32, UnsafePointer<CChar>, Int32
-    ) -> Int32
-    typealias InflateFn = @convention(c) (UnsafeMutableRawPointer, Int32) -> Int32
-    typealias InflateEndFn = @convention(c) (UnsafeMutableRawPointer) -> Int32
-    typealias ZlibVersionFn = @convention(c) () -> UnsafePointer<CChar>
-
-    let inflateInit2 = unsafeBitCast(symInit, to: InflateInit2Fn.self)
-    let inflate = unsafeBitCast(symInflate, to: InflateFn.self)
-    let inflateEnd = unsafeBitCast(symEnd, to: InflateEndFn.self)
-
-    // Query the runtime version: inflateInit2_ validates the version string,
-    // so a hardcoded build-time value fails on devices shipping another zlib.
-    let runtimeVersion: String = {
-        guard let symVer = dlsym(lib, "zlibVersion") else { return "1.2.11" }
-        let fn = unsafeBitCast(symVer, to: ZlibVersionFn.self)
-        return String(cString: fn())
-    }()
+    // Runtime version queried once during cache init: inflateInit2_ validates
+    // the version string, so a hardcoded build-time value fails on devices
+    // shipping another zlib.
+    let runtimeVersion = cached.runtimeVersion
 
     // Handle empty entry (uncompressedSize==0)
     if expectedSize == 0 {
