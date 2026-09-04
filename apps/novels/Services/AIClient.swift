@@ -259,7 +259,7 @@ actor AIClient {
                         ["role": "user", "content": chunk],
                     ],
                     "stream": false,
-                    "max_tokens": 10240,
+                    "max_tokens": 1024,
                 ]
                 for (key, value) in extra {
                     if key == "model" || key == "messages" || key == "system" || key == "stream" {
