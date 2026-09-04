@@ -18,10 +18,11 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
 | `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite`); unknown → `none` |
+| `readingTheme` | `string` | `vangGiay` | Reading theme trio (`vangGiay` / `trang` / `den`); unknown → `vangGiay`; offline-first via `SettingsStore` |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
-UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height/spacing) — see `settings-management.md` Flow step 2.
+UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height/spacing), reading theme (`Màu nền` in Reader sheet, not in Settings list) — see `settings-management.md` Flow step 2.
 
 ## Validation Rules
 
@@ -31,8 +32,9 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
 - **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
 - **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
+- **Reading theme:** rawValue string of `ReadingTheme` (`vangGiay` / `trang` / `den`); missing, non-string, or unknown → `vangGiay`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
-- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..10 step 0.2`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
+- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..50 step 0.5`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
 
 ## Current Keys Only
 
@@ -43,6 +45,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 - Use current keys only; ignore unknown or legacy keys.
 - If `PREFETCH_COUNT` is outside `0..1000`, use `3`.
 - If `AI_MODE` is not `none` or `rewrite`, use `none`.
+- If `readingTheme` is not `vangGiay`, `trang`, or `den`, use `vangGiay`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.
 
 ## Avoid

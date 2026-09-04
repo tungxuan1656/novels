@@ -16,6 +16,7 @@ import Observation
         static let aiMode = AIMode.none
         static let aiMinChunkSize = 1300
         static let diagnosticsVerbose = false
+        static let readingTheme = ReadingTheme.vangGiay
     }
 
     private let userDefaults: UserDefaults
@@ -31,6 +32,7 @@ import Observation
     var prefetchCount: Int
     var aiMode: AIMode
     var diagnosticsVerbose: Bool
+    var readingTheme: ReadingTheme
     var typography: TypographySetting
     var session: ReadingSession?
 
@@ -49,13 +51,13 @@ import Observation
         prefetchCount = Defaults.prefetchCount
         aiMode = Defaults.aiMode
         diagnosticsVerbose = Defaults.diagnosticsVerbose
+        readingTheme = Defaults.readingTheme
         typography = .default
         session = nil
         load()
         sanitize()
     }
 
-    // swiftlint:disable:next cyclomatic_complexity
     func load() {
         if let value = userDefaults.string(forKey: DefaultsKeys.booksAPIURL) {
             booksAPIURL = value
@@ -97,6 +99,11 @@ import Observation
             aiMinChunkSize = value
         }
         loadAiMode()
+        loadReadingTheme()
+        loadDiagnosticsTypographySession()
+    }
+
+    private func loadDiagnosticsTypographySession() {
         if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
             diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
         }
@@ -135,6 +142,15 @@ import Observation
         }
     }
 
+    /// Restores reading theme; unknown rawValues coerce to .vangGiay (BR-12).
+    private func loadReadingTheme() {
+        if let raw = userDefaults.string(forKey: DefaultsKeys.readingTheme) {
+            readingTheme = ReadingTheme(rawValue: raw) ?? Defaults.readingTheme
+        } else if userDefaults.object(forKey: DefaultsKeys.readingTheme) != nil {
+            readingTheme = Defaults.readingTheme
+        }
+    }
+
     func sanitize() {
         if booksAPIURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             booksAPIURL = Defaults.booksAPIURL
@@ -163,7 +179,7 @@ import Observation
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
         }
-        if !(1.0 ... 10).contains(typography.lineHeight) {
+        if !(1.0 ... 50).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
         if !(0 ... 3.0).contains(typography.letterSpacing) {
@@ -267,6 +283,7 @@ import Observation
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)
+        userDefaults.set(readingTheme.rawValue, forKey: DefaultsKeys.readingTheme)
         userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
         userDefaults.set(typography.fontSize, forKey: DefaultsKeys.fontSize)

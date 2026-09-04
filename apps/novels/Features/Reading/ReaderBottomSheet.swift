@@ -9,13 +9,17 @@ struct ReaderBottomSheet: View {
 
     let fonts = ReaderFontMapper.fonts
 
+    private var theme: ReadingTheme {
+        settingsStore.readingTheme
+    }
+
     var body: some View {
         BottomSheetView {
             VStack(spacing: 12) {
                 HStack {
                     Text("Cài đặt đọc")
                         .font(.headline)
-                        .foregroundStyle(DesignTokens.text)
+                        .foregroundStyle(theme.textPrimary)
                     Spacer()
                     Button {
                         onClose()
@@ -23,24 +27,27 @@ struct ReaderBottomSheet: View {
                     } label: {
                         Image(systemName: "gearshape")
                             .font(.system(size: 18))
-                            .foregroundStyle(DesignTokens.muted)
+                            .foregroundStyle(theme.iconTint)
                     }
                     .accessibilityLabel("Cài đặt")
                     .a11yHitTarget()
                 }
                 .padding(.top, 4)
 
-                Divider()
+                themeDivider
+
+                themeSection
+                themeDivider
 
                 if let viewModel {
                     aiModeSection(viewModel: viewModel)
-                    Divider()
+                    themeDivider
                 }
 
                 HStack {
                     Text("Phông chữ")
                         .font(.subheadline)
-                        .foregroundStyle(DesignTokens.text)
+                        .foregroundStyle(theme.textPrimary)
                     Spacer()
                     Picker(
                         "Phông chữ",
@@ -57,7 +64,7 @@ struct ReaderBottomSheet: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .tint(DesignTokens.text)
+                    .tint(theme.textPrimary)
                     .accessibilityIdentifier("fontPicker")
                 }
                 .frame(minHeight: 36)
@@ -79,8 +86,8 @@ struct ReaderBottomSheet: View {
                         get: { settingsStore.typography.lineHeight },
                         set: { clampAndSaveLineHeight($0) }
                     ),
-                    range: 1.0 ... 10,
-                    step: 0.2,
+                    range: 1.0 ... 50,
+                    step: 0.5,
                     format: "%.1f"
                 )
 
@@ -98,13 +105,76 @@ struct ReaderBottomSheet: View {
             .padding(.horizontal, DesignTokens.spacing12)
             .padding(.bottom, DesignTokens.spacing16)
         }
+        .preferredColorScheme(theme.preferredColorScheme)
+    }
+
+    private var themeDivider: some View {
+        Rectangle()
+            .fill(theme.borderColor)
+            .frame(height: 1)
+            .accessibilityHidden(true)
+    }
+
+    private var themeSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Màu nền")
+                .font(.subheadline)
+                .foregroundStyle(theme.textPrimary)
+            HStack(spacing: 12) {
+                ForEach(ReadingTheme.allCases) { option in
+                    themeOption(option: option)
+                }
+            }
+            .sensoryFeedback(.selection, trigger: settingsStore.readingTheme)
+            .accessibilityIdentifier("themePicker")
+        }
+    }
+
+    private func themeOption(option: ReadingTheme) -> some View {
+        let isSelected = option == theme
+        return Button {
+            settingsStore.readingTheme = option
+            settingsStore.save()
+        } label: {
+            VStack(spacing: 6) {
+                ZStack {
+                    Circle()
+                        .fill(option.background)
+                        .frame(width: 48, height: 48)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(
+                                    isSelected ? theme.accentColor : theme.borderColor,
+                                    lineWidth: isSelected ? 2.5 : 1
+                                )
+                        )
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(option.textPrimary)
+                            .accessibilityHidden(true)
+                    }
+                }
+                .frame(width: 48, height: 48)
+                Text(option.title)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(theme.textPrimary)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("theme-\(option.rawValue)")
+        .accessibilityLabel(option.title)
+        .accessibilityHint("Chọn màu nền \(option.title)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func aiModeSection(viewModel: ReaderViewModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("AI Rewrite")
                 .font(.subheadline)
-                .foregroundStyle(DesignTokens.text)
+                .foregroundStyle(theme.textPrimary)
 
             HStack(spacing: 12) {
                 Picker(
@@ -155,7 +225,7 @@ struct ReaderBottomSheet: View {
             HStack(spacing: 8) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "doc.text.magnifyingglass")
-                        .foregroundStyle(DesignTokens.muted)
+                        .foregroundStyle(theme.iconTint)
                     if hasErrors {
                         Circle()
                             .fill(DesignTokens.error)
@@ -166,11 +236,11 @@ struct ReaderBottomSheet: View {
                 }
                 Text(title)
                     .font(.subheadline)
-                    .foregroundStyle(DesignTokens.text)
+                    .foregroundStyle(theme.textPrimary)
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundStyle(DesignTokens.muted)
+                    .foregroundStyle(theme.iconTint)
                     .accessibilityHidden(true)
             }
             .frame(maxWidth: .infinity, minHeight: 44)
@@ -194,7 +264,7 @@ struct ReaderBottomSheet: View {
         HStack {
             Text(title)
                 .font(.subheadline)
-                .foregroundStyle(DesignTokens.text)
+                .foregroundStyle(theme.textPrimary)
             Spacer()
             HStack(spacing: 8) {
                 Stepper(value: value, in: range, step: step) {
@@ -207,7 +277,7 @@ struct ReaderBottomSheet: View {
                 Text(String(format: format, value.wrappedValue))
                     .font(.subheadline)
                     .monospacedDigit()
-                    .foregroundStyle(DesignTokens.text)
+                    .foregroundStyle(theme.textPrimary)
                     .frame(width: 32, alignment: .trailing)
             }
         }
@@ -221,7 +291,7 @@ struct ReaderBottomSheet: View {
     }
 
     private func clampAndSaveLineHeight(_ value: Double) {
-        settingsStore.typography.lineHeight = min(max(1.0, value), 10)
+        settingsStore.typography.lineHeight = min(max(1.0, value), 50)
         settingsStore.save()
     }
 

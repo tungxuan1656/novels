@@ -21,6 +21,8 @@ struct LibraryView: View {
                         router.push(.addBook)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(DesignTokens.backgroundWhite)
                 .accessibilityIdentifier("library.empty")
             } else {
                 List(viewModel.books, id: \.id) { book in
@@ -29,7 +31,7 @@ struct LibraryView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(book.name)
-                                .font(.headline)
+                                .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(DesignTokens.text)
                                 .lineLimit(2)
                             HStack(spacing: 8) {
@@ -48,6 +50,7 @@ struct LibraryView: View {
                         .contentShape(Rectangle())
                     }
                     .listRowSeparator(.hidden)
+                    .listRowBackground(DesignTokens.backgroundWhite)
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
                             viewModel.confirmDelete(book)
@@ -66,6 +69,8 @@ struct LibraryView: View {
                     .accessibilityIdentifier("library.row.\(book.id)")
                 }
                 .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(DesignTokens.backgroundWhite)
                 .refreshable {
                     viewModel.load()
                 }

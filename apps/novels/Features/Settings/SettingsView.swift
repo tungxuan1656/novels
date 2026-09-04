@@ -48,6 +48,7 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
+                .listRowBackground(DesignTokens.surface)
                 .accessibilityIdentifier("settings-CACHE")
                 NavigationLink(value: Router.Route.apiLog(bookId: nil, initialFilter: .all)) {
                     Label("Nhật ký", systemImage: "doc.text.magnifyingglass")
@@ -56,9 +57,12 @@ struct SettingsView: View {
                 }
                 .frame(minHeight: 44)
                 .contentShape(Rectangle())
+                .listRowBackground(DesignTokens.surface)
                 .accessibilityIdentifier("settings-LOG")
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(DesignTokens.backgroundWhite)
         .navigationTitle("Cài đặt")
         .navigationBarTitleDisplayMode(.inline)
     }
@@ -79,6 +83,7 @@ struct SettingsView: View {
         }
         .frame(minHeight: 44)
         .contentShape(Rectangle())
+        .listRowBackground(DesignTokens.surface)
         .accessibilityIdentifier("settings-\(key)")
     }
 }

@@ -80,7 +80,7 @@ final class SettingsEditorValidationTests: XCTestCase {
         store.save()
         let reloaded = SettingsStore(userDefaults: userDefaults)
         XCTAssertEqual(reloaded.typography.fontSize, 16)
-        XCTAssertEqual(reloaded.typography.lineHeight, 1.5)
+        XCTAssertEqual(reloaded.typography.lineHeight, 5)
         XCTAssertEqual(reloaded.typography.letterSpacing, 0)
     }
 

@@ -53,10 +53,10 @@ struct SettingDescriptor {
                 }
                 return "12..40"
             case "lineHeight":
-                if let number = Double(value), (1.0 ... 10).contains(number) {
+                if let number = Double(value), (1.0 ... 50).contains(number) {
                     return nil
                 }
-                return "1.0..10"
+                return "1.0..50"
             case "font":
                 return Self.fontError(value)
             case "letterSpacing":
@@ -175,9 +175,9 @@ enum SettingsViewModel {
         "lineHeight": SettingDescriptor(
             key: "lineHeight",
             label: "Giãn dòng",
-            placeholder: "1.5",
-            description: "1.0..10, bước 0.2",
-            defaultValue: "1.5",
+            placeholder: "5",
+            description: "1.0..50, bước 0.5",
+            defaultValue: "5",
             allowsVerbatimSave: false
         ),
         "letterSpacing": SettingDescriptor(

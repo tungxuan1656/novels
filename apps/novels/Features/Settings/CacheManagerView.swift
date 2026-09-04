@@ -52,6 +52,9 @@ struct CacheManagerView: View {
                     countCard
                     bookSection
                 }
+                .listSectionSpacing(DesignTokens.spacing8)
+                .scrollContentBackground(.hidden)
+                .background(DesignTokens.backgroundPaper)
                 .refreshable { await load() }
             }
         }
@@ -104,58 +107,140 @@ struct CacheManagerView: View {
 
     private var countCard: some View {
         Section {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Tổng số bản đã xử lý: \(total)")
-                    .font(.headline)
-                    .foregroundStyle(DesignTokens.text)
-                Text("Lưu trong processed_chapters.sqlite — xóa sẽ trống ngay")
-                    .font(.caption)
-                    .foregroundStyle(DesignTokens.muted)
-                Button(role: .destructive) {
-                    showClearAllConfirm = true
-                } label: {
-                    Label("Xóa tất cả", systemImage: "trash")
-                        .frame(maxWidth: .infinity, minHeight: 44)
-                        .contentShape(Rectangle())
+            VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
+                HStack(alignment: .center, spacing: DesignTokens.spacing12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                            .fill(DesignTokens.error.opacity(0.12))
+                            .frame(width: 48, height: 48)
+                        Image(systemName: "archivebox.fill")
+                            .font(.title3)
+                            .foregroundStyle(DesignTokens.error)
+                            .accessibilityHidden(true)
+                    }
+                    VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
+                        Text(total == 0 ? "Chưa lưu chương nào" : "\(total) chương đã lưu")
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundStyle(DesignTokens.text)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.9)
+                        Text("Máy giữ sẵn để mở lại nhanh hơn.")
+                            .font(.footnote)
+                            .foregroundStyle(DesignTokens.muted)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignTokens.error)
-                .disabled(total == 0)
-                .opacity(total == 0 ? 0.4 : 1)
-                .accessibilityIdentifier("clearAllButton")
-                .accessibilityLabel("Xóa tất cả")
+                Text("Xóa để giải phóng dung lượng, truyện gốc không bị ảnh hưởng.")
+                    .font(.footnote)
+                    .foregroundStyle(DesignTokens.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Spacer(minLength: 0)
+                    Button(role: .destructive) {
+                        showClearAllConfirm = true
+                    } label: {
+                        Label("Xóa tất cả", systemImage: "trash")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, DesignTokens.spacing16)
+                            .frame(minHeight: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignTokens.error)
+                    .disabled(total == 0)
+                    .opacity(total == 0 ? 0.4 : 1)
+                    .accessibilityIdentifier("clearAllButton")
+                    .accessibilityLabel("Xóa tất cả")
+                }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, DesignTokens.spacing16)
             .listRowBackground(DesignTokens.surface)
+            .listRowSeparator(.hidden)
         }
     }
 
     private var bookSection: some View {
-        Section("Theo sách") {
+        Section {
             if rows.isEmpty {
-                Text("Chưa có dữ liệu đệm")
-                    .foregroundStyle(DesignTokens.muted)
+                HStack {
+                    Spacer(minLength: 0)
+                    VStack(spacing: DesignTokens.spacing8) {
+                        Image(systemName: "tray")
+                            .font(.title2)
+                            .foregroundStyle(DesignTokens.muted)
+                            .accessibilityHidden(true)
+                        Text("Chưa có dữ liệu đệm")
+                            .font(.subheadline)
+                            .foregroundStyle(DesignTokens.muted)
+                        Text("Các chương đã xử lý sẽ hiện ở đây.")
+                            .font(.footnote)
+                            .foregroundStyle(DesignTokens.muted)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, DesignTokens.spacing16)
+                    Spacer(minLength: 0)
+                }
+                .listRowBackground(DesignTokens.surface)
+                .listRowSeparator(.hidden)
             } else {
                 ForEach(rows, id: \.slug) { row in
-                    HStack {
+                    HStack(spacing: DesignTokens.spacing8) {
                         Text(row.slug)
-                            .lineLimit(1)
+                            .font(.body)
                             .foregroundStyle(DesignTokens.text)
-                        Spacer()
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer(minLength: DesignTokens.spacing8)
                         Text("\(row.count)")
+                            .font(.footnote)
+                            .fontWeight(.medium)
                             .foregroundStyle(DesignTokens.muted)
-                        Button("Xóa", role: .destructive) {
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .frame(minWidth: 32)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(DesignTokens.muted.opacity(0.12), in: Capsule())
+                            .accessibilityLabel("\(row.count) chương")
+                        Button(role: .destructive) {
                             showClearBookConfirm = row.slug
+                        } label: {
+                            Text("Xóa")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(DesignTokens.error)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .frame(minWidth: 56)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 5)
+                                .background(DesignTokens.error.opacity(0.1), in: Capsule())
+                                .overlay(
+                                    Capsule()
+                                        .stroke(DesignTokens.error.opacity(0.25), lineWidth: 1)
+                                )
+                                .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("clear-\(row.slug)")
                         .accessibilityLabel("Xóa \(row.slug)")
                         .a11yHitTarget()
                     }
-                    .frame(minHeight: 44)
+                    .frame(minHeight: 48)
                     .contentShape(Rectangle())
                     .accessibilityIdentifier("cache-\(row.slug)")
+                    .listRowBackground(DesignTokens.surface)
+                    .listRowSeparatorTint(DesignTokens.border)
                 }
             }
+        } header: {
+            Text("Theo sách")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(DesignTokens.text)
+                .textCase(nil)
         }
     }
 
