@@ -7,6 +7,7 @@ actor AIReadingService {
     private let client: AIClient
     private let settings: SettingsStore
     private var inFlight: [String: Task<String, Error>] = [:]
+    private var inFlightTokens: [String: UUID] = [:]
 
     init(cache: ProcessedChapterCaching, client: AIClient, settings: SettingsStore) {
         self.cache = cache
@@ -193,7 +194,69 @@ actor AIReadingService {
         }
     }
 
-    // swiftlint:disable:next function_body_length
+    // Shared chunk/process/cache pipeline used by both entry points.
+    // Callers wrap this in a single Task registered in `inFlight[cacheKey]`.
+    // swiftlint:disable:next function_parameter_count
+    private func runPipeline(
+        bookId: String,
+        chapterNumber: Int,
+        mode: AIMode,
+        rawText: String,
+        cacheKey: String,
+        runId: UUID
+    ) async throws -> String {
+        let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
+        let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
+        let prompt: String = await MainActor.run {
+            AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
+        }
+        let chunks = AIChunker.chunk(text: rawText, size: size)
+        if chunks.isEmpty {
+            throw AIClientError.noResponse
+        }
+        await logCache(
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode,
+            event: "cache.miss",
+            detail: "chunkCount=\(chunks.count) keyHash=\(keyHash(cacheKey))",
+            runId: runId
+        )
+        let joined = try await processChunks(
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode,
+            prompt: prompt,
+            chunks: chunks,
+            cacheKey: cacheKey,
+            runId: runId
+        )
+        guard !joined.isEmpty else {
+            throw AIClientError.noResponse
+        }
+        let hash = SHA256.hex(joined)
+        let now = Date()
+        let pc = ProcessedChapter(
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode,
+            content: joined,
+            contentHash: hash,
+            createdAt: now,
+            updatedAt: now
+        )
+        try cache.upsert(pc)
+        await logCache(
+            bookId: bookId,
+            chapterNumber: chapterNumber,
+            mode: mode,
+            event: "cache.save",
+            detail: "chunkCount=\(chunks.count) outputHash=\(String(hash.prefix(8))) keyHash=\(keyHash(cacheKey))",
+            runId: runId
+        )
+        return joined
+    }
+
     func processedContent(
         bookId: String,
         chapterNumber: Int,
@@ -229,59 +292,24 @@ actor AIReadingService {
             return try await existing.value
         }
         let task = Task<String, Error> {
-            let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
-            let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
-            let prompt: String = await MainActor.run {
-                AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
-            }
-            let chunks = AIChunker.chunk(text: rawText, size: size)
-            if chunks.isEmpty {
-                throw AIClientError.noResponse
-            }
-            await self.logCache(
+            try await self.runPipeline(
                 bookId: bookId,
                 chapterNumber: chapterNumber,
                 mode: mode,
-                event: "cache.miss",
-                detail: "chunkCount=\(chunks.count) keyHash=\(self.keyHash(cacheKey))",
-                runId: run
-            )
-            let joined = try await self.processChunks(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                prompt: prompt,
-                chunks: chunks,
+                rawText: rawText,
                 cacheKey: cacheKey,
                 runId: run
             )
-            guard !joined.isEmpty else {
-                throw AIClientError.noResponse
-            }
-            let hash = SHA256.hex(joined)
-            let now = Date()
-            let pc = ProcessedChapter(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                content: joined,
-                contentHash: hash,
-                createdAt: now,
-                updatedAt: now
-            )
-            try cache.upsert(pc)
-            await self.logCache(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                event: "cache.save",
-                detail: "chunkCount=\(chunks.count) outputHash=\(String(hash.prefix(8))) keyHash=\(self.keyHash(cacheKey))",
-                runId: run
-            )
-            return joined
         }
+        let token = UUID()
         inFlight[cacheKey] = task
-        defer { inFlight[cacheKey] = nil }
+        inFlightTokens[cacheKey] = token
+        defer {
+            if inFlightTokens[cacheKey] == token {
+                inFlight[cacheKey] = nil
+                inFlightTokens[cacheKey] = nil
+            }
+        }
         return try await task.value
     }
 
@@ -301,48 +329,27 @@ actor AIReadingService {
             // Cancel previous in-flight work before reprocessing
             existing.cancel()
             inFlight[cacheKey] = nil
+            inFlightTokens[cacheKey] = nil
         }
-        let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
-        let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
-        let prompt: String = await MainActor.run {
-            AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
+        let token = UUID()
+        let task = Task<String, Error> {
+            try await self.runPipeline(
+                bookId: bookId,
+                chapterNumber: chapterNumber,
+                mode: mode,
+                rawText: rawText,
+                cacheKey: cacheKey,
+                runId: run
+            )
         }
-        let chunks = AIChunker.chunk(text: rawText, size: size)
-        if chunks.isEmpty {
-            throw AIClientError.noResponse
+        inFlight[cacheKey] = task
+        inFlightTokens[cacheKey] = token
+        defer {
+            if inFlightTokens[cacheKey] == token {
+                inFlight[cacheKey] = nil
+                inFlightTokens[cacheKey] = nil
+            }
         }
-        let joined = try await processChunks(
-            bookId: bookId,
-            chapterNumber: chapterNumber,
-            mode: mode,
-            prompt: prompt,
-            chunks: chunks,
-            cacheKey: cacheKey,
-            runId: run
-        )
-        guard !joined.isEmpty else {
-            throw AIClientError.noResponse
-        }
-        let hash = SHA256.hex(joined)
-        let now = Date()
-        let pc = ProcessedChapter(
-            bookId: bookId,
-            chapterNumber: chapterNumber,
-            mode: mode,
-            content: joined,
-            contentHash: hash,
-            createdAt: now,
-            updatedAt: now
-        )
-        try cache.upsert(pc)
-        await logCache(
-            bookId: bookId,
-            chapterNumber: chapterNumber,
-            mode: mode,
-            event: "cache.save",
-            detail: "chunkCount=\(chunks.count) outputHash=\(String(hash.prefix(8))) keyHash=\(keyHash(cacheKey))",
-            runId: run
-        )
-        return joined
+        return try await task.value
     }
 }

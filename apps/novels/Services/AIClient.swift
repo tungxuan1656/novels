@@ -29,35 +29,70 @@ actor AIClient {
         chunk: String,
         context: AIDiagnosticsContext = AIDiagnosticsContext()
     ) async throws -> String {
-        let urlString: String = await MainActor.run {
-            let trimmed = settings.openaiAPIURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            return trimmed.isEmpty ? "http://localhost:8317/v1/chat/completions" : settings.openaiAPIURL
+        // One MainActor hop for all settings reads (A4).
+        // swiftlint:disable:next large_tuple
+        let settingsSnapshot: (
+            urlRaw: String,
+            modelRaw: String,
+            headers: [String: String],
+            extra: [String: Any],
+            verbose: Bool
+        ) = await MainActor.run {
+            (
+                urlRaw: settings.openaiAPIURL,
+                modelRaw: settings.openaiModel,
+                headers: settings.effectiveHeaders(),
+                extra: settings.effectiveExtraBody(),
+                verbose: settings.diagnosticsVerbose
+            )
         }
-        let model: String = await MainActor.run {
-            settings.openaiModel.isEmpty ? "gpt-4o" : settings.openaiModel
-        }
-        let headers: [String: String] = await MainActor.run {
-            settings.effectiveHeaders()
-        }
-        let extra: [String: Any] = await MainActor.run {
-            settings.effectiveExtraBody()
-        }
-        let verbose: Bool = await MainActor.run {
-            settings.diagnosticsVerbose
-        }
+        let trimmedURL = settingsSnapshot.urlRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let urlString = trimmedURL.isEmpty ? "http://localhost:8317/v1/chat/completions" : trimmedURL
+        let model = settingsSnapshot.modelRaw.isEmpty ? "gpt-4o" : settingsSnapshot.modelRaw
+        let headers = settingsSnapshot.headers
+        let extra = settingsSnapshot.extra
+        let verbose = settingsSnapshot.verbose
         guard let url = URL(string: urlString) else {
             throw AIClientError.httpError(0, "bad url")
         }
         await logInvalidPayloadEvents(headers: headers, extra: extra, context: context)
         let chunkHash = DiagnosticsRedactor.hashPrefix(chunk)
         try Task.checkCancellation()
+        // S3: serialize the request body once up front. Invalid extraBody types
+        // (e.g. string for a numeric field) are deterministic programming errors:
+        // log once and fail without retry so the broken payload is not double-fired.
+        let requestBodyData: Data
+        do {
+            requestBodyData = try Self.makeRequestBodyData(
+                model: model,
+                prompt: prompt,
+                chunk: chunk,
+                extra: extra
+            )
+        } catch {
+            let nsError = error as NSError
+            await recordApiAttempt(
+                context: context,
+                attempt: 1,
+                latencyMs: 0,
+                urlString: url.absoluteString,
+                model: model,
+                errorDomain: nsError.domain,
+                errorCode: nsError.code,
+                bodyLen: chunk.utf8.count,
+                bodyHashPrefix: chunkHash,
+                snippet: DiagnosticsRedactor.snippet(chunk, limit: 100, verbose: verbose)
+            )
+            throw error
+        }
+        let requestBodyStringConstant = String(data: requestBodyData, encoding: .utf8)
         var lastError: Error?
         for attemptNumber in 1 ... 2 {
             let attemptStart = Date()
             func latencyMs() -> Int {
                 Int(Date().timeIntervalSince(attemptStart) * 1000)
             }
-            var requestBodyString: String?
+            var requestBodyString: String? = requestBodyStringConstant
             do {
                 try Task.checkCancellation()
                 var request = URLRequest(url: url)
@@ -66,44 +101,22 @@ actor AIClient {
                 for (key, value) in headers {
                     request.setValue(value, forHTTPHeaderField: key)
                 }
-                var body: [String: Any] = [
-                    "model": model,
-                    "messages": [
-                        ["role": "system", "content": prompt],
-                        ["role": "user", "content": chunk],
-                    ],
-                ]
-                for (key, value) in extra {
-                    if key == "model" || key == "messages" || key == "stream" {
-                        continue
-                    }
-                    body[key] = value
-                }
-                let requestBodyData = try JSONSerialization.data(withJSONObject: body)
                 request.httpBody = requestBodyData
                 request.timeoutInterval = Self.requestTimeout
                 let requestHeaders = request.allHTTPHeaderFields ?? [:]
                 requestBodyString = request.httpBody.flatMap { String(data: $0, encoding: .utf8) }
-                await DiagnosticsLog.shared.append(LogEntry(
-                    requestId: context.requestId,
-                    sessionId: DiagnosticsLog.sessionId,
-                    kind: .api,
-                    bookId: context.bookId,
-                    chapterNumber: context.chapterNumber,
-                    mode: context.mode,
-                    chunkIndex: context.chunkIndex,
-                    chunkTotal: context.chunkTotal,
+                await recordApiAttempt(
+                    context: context,
                     attempt: attemptNumber,
                     latencyMs: 0,
-                    host: url.absoluteString,
+                    urlString: url.absoluteString,
                     model: model,
                     headersRedacted: DiagnosticsRedactor.redactedHeaders(requestHeaders),
                     bodyLen: chunk.utf8.count,
                     bodyHashPrefix: chunkHash,
                     snippet: DiagnosticsRedactor.snippet(chunk, limit: 100, verbose: verbose),
-                    runId: context.runId,
                     requestBody: requestBodyString
-                ))
+                )
                 let (data, response) = try await session.data(for: request)
                 let elapsed = latencyMs()
                 let responseBodyString = String(data: data, encoding: .utf8)
@@ -111,27 +124,19 @@ actor AIClient {
                 let statusCode = http?.statusCode ?? 0
                 let retryAfter = http.flatMap { DiagnosticsRedactor.retryAfterMs(from: $0.allHeaderFields) }
                 if let http, !(200 ... 299).contains(http.statusCode) {
-                    await DiagnosticsLog.shared.append(LogEntry(
-                        requestId: context.requestId,
-                        sessionId: DiagnosticsLog.sessionId,
-                        kind: .api,
-                        bookId: context.bookId,
-                        chapterNumber: context.chapterNumber,
-                        mode: context.mode,
-                        chunkIndex: context.chunkIndex,
-                        chunkTotal: context.chunkTotal,
+                    await recordApiAttempt(
+                        context: context,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: url.absoluteString,
+                        urlString: url.absoluteString,
+                        model: model,
                         statusCode: statusCode,
                         errorDomain: "AIClientError.httpError",
                         errorCode: statusCode,
-                        model: model,
                         retryAfterMs: retryAfter,
-                        runId: context.runId,
                         requestBody: requestBodyString,
                         responseBody: responseBodyString
-                    ))
+                    )
                     throw AIClientError.httpError(
                         http.statusCode,
                         HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
@@ -142,22 +147,15 @@ actor AIClient {
                 do {
                     decoded = try JSONDecoder().decode(AIChatResponse.self, from: data)
                 } catch {
-                    await DiagnosticsLog.shared.append(LogEntry(
-                        requestId: context.requestId,
-                        sessionId: DiagnosticsLog.sessionId,
-                        kind: .api,
-                        bookId: context.bookId,
-                        chapterNumber: context.chapterNumber,
-                        mode: context.mode,
-                        chunkIndex: context.chunkIndex,
-                        chunkTotal: context.chunkTotal,
+                    await recordApiAttempt(
+                        context: context,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: url.absoluteString,
+                        urlString: url.absoluteString,
+                        model: model,
                         statusCode: statusCode,
                         errorDomain: "DecodingError",
                         errorCode: (error as NSError).code,
-                        model: model,
                         responseLen: data.count,
                         responseHashPrefix: DiagnosticsRedactor.hashPrefix(
                             String(data: data, encoding: .utf8) ?? ""
@@ -168,30 +166,22 @@ actor AIClient {
                         contentKind: shape.contentKind,
                         hasReasoningContent: shape.hasReasoningContent,
                         hasToolCalls: shape.hasToolCalls,
-                        runId: context.runId,
                         requestBody: requestBodyString,
                         responseBody: responseBodyString
-                    ))
+                    )
                     throw AIClientError.noResponse
                 }
                 guard let content = decoded.resolvedText
                 else {
-                    await DiagnosticsLog.shared.append(LogEntry(
-                        requestId: context.requestId,
-                        sessionId: DiagnosticsLog.sessionId,
-                        kind: .api,
-                        bookId: context.bookId,
-                        chapterNumber: context.chapterNumber,
-                        mode: context.mode,
-                        chunkIndex: context.chunkIndex,
-                        chunkTotal: context.chunkTotal,
+                    await recordApiAttempt(
+                        context: context,
                         attempt: attemptNumber,
                         latencyMs: elapsed,
-                        host: url.absoluteString,
+                        urlString: url.absoluteString,
+                        model: model,
                         statusCode: statusCode,
                         errorDomain: "AIClientError.noResponse",
                         errorCode: 0,
-                        model: model,
                         responseLen: data.count,
                         responseHashPrefix: DiagnosticsRedactor.hashPrefix(
                             String(data: data, encoding: .utf8) ?? ""
@@ -202,34 +192,25 @@ actor AIClient {
                         contentKind: shape.contentKind,
                         hasReasoningContent: shape.hasReasoningContent,
                         hasToolCalls: shape.hasToolCalls,
-                        runId: context.runId,
                         requestBody: requestBodyString,
                         responseBody: responseBodyString
-                    ))
+                    )
                     throw AIClientError.noResponse
                 }
-                await DiagnosticsLog.shared.append(LogEntry(
-                    requestId: context.requestId,
-                    sessionId: DiagnosticsLog.sessionId,
-                    kind: .api,
-                    bookId: context.bookId,
-                    chapterNumber: context.chapterNumber,
-                    mode: context.mode,
-                    chunkIndex: context.chunkIndex,
-                    chunkTotal: context.chunkTotal,
+                await recordApiAttempt(
+                    context: context,
                     attempt: attemptNumber,
                     latencyMs: elapsed,
-                    host: url.absoluteString,
-                    statusCode: statusCode,
+                    urlString: url.absoluteString,
                     model: model,
+                    statusCode: statusCode,
+                    snippet: DiagnosticsRedactor.snippet(content, limit: 200, verbose: verbose),
                     responseLen: data.count,
                     responseHashPrefix: DiagnosticsRedactor.hashPrefix(content),
-                    snippet: DiagnosticsRedactor.snippet(content, limit: 200, verbose: verbose),
                     retryAfterMs: retryAfter,
-                    runId: context.runId,
                     requestBody: requestBodyString,
                     responseBody: responseBodyString
-                ))
+                )
                 return content
             } catch {
                 if error is CancellationError {
@@ -243,28 +224,21 @@ actor AIClient {
                     lastError = error
                 } else if error is URLError || (error as NSError).domain == NSURLErrorDomain {
                     let urlError = error as? URLError
-                    await DiagnosticsLog.shared.append(LogEntry(
-                        requestId: context.requestId,
-                        sessionId: DiagnosticsLog.sessionId,
-                        kind: .api,
-                        bookId: context.bookId,
-                        chapterNumber: context.chapterNumber,
-                        mode: context.mode,
-                        chunkIndex: context.chunkIndex,
-                        chunkTotal: context.chunkTotal,
+                    await recordApiAttempt(
+                        context: context,
                         attempt: attemptNumber,
                         latencyMs: latencyMs(),
-                        host: url.absoluteString,
+                        urlString: url.absoluteString,
+                        model: model,
                         errorDomain: (error as NSError).domain,
                         errorCode: (error as NSError).code,
-                        model: model,
                         timeoutKind: urlError?.code == .timedOut ? "timedOut" : nil,
-                        runId: context.runId,
                         requestBody: requestBodyString
-                    ))
+                    )
                     lastError = error
                 } else {
-                    // Programming errors (e.g., JSONSerialization) — retry once like any other error
+                    // Any other error inside the attempt loop is retryable once.
+                    // (Request-body serialization already failed fast above, before retry.)
                     lastError = error
                 }
                 if attemptNumber == 2 {
@@ -274,6 +248,90 @@ actor AIClient {
             }
         }
         throw lastError ?? AIClientError.noResponse
+    }
+
+    private static func makeRequestBodyData(
+        model: String,
+        prompt: String,
+        chunk: String,
+        extra: [String: Any]
+    ) throws -> Data {
+        var baseBody: [String: Any] = [
+            "model": model,
+            "messages": [
+                ["role": "system", "content": prompt],
+                ["role": "user", "content": chunk],
+            ],
+        ]
+        for (key, value) in extra {
+            if key == "model" || key == "messages" || key == "stream" {
+                continue
+            }
+            baseBody[key] = value
+        }
+        return try JSONSerialization.data(withJSONObject: baseBody)
+    }
+
+    /// Single helper for all per-attempt `.api` log entries (A1/A4).
+    /// Same fields, redaction, and requestBody/responseBody threading as before.
+    private func recordApiAttempt(
+        context: AIDiagnosticsContext,
+        attempt: Int,
+        latencyMs: Int,
+        urlString: String,
+        model: String,
+        statusCode: Int? = nil,
+        errorDomain: String? = nil,
+        errorCode: Int? = nil,
+        headersRedacted: [String: String]? = nil,
+        bodyLen: Int? = nil,
+        bodyHashPrefix: String? = nil,
+        snippet: String? = nil,
+        responseLen: Int? = nil,
+        responseHashPrefix: String? = nil,
+        retryAfterMs: Int? = nil,
+        timeoutKind: String? = nil,
+        responseJsonKeys: [String]? = nil,
+        choicesCount: Int? = nil,
+        contentKind: String? = nil,
+        hasReasoningContent: Bool? = nil,
+        hasToolCalls: Bool? = nil,
+        requestBody: String? = nil,
+        responseBody: String? = nil
+    ) async {
+        await DiagnosticsLog.shared.append(LogEntry(
+            requestId: context.requestId,
+            sessionId: DiagnosticsLog.sessionId,
+            kind: .api,
+            bookId: context.bookId,
+            chapterNumber: context.chapterNumber,
+            mode: context.mode,
+            chunkIndex: context.chunkIndex,
+            chunkTotal: context.chunkTotal,
+            attempt: attempt,
+            latencyMs: latencyMs,
+            host: urlString,
+            statusCode: statusCode,
+            errorDomain: errorDomain,
+            errorCode: errorCode,
+            model: model,
+            responseLen: responseLen,
+            responseHashPrefix: responseHashPrefix,
+            headersRedacted: headersRedacted,
+            bodyLen: bodyLen,
+            bodyHashPrefix: bodyHashPrefix,
+            snippet: snippet,
+            retryAfterMs: retryAfterMs,
+            timeoutKind: timeoutKind,
+            responseJsonKeys: responseJsonKeys,
+            choicesCount: choicesCount,
+            contentKind: contentKind,
+            hasReasoningContent: hasReasoningContent,
+            hasToolCalls: hasToolCalls,
+            runId: context.runId,
+            requestBody: requestBody,
+            responseBody: responseBody
+        ))
     }
 
     private func logInvalidPayloadEvents(

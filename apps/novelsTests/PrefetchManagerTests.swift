@@ -366,6 +366,27 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertTrue(client.calls.count <= 2)
     }
 
+    func testEffectivePrefetchCountClampsOutOfRange() async throws {
+        let (_, _, settings, _, _) = try await makeManagerEnv()
+        let cases: [(input: Int, expected: Int)] = [
+            (0, 3),
+            (-1, 3),
+            (99, 3),
+            (100, 3),
+            (Int.max, 3),
+            (1, 1),
+            (10, 10),
+        ]
+        for (input, expected) in cases {
+            await MainActor.run { settings.prefetchCount = input }
+            let actual = await MainActor.run { settings.effectivePrefetchCount() }
+            XCTAssertEqual(actual, expected, "effectivePrefetchCount(\(input))")
+            // Read-only: stored value stays untouched until save().
+            let stored = await MainActor.run { settings.prefetchCount }
+            XCTAssertEqual(stored, input, "stored prefetchCount must stay \(input)")
+        }
+    }
+
     func testMissingChapterErrorCarriesOwnRunId() async throws {
         await DiagnosticsLog.shared.clear()
         let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)

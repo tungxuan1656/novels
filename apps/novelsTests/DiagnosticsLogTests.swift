@@ -291,6 +291,28 @@ final class DiagnosticsLogTests: XCTestCase {
 
     // MARK: - Response shape (feat-017)
 
+    func testDebugSummaryNeverContainsPromptOrChunkEvenWhenVerbose() async throws {
+        let prompt = "SECRET-SYSTEM-PROMPT-98765"
+        let chunk = "SECRET-USER-CHUNK-54321"
+        let settings = await makeSettings(verbose: true)
+        let client = makeClient(settings: settings)
+        AIMockURLProtocol.handler = okHandler(content: "reply")
+        let output = try await client.complete(prompt: prompt, chunk: chunk)
+        XCTAssertEqual(output, "reply")
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertFalse(entries.isEmpty)
+        for entry in entries {
+            XCTAssertFalse(
+                entry.debugSummary.contains(prompt),
+                "debugSummary leaked system prompt: \(entry.debugSummary)"
+            )
+            XCTAssertFalse(
+                entry.debugSummary.contains(chunk),
+                "debugSummary leaked user chunk: \(entry.debugSummary)"
+            )
+        }
+    }
+
     func testShapeParserKinds() {
         let nullData = Data("{\"choices\":[{\"message\":{\"content\":null,\"reasoning_content\":\"r\"}}]}".utf8)
         let nullShape = AIResponseShape.parse(nullData)

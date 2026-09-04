@@ -48,10 +48,10 @@ struct SettingDescriptor {
                 }
                 return "500..10000, ngoài khoảng sẽ về 1300"
             case "fontSize":
-                if let number = Double(value), (12 ... 24).contains(number) {
+                if let number = Double(value), (12 ... 40).contains(number) {
                     return nil
                 }
-                return "12..24"
+                return "12..40"
             case "lineHeight":
                 if let number = Double(value), (1.0 ... 10).contains(number) {
                     return nil
@@ -60,10 +60,10 @@ struct SettingDescriptor {
             case "font":
                 return Self.fontError(value)
             case "letterSpacing":
-                if let number = Double(value), (0 ... 1.0).contains(number) {
+                if let number = Double(value), (0 ... 3.0).contains(number) {
                     return nil
                 }
-                return "0..1.0"
+                return "0..3.0"
             default:
                 return nil
         }
@@ -168,7 +168,7 @@ enum SettingsViewModel {
             key: "fontSize",
             label: "Cỡ chữ",
             placeholder: "16",
-            description: "12..24, bước 1",
+            description: "12..40, bước 1",
             defaultValue: "16",
             allowsVerbatimSave: false
         ),
@@ -184,7 +184,7 @@ enum SettingsViewModel {
             key: "letterSpacing",
             label: "Giãn chữ",
             placeholder: "0",
-            description: "0..1.0, bước 0.1",
+            description: "0..3.0, bước 0.1",
             defaultValue: "0",
             allowsVerbatimSave: false
         ),

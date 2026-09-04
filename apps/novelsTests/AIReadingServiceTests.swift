@@ -159,6 +159,64 @@ final class AIReadingServiceTests: XCTestCase {
         XCTAssertEqual(try cache.countAll(), 0)
     }
 
+    func testReprocessDedupsParallelDuplicate() async throws {
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let settings = await makeSettings(chunkSize: 1300)
+        let client = makeClient(settings: settings)
+        let service = AIReadingService(cache: cache, client: client, settings: settings)
+        var callCount = 0
+        let lock = NSLock()
+        AIMockURLProtocol.handler = { _ in
+            lock.lock()
+            callCount += 1
+            lock.unlock()
+            // Keep first request in-flight briefly so the second caller takes over
+            Thread.sleep(forTimeInterval: 0.15)
+            let json = "{\"choices\":[{\"message\":{\"content\":\"reprocessed\"}}]}"
+            let response = HTTPURLResponse(
+                url: URL(string: "http://localhost:8317/v1/chat/completions")!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        // R1 last-writer-wins: the second reprocess cancels the first in-flight
+        // pipeline, so only one network call is made; exactly one caller wins.
+        let task1 = Task {
+            try await service.reprocess(
+                bookId: "slug",
+                chapterNumber: 6,
+                mode: .rewrite,
+                rawText: "hello world"
+            )
+        }
+        let task2 = Task {
+            try await service.reprocess(
+                bookId: "slug",
+                chapterNumber: 6,
+                mode: .rewrite,
+                rawText: "hello world"
+            )
+        }
+        var succeeded: [String] = []
+        var cancelled = 0
+        for task in [task1, task2] {
+            do {
+                try succeeded.append(await task.value)
+            } catch {
+                XCTAssertTrue(error is CancellationError, "loser must be cancelled, got \(error)")
+                cancelled += 1
+            }
+        }
+        XCTAssertEqual(succeeded, ["reprocessed"])
+        XCTAssertEqual(cancelled, 1)
+        lock.lock()
+        let calls = callCount
+        lock.unlock()
+        XCTAssertEqual(calls, 1)
+    }
+
     func testReprocessOverwritesCache() async throws {
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let now = Date()

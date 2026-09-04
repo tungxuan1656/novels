@@ -1,6 +1,8 @@
 @testable import novels
 import XCTest
 
+// swiftlint:disable file_length
+
 final class AIMockURLProtocol: URLProtocol {
     static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
 
@@ -482,5 +484,106 @@ final class AIClientTests: XCTestCase {
             XCTAssertTrue(entry.requestBody?.contains("\"messages\"") ?? false)
             XCTAssertTrue(entry.responseBody?.contains("server") ?? false, "responseBody \(entry.responseBody ?? "")")
         }
+    }
+
+    private func capturedBodyData(from request: URLRequest) -> Data? {
+        if let body = request.httpBody {
+            return body
+        }
+        guard let stream = request.httpBodyStream else {
+            return nil
+        }
+        stream.open()
+        var data = Data()
+        let bufferSize = 1024
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate(); stream.close() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read > 0 {
+                data.append(buffer, count: read)
+            } else {
+                break
+            }
+        }
+        return data
+    }
+
+    func testExtraBodyStripsReservedKeysAndMergesAllowedKeys() async throws {
+        let extra = "{\"model\":\"user-model\"," +
+            "\"messages\":[{\"role\":\"user\",\"content\":\"injected\"}]," +
+            "\"stream\":true,\"temperature\":0.7,\"top_p\":0.9}"
+        let (client, _) = await MainActor.run {
+            makeClient(extraBodyJSON: extra)
+        }
+        var captured: Data?
+        AIMockURLProtocol.handler = { request in
+            captured = self.capturedBodyData(from: request)
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        let output = try await client.complete(prompt: "system-prompt", chunk: "user-chunk")
+        XCTAssertEqual(output, "ok")
+        let body = try XCTUnwrap(captured)
+        let dict = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        // System-owned keys win: user-supplied model/messages/stream are stripped.
+        XCTAssertEqual(dict["model"] as? String, "gpt-4o")
+        XCTAssertNil(dict["stream"])
+        let messages = try XCTUnwrap(dict["messages"] as? [[String: Any]])
+        XCTAssertEqual(messages.count, 2)
+        XCTAssertEqual(messages[0]["role"] as? String, "system")
+        XCTAssertEqual(messages[0]["content"] as? String, "system-prompt")
+        XCTAssertEqual(messages[1]["role"] as? String, "user")
+        XCTAssertEqual(messages[1]["content"] as? String, "user-chunk")
+        XCTAssertFalse(messages.contains { "\($0)".contains("injected") })
+        // Allowed keys merge through.
+        if let temp = dict["temperature"] as? Double {
+            XCTAssertEqual(temp, 0.7, accuracy: 0.0001)
+        } else if let num = dict["temperature"] as? NSNumber {
+            XCTAssertEqual(num.doubleValue, 0.7, accuracy: 0.0001)
+        } else {
+            XCTFail("temperature missing or wrong type: \(String(describing: dict["temperature"]))")
+        }
+        XCTAssertNotNil(dict["top_p"])
+    }
+
+    func testWhitespacePaddedURLFallsBackToTrimmed() async throws {
+        await DiagnosticsLog.shared.clear()
+        let padded = "  http://localhost:8317/v1/chat/completions  "
+        let (client, _) = await MainActor.run {
+            makeClient(url: padded)
+        }
+        var count = 0
+        AIMockURLProtocol.handler = { request in
+            count += 1
+            XCTAssertEqual(request.url?.absoluteString, "http://localhost:8317/v1/chat/completions")
+            let json = "{\"choices\":[{\"message\":{\"content\":\"ok\"}}]}"
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: nil
+            )!
+            return (response, json.data(using: .utf8)!)
+        }
+        var output: String?
+        var thrown: Error?
+        do {
+            output = try await client.complete(prompt: "p", chunk: "c")
+        } catch {
+            thrown = error
+        }
+        // Padded openaiAPIURL is trimmed before URL(string:) (untrimmed fails to parse).
+        XCTAssertNil(thrown, "padded URL should be trimmed, threw \(String(describing: thrown))")
+        XCTAssertEqual(output, "ok")
+        XCTAssertEqual(count, 1)
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertTrue(entries.allSatisfy { $0.host == "http://localhost:8317/v1/chat/completions" })
     }
 }

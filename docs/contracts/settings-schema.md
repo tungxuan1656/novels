@@ -30,7 +30,7 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
 - **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
-- **Typography:** `fontSize 12..24 step 1`, `lineHeight 1.2..2.0 step 0.1`, `letterSpacing 0..1.0 step 0.1`; invalid → defaults.
+- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..10 step 0.2`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
 
 ## Current Keys Only
 
