@@ -144,8 +144,7 @@ struct CacheManagerView: View {
                             .fontWeight(.semibold)
                             .foregroundStyle(.white)
                             .padding(.horizontal, DesignTokens.spacing16)
-                            .padding(.vertical, DesignTokens.spacing8)
-                            .frame(minHeight: 38)
+                            .frame(minHeight: 32)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.borderedProminent)
@@ -187,18 +186,20 @@ struct CacheManagerView: View {
                 .listRowSeparator(.hidden)
             } else {
                 ForEach(rows, id: \.slug) { row in
-                    HStack(spacing: DesignTokens.spacing12) {
+                    HStack(spacing: DesignTokens.spacing8) {
                         Text(row.slug)
                             .font(.body)
                             .foregroundStyle(DesignTokens.text)
                             .lineLimit(1)
                             .truncationMode(.tail)
-                            .layoutPriority(1)
                         Spacer(minLength: DesignTokens.spacing8)
                         Text("\(row.count)")
                             .font(.footnote)
                             .fontWeight(.medium)
                             .foregroundStyle(DesignTokens.muted)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .frame(minWidth: 32)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
                             .background(DesignTokens.muted.opacity(0.12), in: Capsule())
@@ -208,9 +209,12 @@ struct CacheManagerView: View {
                         } label: {
                             Text("Xóa")
                                 .font(.subheadline)
-                                .fontWeight(.medium)
+                                .fontWeight(.semibold)
                                 .foregroundStyle(DesignTokens.error)
-                                .padding(.horizontal, 10)
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                                .frame(minWidth: 56)
+                                .padding(.horizontal, 12)
                                 .padding(.vertical, 5)
                                 .background(DesignTokens.error.opacity(0.1), in: Capsule())
                                 .overlay(
