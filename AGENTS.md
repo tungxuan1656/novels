@@ -45,6 +45,7 @@ If baseline verification fails, record the failure. Fix the failure only when th
 
 ## Working rules
 
+- Write all docs, code, and comments in English. Other languages are allowed only for user-facing UI strings and their quoted examples.
 - Keep at most one feature `active`. Zero active features means the repository is idle.
 - Use only `todo`, `active`, `blocked`, or `done` for feature status.
 - Start `todo` work only after the user selects or approves it.
