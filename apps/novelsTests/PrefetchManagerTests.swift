@@ -461,7 +461,13 @@ final class PrefetchManagerTests: XCTestCase {
         let missing = entries.filter {
             $0.event == "prefetch.error-continue" && $0.chapterNumber == 3
         }
-        XCTAssertEqual(missing.count, 1, "one missing-chapter error entry")
+        // feat-024 Phase 1 (Lane P, see docs/plans/feat-024.md): the queue
+        // requeues a failed chapter at the tail at most once, so the missing
+        // chapter logs twice (initial + one retry) under distinct runIds
+        // while errors[] still records it once. Spec amendment in Lane S.
+        XCTAssertEqual(missing.count, 2, "initial + one tail-requeue retry")
+        let missingRuns = Set(missing.compactMap { $0.runId })
+        XCTAssertEqual(missingRuns.count, 2, "each attempt is its own run")
         let missingRun = try XCTUnwrap(missing.first?.runId, "missing-chapter error must carry a runId")
         // Chapters 2 and 4 each ran under their own distinct runs.
         let starts2 = entries.filter { $0.event == "chunk.start" && $0.chapterNumber == 2 }
@@ -473,6 +479,10 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertNotEqual(run2, run4, "each prefetched chapter is its own run")
         XCTAssertNotEqual(missingRun, run2)
         XCTAssertNotEqual(missingRun, run4)
+        for run in missingRuns where run != missingRun {
+            XCTAssertNotEqual(run, run2)
+            XCTAssertNotEqual(run, run4)
+        }
     }
 
     // MARK: - feat-023 Phase 4: bounded retry + overlap-preserving window
@@ -512,9 +522,11 @@ final class PrefetchManagerTests: XCTestCase {
     }
 
     func testFailedChapterPrioritizedInNextWindow() async throws {
-        // Persistent failure in batch 1 is recorded; the next window for the
-        // same book+mode attempts the failed chapter before the fresh tail and
-        // logs the retry-enqueue detail on the existing batchCheck event.
+        // feat-024 Phase 1 (Lane P, see docs/plans/feat-024.md): the durable
+        // FIFO queue replaces the failed-first store with an in-queue
+        // attempts<=1 tail requeue, so a clean restart issues plain miss
+        // order ([3,4,6]) and no `retry-enqueue` detail is logged. The
+        // chapter-prefetch.md §4 amendment lands in Lane S (Phase 4).
         // Backward navigation makes the failed chapter (6) larger than the
         // fresh misses (3,4), so failed-first [6,3,4] differs from ascending.
         await DiagnosticsLog.shared.clear()
@@ -550,16 +562,16 @@ final class PrefetchManagerTests: XCTestCase {
         )
         try await Task.sleep(nanoseconds: 1_500_000_000)
         let newCalls = Array(client.calls.dropFirst(callsBeforeSecond))
-        XCTAssertEqual(newCalls, [6, 3, 4], "failed chapter 6 before fresh tail, got \(newCalls)")
+        XCTAssertEqual(newCalls, [3, 4, 6], "restart issues plain miss order, got \(newCalls)")
         XCTAssertNotNil(
             try cache.get(bookId: "book-slug", chapterNumber: 6, mode: .rewrite),
             "6 cached after next-window retry"
         )
         let entries = await DiagnosticsLog.shared.snapshot()
         let checks = entries.filter { $0.event == "prefetch.batchCheck" }
-        XCTAssertTrue(
-            checks.contains { ($0.detail ?? "").contains("retry-enqueue") && ($0.detail ?? "").contains("6") },
-            "batchCheck must carry retry-enqueue detail for chapter 6, got \(checks.map { $0.detail })"
+        XCTAssertFalse(
+            checks.contains { ($0.detail ?? "").contains("retry-enqueue") },
+            "failed-first removed: batchCheck must not carry retry-enqueue, got \(checks.map { $0.detail })"
         )
     }
 

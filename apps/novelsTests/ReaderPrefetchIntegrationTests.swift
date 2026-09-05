@@ -195,7 +195,11 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         XCTAssertEqual(vm.chapterNumber, 1)
         XCTAssertTrue(client.calls.first == 1, "current chapter AI first, got \(client.calls)")
         XCTAssertFalse(client.calls.contains(3), "cached chapter must be skipped, got \(client.calls)")
-        XCTAssertEqual(client.calls.filter { $0 == 2 }.count, 2, "failed chunk retried once, got \(client.calls)")
+        // feat-024 Phase 1 (Lane P, see docs/plans/feat-024.md): the queue
+        // requeues a failed chapter at the tail at most once, so a persistent
+        // failure costs 2 manager issues x 2 AIClient per-chunk transport
+        // attempts = 4 transport calls. Spec amendment in Lane S (Phase 4).
+        XCTAssertEqual(client.calls.filter { $0 == 2 }.count, 4, "failed chapter requeued once at manager level, got \(client.calls)")
         XCTAssertEqual(client.calls.filter { $0 == 4 }.count, 1, "got \(client.calls)")
         // Error recorded and continued: ch4 cached despite ch2 failing.
         XCTAssertNotNil(try cache.get(bookId: "test-slug", chapterNumber: 4, mode: .rewrite))
