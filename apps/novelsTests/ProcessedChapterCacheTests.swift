@@ -145,4 +145,26 @@ final class ProcessedChapterCacheTests: XCTestCase {
         XCTAssertNotNil(try first.get(bookId: "iso", chapterNumber: 1, mode: .rewrite))
         XCTAssertNil(try second.get(bookId: "iso", chapterNumber: 1, mode: .rewrite))
     }
+
+    func testBatchStatusChunkedLargeSet() throws {
+        // feat-023 Phase 5: a 1000-id batchStatus accumulates chunked (~200)
+        // queries into one set instead of binding everything in one query.
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let now = Date()
+        for number in 1 ... 500 {
+            try cache.upsert(ProcessedChapter(
+                bookId: "big",
+                chapterNumber: number,
+                mode: .rewrite,
+                content: "c\(number)",
+                contentHash: "h\(number)",
+                createdAt: now,
+                updatedAt: now
+            ))
+        }
+        XCTAssertEqual(
+            try cache.batchStatus(bookId: "big", mode: .rewrite, numbers: Array(1 ... 1000)),
+            Set(1 ... 500)
+        )
+    }
 }

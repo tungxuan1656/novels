@@ -4,6 +4,9 @@ import Foundation
 actor PrefetchManager {
     static let perChapterBudget: TimeInterval = 600
     static let globalBudget: TimeInterval = 1800
+    /// Runtime window cap (feat-023 Phase 5, default 10): bounds the worst-case
+    /// per-batch cost. The public 0...1000-else-3 policy is unchanged.
+    static var hardCap = 10
 
     private var task: Task<Void, Never>?
     private var generation = 0
@@ -17,6 +20,7 @@ actor PrefetchManager {
     private var pendingSet: Set<Int> = []
     private var inFlight: Int?
     private var batchFinished = true
+    private var bookEndRemaining: Int? // Window size when it reaches the book end (end-of-book message).
     /// Last finished batch's failures (same book+mode), first in next window.
     private var failedChapters: [Int] = []
     private var failedBookId: String?
@@ -84,7 +88,8 @@ actor PrefetchManager {
             return
         }
         let effectiveN: Int = await MainActor.run { settings.effectivePrefetchCount() }
-        let range = windowRange(currentChapter: currentChapter, effectiveN: effectiveN, totalChapters: totalChapters)
+        let appliedN = min(effectiveN, Self.hardCap)
+        let range = windowRange(currentChapter: currentChapter, effectiveN: appliedN, totalChapters: totalChapters)
         guard !range.isEmpty else {
             invalidateActiveBatch()
             statusValue = PrefetchStatus(
@@ -100,10 +105,25 @@ actor PrefetchManager {
             )
             return
         }
-        let cached = cachedSet(cache: cache, bookId: bookId, mode: mode, numbers: range)
-        let misses = range.filter { !cached.contains($0) }
-        // Log-only transparency fields (feat-023 Phase 3): storedN is the raw stored
-        // value, effectiveN is what this batch actually consumes. No behavior change.
+        bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
+        let misses: [Int]
+        do {
+            misses = try missList(cache: cache, bookId: bookId, mode: mode, range: range)
+        } catch {
+            // Query failure keeps prior state (never miss-all): log on the
+            // existing error-continue event and return without touching the
+            // running batch or status.
+            await logPrefetch(
+                event: "prefetch.error-continue",
+                bookId: bookId,
+                chapterNumber: currentChapter,
+                mode: mode.rawValue,
+                detail: "reason=cacheQueryFailed"
+            )
+            return
+        }
+        // Log-only transparency fields (feat-023 Phase 3): storedN is raw stored,
+        // effectiveN consumed, appliedCap runtime-bounded. No policy change.
         let storedN: Int = await MainActor.run { settings.prefetchCount }
         // Overlap-preserving top-up (feat-023 Phase 4): same book+mode with
         // non-empty overlap keeps the running batch; only new-tail misses append.
@@ -118,8 +138,7 @@ actor PrefetchManager {
                 detail: batchCheckDetail(
                     range: range,
                     misses: misses,
-                    storedN: storedN,
-                    effectiveN: effectiveN,
+                    counts: "storedN=\(storedN) effectiveN=\(effectiveN) appliedCap=\(appliedN)",
                     extra: "reason=topUp overlapKept=\(topUp.overlapKept) topUpAdded=\(topUp.topUpAdded)"
                 )
             )
@@ -127,14 +146,12 @@ actor PrefetchManager {
         }
         // Clean restart (new book/mode or far jump): bump + cancel so the
         // stale batch can no longer publish (testCancellationStopsRemaining).
-        // Read the prior failures BEFORE invalidating (it resets them).
         let failedFirst = takeFailedFirst(bookId: bookId, mode: mode, misses: misses)
+        // Read BEFORE invalidating (it resets the failed store).
         invalidateActiveBatch()
         let currentGeneration = generation
-        // Failed-first (feat-023 Phase 4). Retry bound (<=1 in-batch retry per
-        // chapter) comes from the per-chunk attempt loop in AIClient; the
-        // manager never re-issues a failed chapter inside one batch (a second
-        // layer would amplify into 2x2 attempts). Failures record once below.
+        // Failed-first (feat-023 Phase 4); retry bound (<=1) comes from the
+        // per-chunk attempt loop in AIClient — the manager never re-issues.
         let failedFirstSet = Set(failedFirst)
         let ordered = failedFirst + misses.filter { !failedFirstSet.contains($0) }
         pending = ordered
@@ -154,8 +171,7 @@ actor PrefetchManager {
             detail: batchCheckDetail(
                 range: range,
                 misses: misses,
-                storedN: storedN,
-                effectiveN: effectiveN,
+                counts: "storedN=\(storedN) effectiveN=\(effectiveN) appliedCap=\(appliedN)",
                 extra: retryEnqueueExtra(failedFirst)
             )
         )
@@ -183,8 +199,7 @@ actor PrefetchManager {
             var processed = 0
             var errors: [String] = []
             var failedThisBatch: [Int] = []
-            // Chapter-sequential (offline-first ordering contract, no
-            // outer-chapter concurrency). Shared queue so top-ups can append.
+            // Chapter-sequential: shared queue so top-ups can append mid-run.
             while let number = await self.nextChapter(generation: currentGeneration) {
                 if Task.isCancelled {
                     await self.logCancel(
@@ -257,16 +272,9 @@ actor PrefetchManager {
                     )
                     continue
                 }
-                if Task.isCancelled {
-                    await self.logCancel(
-                        bookId: bookId,
-                        chapterNumber: currentChapter,
-                        mode: mode,
-                        currentGeneration: currentGeneration,
-                        reason: "chapterChange"
-                    )
-                    break
-                }
+                // No extra cancel check here: a cancelled task throws
+                // CancellationError from processedContent below (same
+                // logCancel + break), and the loop-top check stops the rest.
                 do {
                     _ = try await aiService.processedContent(
                         bookId: bookId,
@@ -362,8 +370,7 @@ actor PrefetchManager {
         failedMode = nil
     }
 
-    /// Shared idle-skip exit (mode none / invalid range): invalidate any
-    /// running batch, publish idle, and log on the existing skip event.
+    /// Shared idle-skip exit (mode none / invalid range): invalidate, publish idle, log skip.
     private func skipAsIdle(bookId: String, chapterNumber: Int, mode: AIMode, reason: String) async {
         invalidateActiveBatch()
         statusValue = .idle
@@ -382,10 +389,16 @@ actor PrefetchManager {
         return (end > currentChapter) ? Array((currentChapter + 1) ... end) : []
     }
 
-    /// Cache lookup that never throws (miss-all on query failure is replaced
-    /// by keep-prior-state in feat-023 Phase 5).
-    private func cachedSet(cache: ProcessedChapterCaching, bookId: String, mode: AIMode, numbers: [Int]) -> Set<Int> {
-        (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: numbers)) ?? []
+    /// Window size when it reaches the book end, for the end-of-book message.
+    private func bookEndCount(range: [Int], totalChapters: Int) -> Int? {
+        range.last == totalChapters ? range.count : nil
+    }
+
+    /// Cache-backed miss list; on query failure logs and returns nil so the
+    /// caller keeps prior state instead of refetching as miss-all.
+    private func missList(cache: ProcessedChapterCaching, bookId: String, mode: AIMode, range: [Int]) throws -> [Int] {
+        let cached = try cache.batchStatus(bookId: bookId, mode: mode, numbers: range)
+        return range.filter { !cached.contains($0) }
     }
 
     /// Cancels any running batch and invalidates its window state, so a stale
@@ -399,10 +412,7 @@ actor PrefetchManager {
         batchFinished = true
     }
 
-    /// Overlap-preserving top-up (feat-023 Phase 4): running batch for the
-    /// same book+mode + non-empty overlap keeps the task; only new-tail
-    /// misses append. Returns kept/added counts, or nil to restart.
-    /// `overlapKept`/`topUpAdded` ride the existing `prefetch.batchCheck`.
+    /// Overlap top-up (Phase 4): running batch + overlap keeps task; nil to restart.
     private func topUpIfOverlapping(
         bookId: String,
         mode: AIMode,
@@ -423,28 +433,25 @@ actor PrefetchManager {
         return (overlap.count, freshTail.count)
     }
 
-    /// Failed chapters from the last finished batch for this book+mode, in
-    /// encounter order, restricted to the new window's misses.
+    /// Failed chapters of the last finished batch for this book+mode, restricted to the new misses.
     private func takeFailedFirst(bookId: String, mode: AIMode, misses: [Int]) -> [Int] {
         guard failedBookId == bookId, failedMode == mode else { return [] }
         return failedChapters.filter { misses.contains($0) }
     }
 
-    /// `retry-enqueue` detail fragment for the existing `prefetch.batchCheck`
-    /// event when failed-first ordering applies (no new event types).
+    /// retry-enqueue fragment for batchCheck when failed-first applies.
     private func retryEnqueueExtra(_ failedFirst: [Int]) -> String {
         guard !failedFirst.isEmpty else { return "" }
         return "failedFirst=\(failedFirst.count) retry-enqueue=\(failedFirst)"
     }
 
     /// Shared detail shape for the existing `prefetch.batchCheck` event.
-    private func batchCheckDetail(range: [Int], misses: [Int], storedN: Int, effectiveN: Int, extra: String) -> String {
-        let base = "rangeFrom=\(range.first ?? 0) rangeTo=\(range.last ?? 0) hit=\(range.count - misses.count) miss=\(misses.count) storedN=\(storedN) effectiveN=\(effectiveN)"
+    private func batchCheckDetail(range: [Int], misses: [Int], counts: String, extra: String) -> String {
+        let base = "rangeFrom=\(range.first ?? 0) rangeTo=\(range.last ?? 0) hit=\(range.count - misses.count) miss=\(misses.count) \(counts)"
         return extra.isEmpty ? base : "\(base) \(extra)"
     }
 
-    /// Pops the next queued chapter for the generation (nil when drained or
-    /// superseded). Sequential loop: the popped chapter is the one in flight.
+    /// Pops the next queued chapter (nil when drained/superseded); popped = in flight.
     private func nextChapter(generation targetGeneration: Int) -> Int? {
         guard generation == targetGeneration, !pending.isEmpty else { return nil }
         let number = pending.removeFirst()
@@ -475,7 +482,8 @@ actor PrefetchManager {
         statusValue.currentBookId = bookId
         statusValue.processedChapters = processed
         statusValue.errors = errors
-        statusValue.message = errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi"
+        let tailMark = bookEndRemaining.map { " (còn \($0) chương cuối)" } ?? ""
+        statusValue.message = (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
     }
 
     private func clearTaskIfCurrent(generation targetGeneration: Int) {

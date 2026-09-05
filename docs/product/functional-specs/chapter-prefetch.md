@@ -5,8 +5,8 @@
 ## Flow (ordered steps actor / system)
 
 1. Trigger: only when the chapter number truly changes (`goNext` / `goPrev` / `goToChapter` / References tap) or the mode changes / manual reprocess — after the new current chapter renders and is ready (book exists, chapter ready, mode not `none`). The trigger is debounced 200ms so rapid successive triggers collapse and only the latest window starts a batch. Returning from Log to the same chapter triggers zero API calls for the current chapter (no current-chapter reload); the previous terminal prefetch status is kept as-is, but background prefetch may resume when misses remain (overlap-preserving top-up, no new event types). If any readiness check fails, do nothing.
-2. System reads N from persistent settings store (default 3, 0..1000 else 3), computes range next to `min(current + N, total)`. Empty → done.
-3. System batch-checks processed chapter cache for range and mode. All cached → zero service calls, finish as done. Otherwise list only the missing chapters.
+2. System reads N from persistent settings store (default 3, 0..1000 else 3), then applies the runtime window cap (default 10, logged as `appliedCap` on the existing `prefetch.batchCheck` event) and computes range next to `min(current + applied, total)`. The public range policy, per-chapter/global budgets, and timeouts are unchanged. Empty → done (at the book end the message names the remaining tail, e.g. "còn 2 chương cuối", instead of a generic done).
+3. System batch-checks processed chapter cache for range and mode in ~200-id chunks accumulated into one set. All cached → zero service calls, finish as done. Otherwise list only the missing chapters. A cache query failure keeps the prior state and logs (never treated as miss-all, never mass-refetches).
 4. System processes each missing chapter in order, one chapter batch at a time (never all N at once): each chapter runs its own parallel chunk batch (see `ai-service.md` Chunking), then joins and saves before moving to the next chapter. Update progress after each.
 5. Per-chapter error → log, record once in `errors[]`, skip and continue with the next missing chapter. In-batch retry is bounded to at most 1 per chapter (enforced by the per-chunk attempt loop in the AI client; the manager never re-issues a failed chapter inside one batch). A failed prefetch chapter is retried later through exactly two paths: (a) moving to the next chapter re-checks the new window automatically with failed chapters attempted first (failed-first, logged as `retry-enqueue` detail on the existing `prefetch.batchCheck` event), or (b) outside the window the actor opens that chapter and taps "Xử lý lại" manually. Same book+mode with non-empty window overlap keeps the running batch (generation bump + full cancel only on book/mode change or empty overlap): totals are updated and only the new-tail misses are appended (logged as `overlapKept`/`topUpAdded` detail on the existing `prefetch.batchCheck` event). At end, mark not running.
 
@@ -32,6 +32,9 @@
 | All N chapters cached | Done with zero work |
 | N = 0 | No prefetch (empty range → done) |
 | N invalid (1001, -1, "abc") | Use 3 |
+| N huge (e.g. 1000) | Bounded by the runtime cap (default 10), logged as `appliedCap` |
+| Cache query fails mid-batch | Keep prior state, log, no mass refetch |
+| Window reaches the book end | Terminal message names the remaining chapters |
 | Service fails for one chapter | Record error, skip, continue batch |
 | User changes chapter/mode mid-run | Cancel + restart on book/mode change or far jump; same-window moves top-up the running batch |
 | Back from Log to same chapter | Zero API calls for the current chapter, keep previous status; background prefetch may resume on misses |

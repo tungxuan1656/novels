@@ -211,7 +211,20 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
         }
     }
 
+    /// Cached chapter numbers for the batch, accumulated over ~200-id chunks
+    /// (feat-023 Phase 5) so huge windows never hit SQLite bind limits.
+    static let batchStatusChunkSize = 200
+
     func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+        var result: Set<Int> = []
+        for start in stride(from: 0, to: numbers.count, by: Self.batchStatusChunkSize) {
+            let end = min(start + Self.batchStatusChunkSize, numbers.count)
+            try result.formUnion(batchStatusChunk(bookId: bookId, mode: mode, numbers: Array(numbers[start ..< end])))
+        }
+        return result
+    }
+
+    private func batchStatusChunk(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
         guard !numbers.isEmpty else { return [] }
         let placeholders = numbers.map { _ in "?" }.joined(separator: ",")
         let sql = "SELECT chapter_number FROM processed_chapters WHERE book_id=? AND mode=? AND chapter_number IN (\(placeholders));"

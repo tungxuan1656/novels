@@ -603,4 +603,160 @@ final class PrefetchManagerTests: XCTestCase {
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
     }
+
+    // MARK: - feat-023 Phase 5: resource worst-case guards
+
+    func testRuntimeCapBoundsHugeWindowAndLogsAppliedCap() async throws {
+        // N=1000 (top of the legal public range) is bounded by the runtime
+        // hardCap (default 10): at most 10 chapters prefetch and appliedCap is
+        // logged on the existing batchCheck event. The public 0...1000-else-3
+        // policy, budgets, and timeouts are unchanged.
+        XCTAssertEqual(PrefetchManager.hardCap, 10, "default runtime hardCap")
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 1000, totalChapters: 50)
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 50,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 5_000_000_000)
+        XCTAssertEqual(client.calls, Array(2 ... 11), "capped window, got \(client.calls)")
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        XCTAssertTrue(
+            checks.contains {
+                let detail = $0.detail ?? ""
+                return detail.contains("appliedCap=10") && detail.contains("storedN=1000") && detail.contains("effectiveN=1000")
+            },
+            "batchCheck must carry storedN/effectiveN/appliedCap, got \(checks.map { $0.detail })"
+        )
+    }
+
+    func testCacheQueryFailureKeepsPriorState() async throws {
+        // A batchStatus throw keeps the prior status (never miss-all) and logs
+        // on an existing event instead of refetching everything as misses.
+        final class ThrowingBatchCache: ProcessedChapterCaching {
+            let real: SQLiteProcessedChapterCache
+            init(real: SQLiteProcessedChapterCache) {
+                self.real = real
+            }
+
+            func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
+                try real.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode)
+            }
+
+            func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+                throw SQLiteError.exec(message: "boom")
+            }
+
+            func upsert(_ pc: ProcessedChapter) throws {
+                try real.upsert(pc)
+            }
+
+            func clearAll() throws {
+                try real.clearAll()
+            }
+
+            func clear(bookId: String) throws {
+                try real.clear(bookId: bookId)
+            }
+
+            func countAll() throws -> Int {
+                try real.countAll()
+            }
+
+            func count(bookId: String) throws -> Int {
+                try real.count(bookId: bookId)
+            }
+
+            func allBookIds() throws -> [String] {
+                try real.allBookIds()
+            }
+        }
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let settled = await manager.currentStatus()
+        XCTAssertFalse(settled.isRunning, "status \(settled)")
+        let callsBefore = client.calls.count
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: ThrowingBatchCache(real: cache),
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(client.calls.count, callsBefore, "no refetch on query failure, got \(client.calls)")
+        let kept = await manager.currentStatus()
+        XCTAssertEqual(kept, settled, "prior state kept")
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertTrue(
+            entries.contains { $0.event == "prefetch.error-continue" && ($0.detail ?? "").contains("cacheQueryFailed") },
+            "query failure must be logged, got \(entries.map { ($0.event, $0.detail) })"
+        )
+    }
+
+    func testEndOfBookMessageNamesRemainingChapters() async throws {
+        // current=98, total=100, N=10: the window holds the last 2 chapters and
+        // the terminal message names them instead of a generic done.
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 10, totalChapters: 100)
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 98,
+            totalChapters: 100,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
+        XCTAssertEqual(client.calls, [99, 100], "got \(client.calls)")
+        XCTAssertTrue(
+            (status.message).contains("còn 2 chương cuối"),
+            "end-of-book message must name the remaining chapters, got \(status.message)"
+        )
+        // Mid-book contrast: generic done without the tail marker.
+        await MainActor.run { settings.prefetchCount = 3 }
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 100,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let mid = await manager.currentStatus()
+        XCTAssertFalse(mid.isRunning, "status \(mid)")
+        XCTAssertEqual(mid.message, "Đã hoàn tất", "mid-book message stays generic, got \(mid.message)")
+    }
 }
