@@ -179,4 +179,16 @@ final class ReadingThemeTests: XCTestCase {
         XCTAssertFalse(reader.contains("chipBackground.opacity(0.7)"))
         XCTAssertTrue(reader.contains("theme.chipBackground"))
     }
+
+    func testSettingsRowSeparatesFromBackground() throws {
+        let src = try stripped(source("apps/novels/Resources/DesignTokens.swift"))
+        // Settings rows (surface, white) must stand off the screen bg (backgroundWhite, grouped gray)
+        XCTAssertTrue(src.contains("backgroundWhite = Color(uiColor: .adapted(lightHex: 0xF5F5F5"))
+        XCTAssertTrue(src.contains("surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF"))
+        XCTAssertTrue(src.contains("backgroundWhite = Color(hex: 0xF5F5F5)"))
+        XCTAssertTrue(src.contains("surface = Color(hex: 0xFFFFFF)"))
+        // Dark stays differentiated
+        XCTAssertTrue(src.contains("0x0F1419"))
+        XCTAssertTrue(src.contains("0x171D23"))
+    }
 }
