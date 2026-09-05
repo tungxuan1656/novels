@@ -36,8 +36,8 @@ final class ReaderViewModel {
     /// Identity of the currently held AI text (nil when none/failed).
     /// The view renders `processedContent` only when it matches the visible
     /// chapter + mode (see `isProcessedContentCurrent()`).
-    private(set) var processedChapterNumber: Int?
-    private(set) var processedAIMode: AIMode?
+    private var processedChapterNumber: Int?
+    private var processedAIMode: AIMode?
     var prefetchStatus: PrefetchStatus = .idle
     private let prefetchManager: PrefetchManager
     private var prefetchPollTask: Task<Void, Never>?
@@ -90,12 +90,15 @@ final class ReaderViewModel {
 
     func load(source: LoadSource = .chapterChange) async {
         if source == .chapterChange {
-            // New visible chapter: invalidate in-flight AI work and never flash
-            // the previous chapter's processed text while loading.
+            // Invalidate in-flight AI work. Nil out only when the held text
+            // does not already belong here: same-chapter reloads (reselect)
+            // keep showing current content instead of flashing empty.
             aiGeneration += 1
-            processedContent = nil
-            processedChapterNumber = nil
-            processedAIMode = nil
+            if processedChapterNumber != chapterNumber || processedAIMode != aiMode {
+                processedContent = nil
+                processedChapterNumber = nil
+                processedAIMode = nil
+            }
         }
         isLoading = true
         errorMessage = nil
@@ -135,6 +138,9 @@ final class ReaderViewModel {
 
     func goNext() async {
         guard canGoNext else { return }
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes.
         aiGeneration += 1
         await cancelPrefetch()
         chapterNumber += 1
@@ -144,6 +150,9 @@ final class ReaderViewModel {
 
     func goPrev() async {
         guard canGoPrev else { return }
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes.
         aiGeneration += 1
         await cancelPrefetch()
         chapterNumber -= 1
@@ -152,6 +161,11 @@ final class ReaderViewModel {
     }
 
     func goToChapter(_ number: Int) async {
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes. Same-chapter targets still
+        // bump (invalidates in-flight refresh races); load() skips the
+        // nil-out when the held content already belongs to this chapter.
         aiGeneration += 1
         await cancelPrefetch()
         if let count = book?.count {
@@ -229,12 +243,17 @@ final class ReaderViewModel {
         aiError = nil
         if mode == .none {
             processedContent = nil
+            processedChapterNumber = nil
+            processedAIMode = nil
             if let html = readChapterHTML(number: chapterNumber) {
                 blocks = HtmlParser.parse(html: html)
             }
             return
         }
-        await loadAIContent(isReprocess: false)
+        // Tracked in aiTask so outside cancellation (disappear/nav) hits it.
+        aiTask?.cancel()
+        aiTask = Task { await loadAIContent(isReprocess: false) }
+        await aiTask?.value
         if errorMessage == nil {
             await triggerPrefetchIfEligible()
         }
@@ -243,7 +262,10 @@ final class ReaderViewModel {
     func reprocess() async {
         guard aiMode != .none else { return }
         aiGeneration += 1
-        await loadAIContent(isReprocess: true)
+        // Tracked in aiTask so a newer generation cancels this one.
+        aiTask?.cancel()
+        aiTask = Task { await loadAIContent(isReprocess: true) }
+        await aiTask?.value
         if errorMessage == nil {
             await triggerPrefetchIfEligible()
         }
@@ -257,8 +279,9 @@ final class ReaderViewModel {
         return processedChapterNumber == chapterNumber && processedAIMode == aiMode
     }
 
-    /// Processed text for the visible chapter + mode; nil while loading,
-    /// on mode `.none`, or when only a stale generation has resolved.
+    /// Processed text for the visible chapter + mode; nil when there is no
+    /// current content (not loaded yet, cleared, or superseded) or while its
+    /// generation is still in flight.
     var currentProcessedContent: String? {
         guard !isAIProcessing, isProcessedContentCurrent() else { return nil }
         return processedContent
@@ -277,7 +300,13 @@ final class ReaderViewModel {
             return
         }
         isAIProcessing = true
-        defer { isAIProcessing = false }
+        // Clear only while this generation is still current: a stale task must
+        // never switch off a newer generation's spinner (raw-blocks flicker).
+        defer {
+            if generation == aiGeneration {
+                isAIProcessing = false
+            }
+        }
         do {
             let result: String
             if isReprocess {
