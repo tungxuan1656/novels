@@ -146,7 +146,7 @@
     {
       "id": "feat-024",
       "title": "Prefetch FIFO Queue Refactor (feat-023 extend)",
-      "status": "active",
+      "status": "done",
       "depends_on": ["feat-023"]
     }
   ]

@@ -45,6 +45,13 @@ protocol ProcessedChapterCaching {
 final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     private let handle: OpaquePointer
     private let isoFormatter: ISO8601DateFormatter
+    /// Serializes the single SQLite handle plus the non-thread-safe
+    /// ISO8601DateFormatter. Foreground chapter AI (MainActor) and the
+    /// background prefetch worker access the cache concurrently (feat-024
+    /// FIFO queue keeps the worker across same-book navigates), so every
+    /// entry point takes this lock. No behavior change: short critical
+    /// sections only, no reentrancy (public methods never call each other).
+    private let cacheLock = NSLock()
 
     private init(path: String) throws {
         var db: OpaquePointer?
@@ -171,6 +178,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     // MARK: - ProcessedChapterCaching
 
     func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         let sql = """
         SELECT book_id, chapter_number, mode, content, content_hash, created_at, updated_at
         FROM processed_chapters WHERE book_id=? AND chapter_number=? AND mode=? LIMIT 1;
@@ -216,6 +225,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     static let batchStatusChunkSize = 200
 
     func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         var result: Set<Int> = []
         for start in stride(from: 0, to: numbers.count, by: Self.batchStatusChunkSize) {
             let end = min(start + Self.batchStatusChunkSize, numbers.count)
@@ -249,6 +260,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     }
 
     func upsert(_ pc: ProcessedChapter) throws {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         guard pc.mode != .none else { return }
         let sql = """
         INSERT OR REPLACE INTO processed_chapters
@@ -275,10 +288,14 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     }
 
     func clearAll() throws {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         try exec("DELETE FROM processed_chapters;")
     }
 
     func clear(bookId: String) throws {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         let sql = "DELETE FROM processed_chapters WHERE book_id=?;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
@@ -292,6 +309,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     }
 
     func countAll() throws -> Int {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         let sql = "SELECT count(*) FROM processed_chapters;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
@@ -305,6 +324,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     }
 
     func count(bookId: String) throws -> Int {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         let sql = "SELECT count(*) FROM processed_chapters WHERE book_id=?;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
@@ -319,6 +340,8 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     }
 
     func allBookIds() throws -> [String] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
         let sql = "SELECT DISTINCT book_id FROM processed_chapters;"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {

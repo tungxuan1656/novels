@@ -13,7 +13,6 @@ final class PrefetchFifoQueueTests: XCTestCase {
     override func tearDown() {
         super.tearDown()
         AIMockURLProtocol.handler = nil
-        PrefetchManager.hardCap = 10
     }
 
     @MainActor
@@ -85,22 +84,17 @@ final class PrefetchFifoQueueTests: XCTestCase {
 
     func testNavigateKeepsRunningTaskAndAppendsOnlyTail() async throws {
         // N=20 at 450 issues 451-470; go to 451 keeps the task, appends only 471.
-        // hardCap is 10 until feat-024 Phase 3 removes it; raise it for this
-        // window (test-overridable by design) and restore right after each
-        // start (the cap is consumed synchronously inside start).
+        // Per feat-024 plan Phase 3 + settings-schema BR-08 note: no runtime
+        // hardCap, so N=20 issues the full window (no test override needed).
         // NOTE: expectation is 451...471, not 452...471 — chapter 451 is
         // issued by the first window before the navigate and the queue keeps
         // it exactly once, so it stays in the recorded calls.
         await DiagnosticsLog.shared.clear()
         let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 20, totalChapters: 500)
         let svc = client.service(cache: cache, settings: settings)
-        PrefetchManager.hardCap = 30
         await manager.start(bookId: "book-slug", currentChapter: 450, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        PrefetchManager.hardCap = 10
         try await Task.sleep(nanoseconds: 300_000_000)
-        PrefetchManager.hardCap = 30
         await manager.start(bookId: "book-slug", currentChapter: 451, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        PrefetchManager.hardCap = 10
         try await Task.sleep(nanoseconds: 3_000_000_000)
         let calls = client.calls
         XCTAssertEqual(calls, Array(451...471), "kept chapters processed once in FIFO order, got \(calls)")
@@ -134,15 +128,11 @@ final class PrefetchFifoQueueTests: XCTestCase {
         // proves real book-a work was underway (i.e. this is not vacuous).
         let (manager, cache, settings, repo, client) = try await makeDualBookEnv(prefetchCount: 20, totalChapters: 500)
         let svc = client.service(cache: cache, settings: settings)
-        PrefetchManager.hardCap = 30
         await manager.start(bookId: "book-a", currentChapter: 450, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        PrefetchManager.hardCap = 10
         try await Task.sleep(nanoseconds: 200_000_000)
         let callsBeforeChange = client.calls.count
         XCTAssertGreaterThan(callsBeforeChange, 0, "book-a work must be underway before the change, got \(client.calls)")
-        PrefetchManager.hardCap = 30
         await manager.start(bookId: "book-b", currentChapter: 10, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        PrefetchManager.hardCap = 10
         try await Task.sleep(nanoseconds: 2_000_000_000)
         let newCalls = Array(client.calls.dropFirst(callsBeforeChange))
         XCTAssertFalse(newCalls.isEmpty, "book-b window must be processed, got \(client.calls)")

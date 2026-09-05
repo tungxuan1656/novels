@@ -300,3 +300,19 @@
 **Evidence**: `features/feat-024.md` (handoff active), `feature_index.json` (feat-024 active)
 **Blockers**: none
 **Next**: Phase 0 baseline + dispatch Lane P implementer (FIFO core)
+
+## 2026-09-06 — feat-024 done
+
+**State**: done
+**Done**: Durable FIFO queue keeps running task across same-book navigate (ensureWindow keep ∩ + append tail, attempts≤1 tail requeue, cancel only on book/mode/none/deletion); reader drops 200ms debounce + poll/epoch (synchronous trigger + one-shot resync, returnFromLog zero-API + resume); single-N (hardCap removed, storedN/effectiveN only); specs amended (chapter-prefetch §4 Step 5 + settings-schema BR-08); NSLock around cache entry points (oracle: correct/deadlock-free); M3 same-mode guard attempted then reverted (broke 2 suites) and parked with M1/M2/M4/M5 + test gaps
+**Evidence**: `974661a` + uncommitted 8 files (ReaderViewModel/PrefetchManager/ProcessedChapterCache + 3 test suites incl. `testNavigateViaViewModelKeepsRunningTask` + 2 spec docs); oracle review 0 blockers; `./init.sh` full PASS post-revert (format/lint/build/test/drift); `feature_index.json` feat-024 done (zero active)
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests walks #2/#4 on device/Simulator (steady-next ~1 tail, N=20 keep+append-471, returnFromLog resume)
+
+## 2026-09-06 — feat-024 commit
+
+**State**: done
+**Done**: Commit-time verification per repo rule: first `./init.sh` full FAIL on build/test step (tail showed UITests green with overall FAIL; failing test not captured); retry full `./init.sh` EXIT:0 PASS with 0 failures — confirmed flake, no production/test code change needed. Committed feat-024 records (11 files: 3 prod + 3 test suites + 2 spec docs + `feature_index.json`/`features/feat-024.md`/`progress.md`).
+**Evidence**: `init-commit.log` PASS format/lint/build/test/drift (`Verification passed`), retry `EXIT:0`
+**Blockers**: none
+**Next**: repo idle — push when user requests

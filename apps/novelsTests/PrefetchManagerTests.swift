@@ -657,14 +657,14 @@ final class PrefetchManagerTests: XCTestCase {
 
     // MARK: - feat-023 Phase 5: resource worst-case guards
 
-    func testRuntimeCapBoundsHugeWindowAndLogsAppliedCap() async throws {
-        // N=1000 (top of the legal public range) is bounded by the runtime
-        // hardCap (default 10): at most 10 chapters prefetch and appliedCap is
-        // logged on the existing batchCheck event. The public 0...1000-else-3
-        // policy, budgets, and timeouts are unchanged.
-        XCTAssertEqual(PrefetchManager.hardCap, 10, "default runtime hardCap")
+    func testNoRuntimeCapWindowIsHonored() async throws {
+        // Per feat-024 plan Phase 3 + settings-schema BR-08 note: no runtime
+        // hardCap; N=1000 issues the full window, paced by the sequential
+        // worker and budgets. The public 0...1000-else-3 policy, budgets, and
+        // timeouts are unchanged; batchCheck logs the single consumed N.
         await DiagnosticsLog.shared.clear()
-        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 1000, totalChapters: 50)
+        // N=20 issues the full 20-chapter window once.
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 20, totalChapters: 50)
         let svc = client.service(cache: cache, settings: settings)
         await manager.start(
             bookId: "book-slug",
@@ -677,17 +677,44 @@ final class PrefetchManagerTests: XCTestCase {
             repository: repo
         )
         try await Task.sleep(nanoseconds: 5_000_000_000)
-        XCTAssertEqual(client.calls, Array(2 ... 11), "capped window, got \(client.calls)")
+        XCTAssertEqual(client.calls, Array(2 ... 21), "N=20 honored, got \(client.calls)")
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
-        let entries = await DiagnosticsLog.shared.snapshot()
-        let checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        var entries = await DiagnosticsLog.shared.snapshot()
+        var checks = entries.filter { $0.event == "prefetch.batchCheck" }
         XCTAssertTrue(
             checks.contains {
                 let detail = $0.detail ?? ""
-                return detail.contains("appliedCap=10") && detail.contains("storedN=1000") && detail.contains("effectiveN=1000")
+                return detail.contains("storedN=20") && detail.contains("effectiveN=20") && !detail.contains("appliedCap")
             },
-            "batchCheck must carry storedN/effectiveN/appliedCap, got \(checks.map { $0.detail })"
+            "batchCheck must carry single N without appliedCap, got \(checks.map { $0.detail })"
+        )
+        // N=1000 (top of the legal range) is honored, paced sequentially.
+        await DiagnosticsLog.shared.clear()
+        let (manager2, cache2, settings2, repo2, client2) = try await makeManagerEnv(prefetchCount: 1000, totalChapters: 50)
+        let svc2 = client2.service(cache: cache2, settings: settings2)
+        await manager2.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 50,
+            mode: .rewrite,
+            settings: settings2,
+            cache: cache2,
+            aiService: svc2,
+            repository: repo2
+        )
+        try await Task.sleep(nanoseconds: 6_000_000_000)
+        XCTAssertEqual(client2.calls, Array(2 ... 50), "N=1000 honored paced, got \(client2.calls)")
+        let status2 = await manager2.currentStatus()
+        XCTAssertFalse(status2.isRunning, "status \(status2)")
+        entries = await DiagnosticsLog.shared.snapshot()
+        checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        XCTAssertTrue(
+            checks.contains {
+                let detail = $0.detail ?? ""
+                return detail.contains("storedN=1000") && detail.contains("effectiveN=1000") && !detail.contains("appliedCap")
+            },
+            "batchCheck must carry single N without appliedCap, got \(checks.map { $0.detail })"
         )
     }
 

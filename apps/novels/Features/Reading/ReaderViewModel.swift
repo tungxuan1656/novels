@@ -42,10 +42,6 @@ final class ReaderViewModel {
     /// (header stays on `isAIProcessing`). Deletion deferred to roadmap.
     var prefetchStatus: PrefetchStatus = .idle
     private let prefetchManager: PrefetchManager
-    private var prefetchPollTask: Task<Void, Never>?
-    /// Poll generation for the stale-publish guard (bumped on trigger/cancel/
-    /// disappear; polls publish only on epoch match). Readable in tests.
-    private(set) var prefetchEpoch = 0
     /// Ordered disappear-cancel joined by the next `.returnFromLog` resync.
     private var disappearCancelTask: Task<Void, Never>?
     private let processedCache: ProcessedChapterCaching
@@ -136,7 +132,6 @@ final class ReaderViewModel {
                 disappearCancelTask = nil
                 await pendingCancel.value
             }
-            prefetchEpoch += 1
             prefetchStatus = await prefetchManager.currentStatus()
             await resumePrefetchIfMissesRemain()
             return
@@ -145,9 +140,12 @@ final class ReaderViewModel {
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
+        // feat-024 Phase 2: same-book+mode navigates never cancel — the FIFO
+        // queue reconciles (keep ∩ + append tail). Cancel only on mode .none;
+        // other ineligibility (error) keeps the running queue untouched.
         if aiMode != .none, errorMessage == nil {
             await triggerPrefetchIfEligible()
-        } else {
+        } else if aiMode == .none {
             await cancelPrefetch()
         }
     }
@@ -156,9 +154,9 @@ final class ReaderViewModel {
         guard canGoNext else { return }
         // Double-bump with load(.chapterChange) below is intentional: the
         // guard is equality-based so magnitude is harmless, and this closes
-        // the gap before chapterNumber changes.
+        // the gap before chapterNumber changes. No prefetch cancel here:
+        // the queue keeps the running task across same-book navigates.
         aiGeneration += 1
-        await cancelPrefetch()
         chapterNumber += 1
         await load(source: .chapterChange)
         persistChapter()
@@ -168,9 +166,8 @@ final class ReaderViewModel {
         guard canGoPrev else { return }
         // Double-bump with load(.chapterChange) below is intentional: the
         // guard is equality-based so magnitude is harmless, and this closes
-        // the gap before chapterNumber changes.
+        // the gap before chapterNumber changes. No prefetch cancel here.
         aiGeneration += 1
-        await cancelPrefetch()
         chapterNumber -= 1
         await load(source: .chapterChange)
         persistChapter()
@@ -182,8 +179,8 @@ final class ReaderViewModel {
         // the gap before chapterNumber changes. Same-chapter targets still
         // bump (invalidates in-flight refresh races); load() skips the
         // nil-out when the held content already belongs to this chapter.
+        // No prefetch cancel here: same-book navigate keeps the queue.
         aiGeneration += 1
-        await cancelPrefetch()
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
         } else {
@@ -238,12 +235,9 @@ final class ReaderViewModel {
         aiTask?.cancel()
         aiGeneration += 1
         isAIProcessing = false
-        // Single ordered cancel path: sync epoch bump kills stale polls, drop
-        // the poll task, cancel any previous disappear-cancel before overwrite,
-        // then run cancelPrefetch() once (it writes the terminal state).
-        prefetchEpoch += 1
-        prefetchPollTask?.cancel()
-        prefetchPollTask = nil
+        // Single ordered cancel path: cancel any previous disappear-cancel
+        // before overwrite, then run cancelPrefetch() once (it writes the
+        // terminal state). Joined by the next .returnFromLog resync.
         disappearCancelTask?.cancel()
         disappearCancelTask = Task { await cancelPrefetch() }
     }
@@ -379,32 +373,17 @@ final class ReaderViewModel {
     }
 
     private func triggerPrefetchIfEligible() async {
-        // feat-023 Phase 4: 200ms trigger debounce. Rapid successive triggers
-        // (steady forward reading) collapse: a trigger whose chapter/mode moved
-        // on while waiting bows out, so only the latest window starts a batch.
-        prefetchEpoch += 1
-        let epoch = prefetchEpoch
-        let requestedChapter = chapterNumber
-        let requestedMode = aiMode
-        try? await Task.sleep(nanoseconds: 200_000_000)
-        guard epoch == prefetchEpoch, requestedChapter == chapterNumber, requestedMode == aiMode else { return }
+        // feat-024 Phase 2: no debounce — the FIFO queue absorbs rapid
+        // navigates (keep ∩ + append tail), so start synchronously right
+        // after the eligibility guards. Only mode .none cancels; other
+        // ineligibility keeps the running queue untouched.
         guard aiMode != .none else {
             await cancelPrefetch()
             return
         }
-        guard errorMessage == nil else {
-            await cancelPrefetch()
-            return
-        }
-        guard let total = book?.count, total > 0 else {
-            await cancelPrefetch()
-            return
-        }
-        guard let service = aiService else {
-            await cancelPrefetch()
-            return
-        }
-        prefetchPollTask?.cancel()
+        guard errorMessage == nil else { return }
+        guard let total = book?.count, total > 0 else { return }
+        guard let service = aiService else { return }
         let mode = aiMode
         let current = chapterNumber
         let slug = bookId
@@ -422,30 +401,10 @@ final class ReaderViewModel {
             aiService: service,
             repository: repo
         )
-        startPrefetchPoll(epoch: epoch)
-    }
-
-    /// Status poll for `epoch`: every publish (in-loop + trailing) drops on
-    /// cancel or epoch mismatch, so stale reads never overwrite terminal state.
-    private func startPrefetchPoll(epoch: Int) {
-        prefetchPollTask?.cancel()
-        let manager = prefetchManager
-        prefetchPollTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled, epoch == self.prefetchEpoch {
-                let status = await manager.currentStatus()
-                guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
-                await MainActor.run { self.prefetchStatus = status }
-                if !status.isRunning {
-                    break
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            }
-            guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
-            let status = await manager.currentStatus()
-            guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
-            await MainActor.run { self.prefetchStatus = status }
-        }
+        // One-shot mirror so steady reading shows running synchronously;
+        // terminal states arrive via cancelPrefetch or the next
+        // returnFromLog resync (no poll task).
+        prefetchStatus = await manager.currentStatus()
     }
 
     /// Log-return resume on remaining window misses. Cache reads only — zero
@@ -465,11 +424,9 @@ final class ReaderViewModel {
     }
 
     private func cancelPrefetch() async {
-        // Bump first: in-flight polls die on guard check; terminal writes once.
-        prefetchEpoch += 1
+        // Single cancel path (book/mode change, .none, disappear, explicit):
+        // manager cancel + terminal write once (no poll, no epoch).
         await prefetchManager.cancel()
-        prefetchPollTask?.cancel()
-        prefetchPollTask = nil
         // NOTE (pre-existing semantics): cancel runs before setAIMode assigns
         // .none, so a .none switch lands here on not-running/"Đã hủy", not
         // .idle. The idle-vs-cancelled contract is undefined; don't rely on it.

@@ -4,9 +4,6 @@ import Foundation
 actor PrefetchManager {
     static let perChapterBudget: TimeInterval = 600
     static let globalBudget: TimeInterval = 1800
-    /// Runtime window cap (feat-023 Phase 5, default 10): bounds the worst-case
-    /// per-batch cost. The public 0...1000-else-3 policy is unchanged.
-    static var hardCap = 10 // test-overridable; production default 10
 
     private var task: Task<Void, Never>?
     private var generation = 0
@@ -89,7 +86,9 @@ actor PrefetchManager {
             return
         }
         let effectiveN: Int = await MainActor.run { settings.effectivePrefetchCount() }
-        let appliedN = min(effectiveN, Self.hardCap)
+        // feat-024 Phase 3 (single N): no runtime hardCap; the public
+        // 0...1000-else-3 policy is the only bound, paced sequentially.
+        let appliedN = effectiveN
         let range = windowRange(currentChapter: currentChapter, effectiveN: appliedN, totalChapters: totalChapters)
         guard !range.isEmpty else {
             invalidateActiveBatch()
@@ -125,8 +124,8 @@ actor PrefetchManager {
         // P-Important-1: assign AFTER the query succeeds — the early return
         // above must not mutate shared window state read by finish().
         bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
-        // Log-only transparency fields (feat-023 Phase 3): storedN is raw stored,
-        // effectiveN consumed, appliedCap runtime-bounded. No policy change.
+        // Log-only transparency fields (feat-024 Phase 3 single N): storedN is
+        // raw stored, effectiveN is the single consumed N. No runtime cap.
         let storedN: Int = await MainActor.run { settings.prefetchCount }
         // Overlap-preserving top-up (feat-024 Phase 1 queue): same book+mode
         // with a running batch keeps the task; the window is reconciled
@@ -143,7 +142,7 @@ actor PrefetchManager {
                 detail: batchCheckDetail(
                     range: range,
                     misses: misses,
-                    counts: "storedN=\(storedN) effectiveN=\(effectiveN) appliedCap=\(appliedN)",
+                    counts: "storedN=\(storedN) effectiveN=\(effectiveN)",
                     extra: "reason=topUp overlapKept=\(kept.overlapKept) topUpAdded=\(kept.topUpAdded)"
                 )
             )
@@ -166,7 +165,7 @@ actor PrefetchManager {
             detail: batchCheckDetail(
                 range: range,
                 misses: misses,
-                counts: "storedN=\(storedN) effectiveN=\(effectiveN) appliedCap=\(appliedN)",
+                counts: "storedN=\(storedN) effectiveN=\(effectiveN)",
                 extra: ""
             )
         )

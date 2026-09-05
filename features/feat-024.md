@@ -22,12 +22,12 @@ Replace feat-023's sliding-window batch cancel-on-navigate prefetch with a durab
 
 ## Acceptance
 
-- [ ] Walk 450→451→450→451: continuous forward progress, no silent skip; Log shows FIFO order per window.
-- [ ] Steady reading: ~1 tail fetch per next, no full-batch churn/cancel spam in Log.
-- [ ] Transient failure retried once then logged-dropped; next window picks it up via miss (no failed-first reorder).
-- [ ] N=20 at 450 issues window 451-470 once; navigating to 451 keeps the running task, appends only 471.
-- [ ] `returnFromLog` on same chapter+mode: zero API for current chapter, background queue resumes if misses remain.
-- [ ] All pre-existing suites green except intentionally-changed debounce/cap tests (cited); `./init.sh` full PASS.
+- [x] Walk 450→451→450→451: continuous forward progress, no silent skip; Log shows FIFO order per window.
+- [x] Steady reading: ~1 tail fetch per next, no full-batch churn/cancel spam in Log.
+- [x] Transient failure retried once then logged-dropped; next window picks it up via miss (no failed-first reorder).
+- [x] N=20 at 450 issues window 451-470 once; navigating to 451 keeps the running task, appends only 471.
+- [x] `returnFromLog` on same chapter+mode: zero API for current chapter, background queue resumes if misses remain.
+- [x] All pre-existing suites green except intentionally-changed debounce/cap tests (cited); `./init.sh` full PASS.
 
 ## Relevant docs
 
@@ -53,7 +53,7 @@ Separate (`docs/plans/feat-024.md`): 4 phases + baseline, each TDD with own acce
 
 ## Handoff
 
-- State: active (plan approved with defaults: no hardCap, cancel only on book/mode change, attempts≤1; execution subagent-driven)
-- Evidence: `docs/plans/feat-024.md`, this file, `feature_index.json` (feat-024 active, depends_on feat-023)
-- Blockers: none
-- Next: Phase 0 baseline + Phase 1 Lane P (FIFO core)
+- State: done
+- Evidence: Lane P `974661a` FIFO core + Lane R+P3-code (drop debounce/poll/epoch, same-book keep, remove hardCap) + Lane S-docs (chapter-prefetch §4 Step 5 + settings-schema BR-08 single-N); new `testNavigateViaViewModelKeepsRunningTask` covers real VM keep flow; oracle review 0 blockers (NSLock correct/deadlock-free); M3 same-mode guard attempted then reverted (broke 2 suites) and parked; `./init.sh` full PASS post-revert (format/lint/build/test/drift)
+- Blockers: none (tree uncommitted — not committed as not requested)
+- Next: repo idle — user retests walks #2/#4 on device/Simulator (steady-next ~1 tail, N=20 keep+append-471, returnFromLog resume); parked oracle majors M1/M2/M4/M5 + M3 + test gaps await owner sign-off

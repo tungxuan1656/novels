@@ -45,7 +45,8 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 - Use current keys only; ignore unknown or legacy keys.
 - If `PREFETCH_COUNT` is outside `0..1000`, use `3`.
-- **Stored N vs effective N:** `prefetchCount` (stored) may transiently hold an out-of-range value until `save()` coerces it; readers (prefetch manager, Settings row) always use `effectivePrefetchCount()` (clamped, read-only). The Settings row shows the effective N. `prefetch.batchCheck` logs both (`storedN=`/`effectiveN=`) so a settings fault is distinguishable from a cache/total cut.
+- **Stored N vs effective N:** `prefetchCount` (stored) may transiently hold an out-of-range value until `save()` coerces it; readers (prefetch manager, Settings row) always use `effectivePrefetchCount()` (clamped, read-only). The Settings row shows the effective N. `prefetch.batchCheck` logs the single consumed N (`storedN=`/`effectiveN=`) so a settings fault is distinguishable from a cache/total cut.
+- **No runtime cap (BR-08):** there is no runtime window cap; the effective N is honored as-is (N=1000 is paced by the sequential FIFO worker plus the 600s per-chapter / 1800s global budgets, not clamped). `prefetch.batchCheck` logs the single consumed N only, with no applied cap field. Range `0..1000` else `3` is unchanged.
 - If `AI_MODE` is not `none` or `rewrite`, use `none`.
 - If `readingTheme` is not `vangGiay`, `trang`, or `den`, use `vangGiay`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.
@@ -58,7 +59,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Examples
 
-- Canonical: `PREFETCH_COUNT=3` (range `0..1000` else `3`); `AI_CUSTOM_HEADERS=""` when empty.
+- Canonical: `PREFETCH_COUNT=3` (range `0..1000` else `3`, no runtime cap); `AI_CUSTOM_HEADERS=""` when empty.
 
 ## Verification
 
