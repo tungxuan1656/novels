@@ -97,11 +97,14 @@ final class ReadingThemeTests: XCTestCase {
         let src = try source("apps/novels/Resources/DesignTokens.swift")
         let code = stripped(src)
         XCTAssertTrue(code.contains("0xF5F1E5"))
-        XCTAssertTrue(code.contains("0xE8DDC0"))
+        // Light chips darkened for contrast (round 1: EFEFF1→E0E1E6; round 2: E0E1E6→D3D4D9, E8DDC0→D9CBA6).
+        // Default theme is vangGiay, so its chip must change too or light users see nothing.
+        XCTAssertTrue(code.contains("0xD9CBA6"))
+        XCTAssertFalse(code.contains("0xE8DDC0"))
         XCTAssertTrue(code.contains("0xDCD2B6"))
-        // Light chip darkened for contrast on white (EFEFF1 ~1.1:1 near-invisible → E0E1E6)
-        XCTAssertTrue(code.contains("0xE0E1E6"))
+        XCTAssertTrue(code.contains("0xD3D4D9"))
         XCTAssertFalse(code.contains("0xEFEFF1"))
+        XCTAssertFalse(code.contains("0xE0E1E6"))
         XCTAssertTrue(code.contains("0xE5E7EB"))
         XCTAssertTrue(code.contains("0x171512"))
         XCTAssertTrue(code.contains("0xECE7DF"))
@@ -139,8 +142,12 @@ final class ReadingThemeTests: XCTestCase {
     func testLightChipDiffersFromWhiteBackground() throws {
         let src = try stripped(source("apps/novels/Resources/DesignTokens.swift"))
         // Chip trang must not equal white background FFFFFF (wash-out regression)
-        XCTAssertTrue(src.contains("0xE0E1E6"))
+        XCTAssertTrue(src.contains("0xD3D4D9"))
         XCTAssertFalse(src.contains("0xEFEFF1"))
+        XCTAssertFalse(src.contains("0xE0E1E6"))
+        // Default theme is vangGiay: its chip must also stand off paper F5F1E5
+        XCTAssertTrue(src.contains("0xD9CBA6"))
+        XCTAssertFalse(src.contains("0xE8DDC0"))
         // Dark chip stays untouched
         XCTAssertTrue(src.contains("0x2A2724"))
     }
@@ -157,11 +164,14 @@ final class ReadingThemeTests: XCTestCase {
         let src = try stripped(source("apps/novels/Features/Settings/CacheManagerView.swift"))
         XCTAssertTrue(src.contains("muted.opacity(0.2)"))
         XCTAssertFalse(src.contains("muted.opacity(0.12)"))
-        XCTAssertTrue(src.contains("error.opacity(0.15)"))
-        XCTAssertTrue(src.contains("error.opacity(0.35)"))
-        // Exact-match with closing paren: 0.12 icon tint at line 114 stays, 0.15 pill must not match 0.1
+        // Xóa pill: fill >= 0.2 + stroke 0.5 so edge survives on white surface
+        XCTAssertTrue(src.contains("error.opacity(0.2)"))
+        XCTAssertTrue(src.contains("error.opacity(0.5)"))
+        // Exact-match with closing paren: 0.12 icon tint at line 114 stays
         XCTAssertFalse(src.contains("error.opacity(0.1)"))
+        XCTAssertFalse(src.contains("error.opacity(0.15)"))
         XCTAssertFalse(src.contains("error.opacity(0.25)"))
+        XCTAssertFalse(src.contains("error.opacity(0.35)"))
     }
 
     func testReaderChipsUseSolidFill() throws {

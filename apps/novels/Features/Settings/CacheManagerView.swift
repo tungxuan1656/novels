@@ -216,10 +216,10 @@ struct CacheManagerView: View {
                                 .frame(minWidth: 56)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 5)
-                                .background(DesignTokens.error.opacity(0.15), in: Capsule())
+                                .background(DesignTokens.error.opacity(0.2), in: Capsule())
                                 .overlay(
                                     Capsule()
-                                        .stroke(DesignTokens.error.opacity(0.35), lineWidth: 1)
+                                        .stroke(DesignTokens.error.opacity(0.5), lineWidth: 1)
                                 )
                                 .contentShape(Rectangle())
                         }
