@@ -243,7 +243,7 @@ import Observation
         case "AI_PROMPT":
             aiPrompt = value
         case "PREFETCH_COUNT":
-            if let intValue = Int(value) {
+            if let intValue = SettingDescriptor.parsedPrefetchCount(value) {
                 prefetchCount = intValue
             } // keep prior valid value on parse failure
         case "AI_MIN_CHUNK_SIZE":
@@ -341,14 +341,8 @@ import Observation
             return intVal
         }
         if let str = obj as? String {
-            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let intVal = Int(trimmed) {
-                return intVal
-            }
-            if let doubleVal = Double(trimmed) {
-                return Int(doubleVal)
-            }
-            return nil
+            // Shared trim rule with editor validation and setValue (feat-023 Phase 3).
+            return SettingDescriptor.parsedPrefetchCount(str)
         }
         if let doubleVal = obj as? Double {
             return Int(doubleVal)

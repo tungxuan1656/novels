@@ -107,12 +107,15 @@ actor PrefetchManager {
         }
         let cached: Set<Int> = (try? cache.batchStatus(bookId: bookId, mode: mode, numbers: range)) ?? []
         let misses = range.filter { !cached.contains($0) }
+        // Log-only transparency fields (feat-023 Phase 3): storedN is the raw stored
+        // value, effectiveN is what this batch actually consumes. No behavior change.
+        let storedN: Int = await MainActor.run { settings.prefetchCount }
         await logPrefetch(
             event: "prefetch.batchCheck",
             bookId: bookId,
             chapterNumber: currentChapter,
             mode: mode.rawValue,
-            detail: "rangeFrom=\(range.first ?? 0) rangeTo=\(range.last ?? 0) hit=\(range.count - misses.count) miss=\(misses.count)"
+            detail: "rangeFrom=\(range.first ?? 0) rangeTo=\(range.last ?? 0) hit=\(range.count - misses.count) miss=\(misses.count) storedN=\(storedN) effectiveN=\(effectiveN)"
         )
         guard !misses.isEmpty else {
             statusValue = PrefetchStatus(

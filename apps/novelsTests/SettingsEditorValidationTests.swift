@@ -110,4 +110,41 @@ final class SettingsEditorValidationTests: XCTestCase {
         XCTAssertNotNil(desc.validate("{bad}"))
         XCTAssertEqual(desc.allowsVerbatimSave, true)
     }
+
+    /// feat-023 Phase 3: one shared trim rule — validate agrees with setValue/intValue.
+    func testPrefetchTrimRuleUnified() {
+        let desc = SettingsViewModel.descriptor(for: "PREFETCH_COUNT")
+        XCTAssertNil(desc.validate("20"))
+        XCTAssertNil(desc.validate(" 20"))
+        XCTAssertNil(desc.validate("20 "))
+        XCTAssertNil(desc.validate("20.0"))
+    }
+
+    /// feat-023 Phase 3: editor blocks (keeps old value); copy must say so, not promise fallback-to-3.
+    func testPrefetchCopyStatesBlockKeepsOld() {
+        let desc = SettingsViewModel.descriptor(for: "PREFETCH_COUNT")
+        let blocked = desc.validate("1001")
+        XCTAssertNotNil(blocked)
+        XCTAssertTrue(blocked?.contains("giữ giá trị cũ") ?? false)
+        XCTAssertFalse(blocked?.contains("về 3") ?? true)
+        XCTAssertNotNil(desc.validate("abc"))
+        XCTAssertNotNil(desc.validate("-1"))
+        XCTAssertFalse(desc.allowsVerbatimSave)
+    }
+
+    /// feat-023 Phase 3: Settings row exposes the effective N the manager consumes.
+    func testPrefetchRowExposesEffectiveN() {
+        let suite = "test.prefetchrow.\(UUID().uuidString)"
+        guard let userDefaults = UserDefaults(suiteName: suite) else {
+            XCTFail("suite nil")
+            return
+        }
+        let store = SettingsStore(userDefaults: userDefaults)
+        store.prefetchCount = 20
+        XCTAssertEqual(SettingsViewModel.prefetchCountRowValue(store), "20")
+        // Stored out-of-range but unsaved: row still shows the effective value.
+        store.prefetchCount = 1001
+        XCTAssertEqual(store.prefetchCount, 1001)
+        XCTAssertEqual(SettingsViewModel.prefetchCountRowValue(store), "3")
+    }
 }

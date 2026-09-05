@@ -149,4 +149,30 @@ final class SettingsStoreCoercionTests: XCTestCase {
         store.save()
         XCTAssertEqual(store.effectiveHeaders()["Authorization"], "Bearer x")
     }
+
+    /// feat-023 Phase 3: setValue shares the trim rule with validate/intValue.
+    func testSetValuePrefetchTrimsAndAcceptsDoubleForm() throws {
+        let suite = "test.setvalue.trim.\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let store = SettingsStore(userDefaults: userDefaults)
+        store.prefetchCount = 3
+        store.setValue(" 20", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("20 ", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("20.0", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+    }
+
+    /// feat-023 Phase 3: persisted string forms reload identically (intValue path).
+    func testIntValuePrefetchLenientFormsReload() throws {
+        let suite = "test.intvalue.trim.\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        userDefaults.set(" 20", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+        userDefaults.set("20.0", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+        userDefaults.set("20 ", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+    }
 }

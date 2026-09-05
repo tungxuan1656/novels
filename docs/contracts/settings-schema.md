@@ -30,7 +30,8 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Headers/Body:** must be valid JSON object when non-empty; invalid → treated as empty, request proceeds without merge. No throw.
 - **Provider:** case-insensitive compare; only `openai` accepted.
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
-- **Chunk size / Prefetch N:** numeric string coerced to number; out of range or NaN → `1300` / `3`.
+- **Chunk size / Prefetch N parsing (one shared trim rule):** trim surrounding whitespace, then `Int`, then finite-`Double` truncation — so `" 20"`, `"20 "`, and `"20.0"` all mean `20`. Shared by editor validation, `setValue`, and `intValue`. Nothing numeric (or non-finite like `nan`/`inf`) → parse failure.
+- **Chunk size / Prefetch N block-vs-coerce:** the editor **blocks** invalid or out-of-range input (save disabled, old value kept — it never writes a fallback). `save()` → `sanitize()` **coerces** an out-of-range stored value (`PREFETCH_COUNT` → `3`, chunk → `1300`). Out of range or NaN on read → `1300` / `3`.
 - **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
 - **Reading theme:** rawValue string of `ReadingTheme` (`vangGiay` / `trang` / `den`); missing, non-string, or unknown → `vangGiay`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
@@ -44,6 +45,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 - Use current keys only; ignore unknown or legacy keys.
 - If `PREFETCH_COUNT` is outside `0..1000`, use `3`.
+- **Stored N vs effective N:** `prefetchCount` (stored) may transiently hold an out-of-range value until `save()` coerces it; readers (prefetch manager, Settings row) always use `effectivePrefetchCount()` (clamped, read-only). The Settings row shows the effective N. `prefetch.batchCheck` logs both (`storedN=`/`effectiveN=`) so a settings fault is distinguishable from a cache/total cut.
 - If `AI_MODE` is not `none` or `rewrite`, use `none`.
 - If `readingTheme` is not `vangGiay`, `trang`, or `den`, use `vangGiay`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.

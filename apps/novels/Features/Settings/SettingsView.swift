@@ -37,7 +37,7 @@ struct SettingsView: View {
                 row(
                     key: "PREFETCH_COUNT",
                     label: "Số chương tải trước",
-                    value: "\(settings.prefetchCount)"
+                    value: SettingsViewModel.prefetchCountRowValue(settings)
                 )
             }
             Section("Dữ liệu") {
