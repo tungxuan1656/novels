@@ -97,12 +97,12 @@ final class ReadingThemeTests: XCTestCase {
         let src = try source("apps/novels/Resources/DesignTokens.swift")
         let code = stripped(src)
         XCTAssertTrue(code.contains("0xF5F1E5"))
-        // Light chips darkened for contrast (round 1: EFEFF1→E0E1E6; round 2: E0E1E6→D3D4D9, E8DDC0→D9CBA6).
-        // Default theme is vangGiay, so its chip must change too or light users see nothing.
-        XCTAssertTrue(code.contains("0xD9CBA6"))
-        XCTAssertFalse(code.contains("0xE8DDC0"))
-        XCTAssertTrue(code.contains("0xDCD2B6"))
+        // Light chips unified to D3D4D9 for contrast on both paper F5F1E5 and white FFFFFF.
+        // Retired intermediates must stay out: E8DDC0->D9CBA6->D3D4D9, EFEFF1->E0E1E6->D3D4D9, DCD2B6.
         XCTAssertTrue(code.contains("0xD3D4D9"))
+        XCTAssertFalse(code.contains("0xE8DDC0"))
+        XCTAssertFalse(code.contains("0xD9CBA6"))
+        XCTAssertFalse(code.contains("0xDCD2B6"))
         XCTAssertFalse(code.contains("0xEFEFF1"))
         XCTAssertFalse(code.contains("0xE0E1E6"))
         XCTAssertTrue(code.contains("0xE5E7EB"))
@@ -141,12 +141,13 @@ final class ReadingThemeTests: XCTestCase {
 
     func testLightChipDiffersFromWhiteBackground() throws {
         let src = try stripped(source("apps/novels/Resources/DesignTokens.swift"))
-        // Chip trang must not equal white background FFFFFF (wash-out regression)
+        // Both light chips (vangGiay + trang) unify to D3D4D9 so they stand off paper F5F1E5 and white FFFFFF.
         XCTAssertTrue(src.contains("0xD3D4D9"))
         XCTAssertFalse(src.contains("0xEFEFF1"))
         XCTAssertFalse(src.contains("0xE0E1E6"))
-        // Default theme is vangGiay: its chip must also stand off paper F5F1E5
-        XCTAssertTrue(src.contains("0xD9CBA6"))
+        // Retired vangGiay intermediates must stay out
+        XCTAssertFalse(src.contains("0xD9CBA6"))
+        XCTAssertFalse(src.contains("0xDCD2B6"))
         XCTAssertFalse(src.contains("0xE8DDC0"))
         // Dark chip stays untouched
         XCTAssertTrue(src.contains("0x2A2724"))
