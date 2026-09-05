@@ -6,7 +6,7 @@ actor PrefetchManager {
     static let globalBudget: TimeInterval = 1800
     /// Runtime window cap (feat-023 Phase 5, default 10): bounds the worst-case
     /// per-batch cost. The public 0...1000-else-3 policy is unchanged.
-    static var hardCap = 10
+    static var hardCap = 10 // test-overridable; production default 10
 
     private var task: Task<Void, Never>?
     private var generation = 0
@@ -105,7 +105,6 @@ actor PrefetchManager {
             )
             return
         }
-        bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
         let misses: [Int]
         do {
             misses = try missList(cache: cache, bookId: bookId, mode: mode, range: range)
@@ -122,6 +121,9 @@ actor PrefetchManager {
             )
             return
         }
+        // P-Important-1: assign AFTER the query succeeds — the early return
+        // above must not mutate shared window state read by finish().
+        bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
         // Log-only transparency fields (feat-023 Phase 3): storedN is raw stored,
         // effectiveN consumed, appliedCap runtime-bounded. No policy change.
         let storedN: Int = await MainActor.run { settings.prefetchCount }
@@ -176,6 +178,9 @@ actor PrefetchManager {
             )
         )
         guard !misses.isEmpty else {
+            // P-Minor-a: no batch spawned here — mark finished so a stale task
+            // can never satisfy the top-up keep invariant (task != nil).
+            batchFinished = true
             statusValue = PrefetchStatus(
                 isRunning: false, currentBookId: bookId, totalChapters: range.count,
                 processedChapters: 0, message: "Đã hoàn tất (đã có cache)", errors: []

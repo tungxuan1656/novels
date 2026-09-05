@@ -137,6 +137,45 @@ final class TrackingAIClient {
     }
 }
 
+final class ThrowingBatchCache: ProcessedChapterCaching {
+    let real: SQLiteProcessedChapterCache
+    init(real: SQLiteProcessedChapterCache) {
+        self.real = real
+    }
+
+    func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
+        try real.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode)
+    }
+
+    func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+        throw SQLiteError.exec(message: "boom")
+    }
+
+    func upsert(_ pc: ProcessedChapter) throws {
+        try real.upsert(pc)
+    }
+
+    func clearAll() throws {
+        try real.clearAll()
+    }
+
+    func clear(bookId: String) throws {
+        try real.clear(bookId: bookId)
+    }
+
+    func countAll() throws -> Int {
+        try real.countAll()
+    }
+
+    func count(bookId: String) throws -> Int {
+        try real.count(bookId: bookId)
+    }
+
+    func allBookIds() throws -> [String] {
+        try real.allBookIds()
+    }
+}
+
 final class PrefetchManagerTests: XCTestCase {
     override func tearDown() {
         super.tearDown()
@@ -643,44 +682,6 @@ final class PrefetchManagerTests: XCTestCase {
     func testCacheQueryFailureKeepsPriorState() async throws {
         // A batchStatus throw keeps the prior status (never miss-all) and logs
         // on an existing event instead of refetching everything as misses.
-        final class ThrowingBatchCache: ProcessedChapterCaching {
-            let real: SQLiteProcessedChapterCache
-            init(real: SQLiteProcessedChapterCache) {
-                self.real = real
-            }
-
-            func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
-                try real.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode)
-            }
-
-            func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
-                throw SQLiteError.exec(message: "boom")
-            }
-
-            func upsert(_ pc: ProcessedChapter) throws {
-                try real.upsert(pc)
-            }
-
-            func clearAll() throws {
-                try real.clearAll()
-            }
-
-            func clear(bookId: String) throws {
-                try real.clear(bookId: bookId)
-            }
-
-            func countAll() throws -> Int {
-                try real.countAll()
-            }
-
-            func count(bookId: String) throws -> Int {
-                try real.count(bookId: bookId)
-            }
-
-            func allBookIds() throws -> [String] {
-                try real.allBookIds()
-            }
-        }
         await DiagnosticsLog.shared.clear()
         let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)
         let svc = client.service(cache: cache, settings: settings)
@@ -716,6 +717,42 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertTrue(
             entries.contains { $0.event == "prefetch.error-continue" && ($0.detail ?? "").contains("cacheQueryFailed") },
             "query failure must be logged, got \(entries.map { ($0.event, $0.detail) })"
+        )
+    }
+
+    func testQueryFailureDuringRunningBatchKeepsTailMark() async throws {
+        // P-Important-1 pin: a cache query failure must not mutate shared
+        // window state — the running end-of-book batch keeps its tailMark.
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 10, totalChapters: 100)
+        client.delayPerCall = 300_000_000
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 98,
+            totalChapters: 100,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 150_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 100,
+            mode: .rewrite,
+            settings: settings,
+            cache: ThrowingBatchCache(real: cache),
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 2_500_000_000)
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
+        XCTAssertTrue(
+            status.message.contains("còn 2 chương cuối"),
+            "running batch keeps its tailMark, got \(status.message)"
         )
     }
 
