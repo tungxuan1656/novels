@@ -137,6 +137,9 @@ final class ReaderViewModel {
             return
         }
         if aiMode != .none {
+            // Sync flag so aiSection shows spinner, not stale original,
+            // during the async gap before loadAIContent sets it.
+            isAIProcessing = true
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
