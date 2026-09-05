@@ -136,6 +136,12 @@
       "title": "Reading Position Restore (Simple)",
       "status": "done",
       "depends_on": ["feat-004"]
+    },
+    {
+      "id": "feat-023",
+      "title": "Reader + Prefetch Correctness Round 2",
+      "status": "done",
+      "depends_on": ["feat-004", "feat-005", "feat-006", "feat-007", "feat-014", "feat-018"]
     }
   ]
 }
