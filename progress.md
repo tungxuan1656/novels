@@ -284,3 +284,19 @@
 **Evidence**: first run failing test `testEndOfBookMessageNamesRemainingChapters` + `FBSOpenApplicationServiceErrorDomain RequestDenied`, single-test `** TEST SUCCEEDED **`, retry `EXIT:0` (PASS format/lint/build/test/drift)
 **Blockers**: none
 **Next**: feat-024 (feat-023 extend: FIFO prefetch refactor) plan for owner approval, refactor after approval
+
+## 2026-09-06 — feat-024 plan
+
+**State**: todo
+**Done**: Extend plan written (writing-plans skill): `docs/plans/feat-024.md` (P0 baseline, P1 FIFO queue core, P2 drop debounce/poll/epoch, P3 single-N, P4 specs + close; Lane P engine / Lane R reader / Lane S spec ownership; owner defaults: no hardCap, cancel only on book/mode change, attempts≤1 requeue) + `features/feat-024.md` (separate plan link, acceptance 6/6) + `feature_index.json` feat-024 todo (zero active)
+**Evidence**: `docs/plans/feat-024.md`, `features/feat-024.md`, `feature_index.json` (feat-024 todo, depends_on feat-023)
+**Blockers**: owner approval of plan (notably hardCap removal + queue-cancel policy) before activation; refactor NOT started
+**Next**: approve plan + choose execution approach (subagent-driven vs inline), then Phase 0 baseline
+
+## 2026-09-06 — feat-024 active
+
+**State**: active
+**Done**: Owner approved plan with defaults (no hardCap, cancel only on book/mode change, attempts≤1) and chose subagent-driven execution; SDD workspace `.agent-work/sdd/feat-024` ready (fresh ledger); feat-024 activated (zero other active)
+**Evidence**: `features/feat-024.md` (handoff active), `feature_index.json` (feat-024 active)
+**Blockers**: none
+**Next**: Phase 0 baseline + dispatch Lane P implementer (FIFO core)
