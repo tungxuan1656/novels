@@ -74,7 +74,7 @@ enum DesignTokens {
     static let spacing24: CGFloat = 24
     static let spacing32: CGFloat = 32
 
-    static let rowMinHeight: CGFloat = 56
+    static let rowMinHeight: CGFloat = 48
     static let sidePadding: CGFloat = 16
 }
 

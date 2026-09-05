@@ -94,78 +94,72 @@ struct AddBookView: View {
                 .background(DesignTokens.backgroundWhite)
                 .padding(DesignTokens.sidePadding)
             case .loaded:
-                List(viewModel.sortedBooks, id: \.id) { exp in
-                    Button {
-                        Task {
-                            do {
-                                try await viewModel.importBook(exp)
-                                toast.show("Đã nhập sách", type: .success)
-                                router.pop()
-                            } catch let error as ImportError {
-                                switch error {
-                                    case .downloadFailed:
-                                        toast.show("Không tải được gói sách, thử lại", type: .error)
-                                    case .invalidPackage:
-                                        toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
+                List {
+                    Section {
+                        ForEach(viewModel.sortedBooks, id: \.id) { exp in
+                            Button {
+                                Task {
+                                    do {
+                                        try await viewModel.importBook(exp)
+                                        toast.show("Đã nhập sách", type: .success)
+                                        router.pop()
+                                    } catch let error as ImportError {
+                                        switch error {
+                                            case .downloadFailed:
+                                                toast.show("Không tải được gói sách, thử lại", type: .error)
+                                            case .invalidPackage:
+                                                toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
+                                        }
+                                    } catch is CancellationError {
+                                        // cancelled, no toast
+                                    } catch {
+                                        if let urlError = error as? URLError, urlError.code == .timedOut {
+                                            toast.show("Không tải được gói sách, thử lại", type: .error)
+                                        } else {
+                                            toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
+                                        }
+                                    }
                                 }
-                            } catch is CancellationError {
-                                // cancelled, no toast
-                            } catch {
-                                if let urlError = error as? URLError, urlError.code == .timedOut {
-                                    toast.show("Không tải được gói sách, thử lại", type: .error)
-                                } else {
-                                    toast.show("Gói sách không hợp lệ, không thể nhập", type: .error)
-                                }
-                            }
-                        }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(exp.book.name)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(DesignTokens.text)
-                                .lineLimit(2)
-                                .truncationMode(.tail)
-                                .lineSpacing(2)
-                                .multilineTextAlignment(.leading)
-                            Text(exp.book.author ?? "Không rõ")
-                                .font(.footnote)
-                                .foregroundStyle(DesignTokens.muted)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                            Text(
-                                "\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))"
-                            )
-                            .font(.caption)
-                            .foregroundStyle(DesignTokens.muted)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                            if let syn = exp.book.synopsis, !syn.isEmpty {
-                                Text(syn)
+                            } label: {
+                                VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
+                                    Text(exp.book.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(DesignTokens.text)
+                                        .lineLimit(2)
+                                        .truncationMode(.tail)
+                                        .lineSpacing(2)
+                                        .multilineTextAlignment(.leading)
+                                    Text(exp.book.author ?? "Không rõ")
+                                        .font(.footnote)
+                                        .foregroundStyle(DesignTokens.muted)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                    Text(
+                                        "\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))"
+                                    )
                                     .font(.caption)
                                     .foregroundStyle(DesignTokens.muted)
-                                    .lineLimit(2)
+                                    .lineLimit(1)
                                     .truncationMode(.tail)
-                                    .lineSpacing(1)
-                                    .multilineTextAlignment(.leading)
+                                    if let syn = exp.book.synopsis, !syn.isEmpty {
+                                        Text(syn)
+                                            .font(.caption)
+                                            .foregroundStyle(DesignTokens.muted)
+                                            .lineLimit(2)
+                                            .truncationMode(.tail)
+                                            .lineSpacing(1)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                                .frame(minHeight: DesignTokens.rowMinHeight, alignment: .leading)
+                                .contentShape(Rectangle())
                             }
+                            .listRowBackground(DesignTokens.surface)
+                            .listRowSeparatorTint(DesignTokens.border)
+                            .accessibilityIdentifier("addbook.row.\(exp.book.slug)")
                         }
-                        .padding(.vertical, 6)
-                        .frame(minHeight: DesignTokens.rowMinHeight, alignment: .leading)
-                        .contentShape(Rectangle())
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(DesignTokens.backgroundWhite)
-                    .listRowInsets(
-                        EdgeInsets(
-                            top: 4,
-                            leading: DesignTokens.sidePadding,
-                            bottom: 4,
-                            trailing: DesignTokens.sidePadding
-                        )
-                    )
-                    .accessibilityIdentifier("addbook.row.\(exp.book.slug)")
                 }
-                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(DesignTokens.backgroundWhite)
         }

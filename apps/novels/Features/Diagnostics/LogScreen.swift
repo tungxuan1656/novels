@@ -60,7 +60,7 @@ struct LogScreen: View {
         }
         .padding(.horizontal, DesignTokens.spacing12)
         .frame(minHeight: 44)
-        .background(DesignTokens.backgroundGrouped)
+        .background(DesignTokens.surface)
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusMedium))
         .padding(.horizontal, DesignTokens.sidePadding)
         .padding(.vertical, DesignTokens.spacing8)

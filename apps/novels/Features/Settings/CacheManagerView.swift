@@ -46,7 +46,7 @@ struct CacheManagerView: View {
                     .accessibilityLabel("Thử lại")
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(DesignTokens.backgroundPaper)
+                .background(DesignTokens.backgroundWhite)
             } else {
                 List {
                     countCard
@@ -54,7 +54,7 @@ struct CacheManagerView: View {
                 }
                 .listSectionSpacing(DesignTokens.spacing8)
                 .scrollContentBackground(.hidden)
-                .background(DesignTokens.backgroundPaper)
+                .background(DesignTokens.backgroundWhite)
                 .refreshable { await load() }
             }
         }
@@ -202,26 +202,17 @@ struct CacheManagerView: View {
                             .frame(minWidth: 32)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(DesignTokens.muted.opacity(0.2), in: Capsule())
+                            .background(DesignTokens.muted.opacity(0.12), in: Capsule())
                             .accessibilityLabel("\(row.count) chương")
                         Button(role: .destructive) {
                             showClearBookConfirm = row.slug
                         } label: {
-                            Text("Xóa")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                            Image(systemName: "trash")
+                                .font(.body)
                                 .foregroundStyle(DesignTokens.error)
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                                .frame(minWidth: 56)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 5)
-                                .background(DesignTokens.error.opacity(0.2), in: Capsule())
-                                .overlay(
-                                    Capsule()
-                                        .stroke(DesignTokens.error.opacity(0.5), lineWidth: 1)
-                                )
+                                .frame(minWidth: 44, minHeight: 44)
                                 .contentShape(Rectangle())
+                                .accessibilityHidden(true)
                         }
                         .buttonStyle(.plain)
                         .accessibilityIdentifier("clear-\(row.slug)")
