@@ -139,6 +139,9 @@ struct ReaderView: View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
                 aiProcessedContent(processed)
+            } else if viewModel.isLoading || (viewModel.isAIProcessing && viewModel.blocks.isEmpty) {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(theme.textMuted)

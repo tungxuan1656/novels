@@ -20,7 +20,9 @@ final class ReaderViewModel {
     var book: Book?
     var chapterNumber: Int = 1
     var blocks: [TextBlock] = []
-    var isLoading = false
+    // Start as loading so the first frame shows an indicator instead of
+    // flashing "Không tìm thấy chương" before load() runs.
+    var isLoading = true
     var errorMessage: String?
     var aiMode: AIMode = .none
     var processedContent: String?
