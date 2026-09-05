@@ -13,16 +13,23 @@ struct AddBookView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Picker("Sắp xếp", selection: $bindable.sortOption) {
-                        Text("A→Z").tag(ImportViewModel.SortOption.nameAZ)
-                        Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
+                    Menu {
+                        Picker("Sắp xếp", selection: $bindable.sortOption) {
+                            Text("A→Z").tag(ImportViewModel.SortOption.nameAZ)
+                            Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
+                        }
+                    } label: {
+                        HStack(spacing: DesignTokens.spacing4) {
+                            Text(bindable.sortOption == .nameAZ ? "A→Z" : "Mới nhất")
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(DesignTokens.text)
+                        .padding(.horizontal, DesignTokens.spacing4)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
-                    .pickerStyle(.menu)
-                    .controlSize(.mini)
-                    .tint(DesignTokens.text)
                     .a11yHitTarget()
                     .accessibilityLabel("Sắp xếp")
-                    .fixedSize()
                 }
             }
             .overlay {
