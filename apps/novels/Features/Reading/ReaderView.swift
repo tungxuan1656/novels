@@ -1,7 +1,5 @@
 import SwiftUI
 
-// swiftlint:disable file_length
-
 // swiftlint:disable:next type_body_length
 struct ReaderView: View {
     let bookId: String
@@ -431,6 +429,7 @@ struct ReaderView: View {
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 viewModel.saveOffset(offset)
+                debounceTask = nil
             }
         }
     }
@@ -478,25 +477,12 @@ struct ReaderView: View {
         guard ReaderRestoreDecision.needsScrollRestore(offset: offset) else { return }
         let chapter = viewModel.chapterNumber
         Task {
-            // Bounded wait for real content (load finished + blocks/error present)
-            // so layout exists when we scroll. Single assign only; a brief top
-            // flash before the jump is accepted (feat-022).
-            var attempt = 0
-            while attempt < 20 {
-                let ready = await MainActor.run {
-                    !viewModel.isLoading
-                        && viewModel.chapterNumber == chapter
-                        && (!viewModel.blocks.isEmpty || viewModel.errorMessage != nil)
-                }
-                if ready {
-                    break
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-                attempt += 1
-            }
+            // Content is ready (called after await load()), so a single ready
+            // check suffices before the single scroll assign.
             await MainActor.run {
                 // Never apply a stale restore onto a chapter the user already left.
                 guard viewModel.chapterNumber == chapter else { return }
+                guard !viewModel.isLoading, !viewModel.blocks.isEmpty || viewModel.errorMessage != nil else { return }
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }
         }

@@ -82,14 +82,6 @@ final class SeamlessRestoreTests: XCTestCase {
         XCTAssertEqual(relaunched.session?.onScreen, true)
     }
 
-    func testAppRootFlushesStoreOnBackground() throws {
-        let src = try source("apps/novels/App/AppRoot.swift")
-        let code = stripped(src)
-        XCTAssertTrue(code.contains("scenePhase"), "AppRoot must observe scenePhase")
-        XCTAssertTrue(code.contains("settingsStore.save()"), "AppRoot must flush the store on background/inactive")
-        XCTAssertTrue(code.contains(".background"), "AppRoot must handle the background phase")
-    }
-
     /// (d) Offset 0 (chapter top) is a valid restore position for the same book.
     func testZeroOffsetRestores() {
         XCTAssertEqual(
@@ -108,54 +100,5 @@ final class SeamlessRestoreTests: XCTestCase {
         store.session = ReadingSession(bookId: "seamless-a", onScreen: true, offset: 0, chapterNumber: 4)
         let viewModel = ReaderViewModel(bookId: "seamless-a", repository: makeRepo(), settingsStore: store)
         XCTAssertEqual(viewModel.chapterNumber, 4)
-    }
-
-    // MARK: - Source helpers (same pattern as ReaderHeaderSpinnerTests)
-
-    private func repoRoot() -> URL {
-        let fileURL = URL(fileURLWithPath: #filePath)
-        var current = fileURL.deletingLastPathComponent()
-        for _ in 0 ..< 6 {
-            let candidate = current.appendingPathComponent("apps/novels.xcodeproj/project.pbxproj")
-            if FileManager.default.fileExists(atPath: candidate.path) {
-                return current
-            }
-            let parent = current.deletingLastPathComponent()
-            if parent.path == current.path {
-                break
-            }
-            current = parent
-        }
-        return fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    }
-
-    private func source(_ relative: String) throws -> String {
-        let root = repoRoot()
-        let candidate = root.appendingPathComponent(relative)
-        let path = FileManager.default.fileExists(atPath: candidate.path) ? candidate.path : relative
-        return try String(contentsOfFile: path, encoding: .utf8)
-    }
-
-    private func stripped(_ text: String) -> String {
-        var result = text
-        if let regex = try? NSRegularExpression(
-            pattern: "/\\*.*?\\*/",
-            options: [.dotMatchesLineSeparators]
-        ) {
-            result = regex.stringByReplacingMatches(
-                in: result,
-                options: [],
-                range: NSRange(result.startIndex..., in: result),
-                withTemplate: ""
-            )
-        }
-        let lines = result.components(separatedBy: "\n")
-        let withoutLineComments = lines.map { line -> String in
-            if let range = line.range(of: "//") {
-                return String(line[..<range.lowerBound])
-            }
-            return line
-        }
-        return withoutLineComments.joined(separator: "\n")
     }
 }

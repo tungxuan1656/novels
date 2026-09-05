@@ -30,6 +30,8 @@ struct AppRoot: View {
                                     current: settingsStore.session?.chapterNumber ?? 1,
                                     onSelect: { number in
                                         settingsStore.session?.chapterNumber = number
+                                        settingsStore.session?.offset = 0
+                                        settingsStore.session?.bookId = bookId
                                         settingsStore.save()
                                     },
                                     router: router
@@ -60,8 +62,8 @@ struct AppRoot: View {
         .onChange(of: scenePhase) { _, newPhase in
             // Seamless restore: flush the in-memory session to disk when leaving
             // the foreground, so kill-after-background relaunches into the same
-            // book/chapter/offset. (Sub-300ms scroll→kill debounce gap is phase 2
-            // with the ReaderView restore race.)
+            // book/chapter/offset. Save is idempotent; ReaderView also flushes
+            // its pending scroll offset on background and disappear.
             if newPhase == .background || newPhase == .inactive {
                 settingsStore.save()
             }
