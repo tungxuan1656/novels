@@ -14,8 +14,9 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     func makeVM(
         prefetchCount: Int = 3,
         mode: AIMode = .rewrite,
-        total: Int = 10
-    ) throws -> (ReaderViewModel, SQLiteProcessedChapterCache, SettingsStore, TrackingAIClient, URL) {
+        total: Int = 10,
+        cache: ProcessedChapterCaching? = nil
+    ) throws -> (ReaderViewModel, ProcessedChapterCaching, SettingsStore, TrackingAIClient, URL) {
         let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
         let slug = "test-slug"
@@ -34,24 +35,71 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
             )
         }
         let repo = FileBookRepository(root: tmp, fileManager: .default)
-        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let resolvedCache: ProcessedChapterCaching
+        if let cache {
+            resolvedCache = cache
+        } else {
+            resolvedCache = try SQLiteProcessedChapterCache.inMemory()
+        }
         let suite = UserDefaults(suiteName: "intg.\(UUID().uuidString)")!
         let settings = SettingsStore(userDefaults: suite)
         settings.prefetchCount = prefetchCount
         settings.save()
         let client = TrackingAIClient()
         // Need handler configured via service creation
-        let svc = client.service(cache: cache, settings: settings)
+        let svc = client.service(cache: resolvedCache, settings: settings)
         let mgr = PrefetchManager()
         let vm = ReaderViewModel(
             bookId: slug,
             repository: repo,
             settingsStore: settings,
-            cache: cache,
+            cache: resolvedCache,
             aiService: svc,
             prefetchManager: mgr
         )
-        return (vm, cache, settings, client, tmp)
+        return (vm, resolvedCache, settings, client, tmp)
+    }
+
+    /// Cache stub whose batchStatus always throws (I1: a query failure must
+    /// never read as miss-all). Every other call delegates to a real
+    /// in-memory cache so setup batches and chapter AI work normally.
+    final class ThrowingBatchStatusCache: ProcessedChapterCaching {
+        private let backing: SQLiteProcessedChapterCache
+        init() throws {
+            backing = try SQLiteProcessedChapterCache.inMemory()
+        }
+
+        func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter? {
+            try backing.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode)
+        }
+
+        func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int> {
+            throw SQLiteError.open(message: "test query failure")
+        }
+
+        func upsert(_ pc: ProcessedChapter) throws {
+            try backing.upsert(pc)
+        }
+
+        func clearAll() throws {
+            try backing.clearAll()
+        }
+
+        func clear(bookId: String) throws {
+            try backing.clear(bookId: bookId)
+        }
+
+        func countAll() throws -> Int {
+            try backing.countAll()
+        }
+
+        func count(bookId: String) throws -> Int {
+            try backing.count(bookId: bookId)
+        }
+
+        func allBookIds() throws -> [String] {
+            try backing.allBookIds()
+        }
     }
 
     func testPrefetchTriggeredAfterLoadWhenEligible() async throws {
@@ -158,67 +206,78 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
 
     // MARK: - feat-023 Phase 2 Step 2: epoch-guarded poll + log-return resync
 
-    private func waitForPrefetch(timeoutSeconds: Double = 10, _ condition: @autoclosure () -> Bool) async {
+    private func waitForPrefetch(
+        timeoutSeconds: Double = 10,
+        _ condition: @autoclosure () -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
         let deadline = Date().addingTimeInterval(timeoutSeconds)
         while !condition() {
             if Date() > deadline {
+                XCTFail("waitForPrefetch timed out", file: file, line: line)
                 return
             }
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
     }
 
-    /// Cancel prefetch, then let trailing reads run: the stale isRunning=true
-    /// must never overwrite the terminal state. The epoch seam pins the
-    /// generation discipline (fails to compile before the fix).
-    func testCancelTrailingReadKeepsTerminalState() async throws {
+    /// Stale nav trigger must not resurrect a batch after cancel/disappear:
+    /// goToChapter's trigger captures its epoch, onDisappear supersedes it
+    /// mid-debounce, and the woken trigger must bow out (epoch guard).
+    /// Chapters 9-10 are virgin witnesses: no legitimate path touches them
+    /// (setup window is 2-4, chapter AI logs 1 and 8).
+    func testStaleNavTriggerDoesNotResurrectAfterDisappear() async throws {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 3, total: 10)
         defer { try? FileManager.default.removeItem(at: tmp) }
         client.delayPerCall = 200_000_000
         await vm.load()
         await vm.setAIMode(.rewrite)
         await waitForPrefetch(vm.prefetchStatus.isRunning)
-        XCTAssertTrue(vm.prefetchStatus.isRunning, "poll should track the running batch")
-        let epochBeforeCancel = vm.prefetchEpoch
-        await vm.setAIMode(.none)
-        // Single terminal write (cancel runs before the mode assignment, so
-        // the terminal is not-running/"Đã hủy" rather than .idle)…
+        let epochBeforeNav = vm.prefetchEpoch
+        // goToChapter's trigger debounces while we disappear mid-debounce…
+        let navTask = Task { await vm.goToChapter(8) }
+        await waitForPrefetch(vm.prefetchEpoch >= epochBeforeNav + 2)
+        vm.onDisappear()
+        await navTask.value
+        // …so the woken trigger must bow out: no resurrect batch, chapters
+        // 9+ stay virgin, terminal holds across trailing poll windows.
+        // (Settle sizing: 100ms poll + 200ms debounce + 200ms/call; ordering
+        // is gate-enforced, this window only lets a bug manifest.)
+        try await Task.sleep(nanoseconds: 500_000_000)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
-        XCTAssertGreaterThan(vm.prefetchEpoch, epochBeforeCancel)
-        // …then silence across several poll windows and trailing reads.
-        try await Task.sleep(nanoseconds: 600_000_000)
-        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        XCTAssertFalse(client.calls.contains(where: { $0 >= 9 }), "resurrected batch fetched, got \(client.calls)")
     }
 
-    /// Rapid goNext -> goPrev -> goNext: every navigation advances the poll
-    /// epoch and the status converges on the latest batch (old polls never
-    /// overwrite the new one). Epoch assertions fail to compile pre-fix.
-    func testRapidNavPollEpochAdvancesAndConverges() async throws {
-        let (vm, _, _, _, tmp) = try makeVM(prefetchCount: 2, total: 10)
+    /// Stale setAIMode trigger must not resurrect after disappear: the mode
+    /// trigger captures its epoch, onDisappear supersedes it mid-debounce.
+    /// Setup runs no batch, so calls stay exactly [5] (ch5 AI) unless a
+    /// resurrected batch fetches 6-7.
+    func testStaleModeTriggerDoesNotResurrectAfterDisappear() async throws {
+        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 30)
         defer { try? FileManager.default.removeItem(at: tmp) }
+        client.delayPerCall = 200_000_000
         await vm.load()
-        await vm.setAIMode(.rewrite)
-        await waitForPrefetch(!vm.prefetchStatus.isRunning)
-        let base = vm.prefetchEpoch
-        await vm.goNext()
-        XCTAssertGreaterThan(vm.prefetchEpoch, base)
-        await waitForPrefetch(!vm.prefetchStatus.isRunning)
-        let afterNext = vm.prefetchEpoch
-        await vm.goPrev()
-        XCTAssertGreaterThan(vm.prefetchEpoch, afterNext)
-        await waitForPrefetch(!vm.prefetchStatus.isRunning)
-        let afterPrev = vm.prefetchEpoch
-        await vm.goNext()
-        XCTAssertGreaterThan(vm.prefetchEpoch, afterPrev)
-        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        await vm.goToChapter(5)
+        let epochBeforeMode = vm.prefetchEpoch
+        // setAIMode's trigger debounces while we disappear mid-debounce…
+        let modeTask = Task { await vm.setAIMode(.rewrite) }
+        await waitForPrefetch(vm.prefetchEpoch >= epochBeforeMode + 2)
+        vm.onDisappear()
+        await modeTask.value
+        // …so the woken trigger must bow out: calls frozen at [5], idle holds.
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertEqual(client.calls, [5])
         XCTAssertFalse(vm.prefetchStatus.isRunning)
-        XCTAssertEqual(vm.chapterNumber, 2)
     }
 
     /// Mid-batch Log peek and return to the same chapter+mode: status resyncs
-    /// from the manager and background prefetch resumes on remaining misses —
-    /// with zero API calls for the current (cached) chapter.
-    func testReturnFromLogResyncsAndResumesRunningBatch() async throws {
+    /// from the manager and background prefetch resumes on remaining misses.
+    /// Scope: "zero API" here means the current (cached) chapter only —
+    /// background window chapters DO fetch on resume. The settled/all-cached
+    /// scope (zero calls overall, no resume) is pinned by
+    /// testReturnFromLogMakesZeroAPICalls.
+    func testReturnFromLogResyncsAndResumesMidBatch() async throws {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
         client.delayPerCall = 400_000_000
@@ -235,6 +294,30 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         await waitForPrefetch(!client.calls.isEmpty)
         XCTAssertFalse(client.calls.contains(1), "current chapter must stay zero-API, got \(client.calls)")
         await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+    }
+
+    /// Resume miss-check query failure must not read as miss-all: no resume
+    /// trigger (exactly one resync bump), prior resynced state kept, zero
+    /// background calls. Chapter AI + manager error paths still work through
+    /// the delegating stub (only batchStatus throws).
+    func testResumeQueryFailureKeepsPriorState() async throws {
+        let throwing = try ThrowingBatchStatusCache()
+        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5, cache: throwing)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        // ch1 AI completes via working get/upsert; trigger→start hits the
+        // throwing batchStatus → manager error-continues with zero calls.
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        let epochBeforeReturn = vm.prefetchEpoch
+        client.calls.removeAll()
+        await vm.load(source: .returnFromLog)
+        // Resync bump only — a trigger bump here would mean resume fired.
+        XCTAssertEqual(vm.prefetchEpoch, epochBeforeReturn + 1)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        try await Task.sleep(nanoseconds: 500_000_000)
+        XCTAssertTrue(client.calls.isEmpty, "query failure must not resume, got \(client.calls)")
         XCTAssertFalse(vm.prefetchStatus.isRunning)
     }
 }

@@ -286,10 +286,16 @@ final class ReaderStaleGuardTests: XCTestCase {
         ))
     }
 
-    private func waitFor(timeoutSeconds: Double = 5, _ condition: @autoclosure () -> Bool) async {
+    private func waitFor(
+        timeoutSeconds: Double = 5,
+        _ condition: @autoclosure () -> Bool,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
         let deadline = Date().addingTimeInterval(timeoutSeconds)
         while !condition() {
             if Date() > deadline {
+                XCTFail("waitFor timed out", file: file, line: line)
                 return
             }
             try? await Task.sleep(nanoseconds: 50_000_000)

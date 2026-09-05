@@ -1,9 +1,8 @@
 import Foundation
 import Observation
 
-/// Trigger source for ReaderViewModel.load: only `.chapterChange` may start
-/// current-chapter AI work and prefetch. `.returnFromLog` (back from Log to the
-/// same chapter + mode) makes zero API calls for the current chapter but
+/// Load trigger: `.chapterChange` may start current-chapter AI + prefetch.
+/// `.returnFromLog` (back from Log) makes zero current-chapter API calls but
 /// resyncs prefetch status once and resumes background prefetch on misses.
 enum LoadSource {
     case chapterChange
@@ -131,19 +130,15 @@ final class ReaderViewModel {
         isLoading = false
         if source == .returnFromLog {
             // Back from Log: zero current-chapter API. Join the ordered
-            // disappear-cancel so the resync observes its terminal state,
-            // then resync once and re-attach the poll / resume on misses.
+            // disappear-cancel, resync once, then resume on window misses
+            // (covers running batches via the ordered trigger path too).
             if let pendingCancel = disappearCancelTask {
                 disappearCancelTask = nil
                 await pendingCancel.value
             }
             prefetchEpoch += 1
             prefetchStatus = await prefetchManager.currentStatus()
-            if prefetchStatus.isRunning {
-                startPrefetchPoll(epoch: prefetchEpoch)
-            } else {
-                await resumePrefetchIfMissesRemain()
-            }
+            await resumePrefetchIfMissesRemain()
             return
         }
         if aiMode != .none {
@@ -244,10 +239,12 @@ final class ReaderViewModel {
         aiGeneration += 1
         isAIProcessing = false
         // Single ordered cancel path: sync epoch bump kills stale polls, drop
-        // the poll task, then run cancelPrefetch() once (writes the terminal).
+        // the poll task, cancel any previous disappear-cancel before overwrite,
+        // then run cancelPrefetch() once (it writes the terminal state).
         prefetchEpoch += 1
         prefetchPollTask?.cancel()
         prefetchPollTask = nil
+        disappearCancelTask?.cancel()
         disappearCancelTask = Task { await cancelPrefetch() }
     }
 
@@ -390,7 +387,7 @@ final class ReaderViewModel {
         let requestedChapter = chapterNumber
         let requestedMode = aiMode
         try? await Task.sleep(nanoseconds: 200_000_000)
-        guard requestedChapter == chapterNumber, requestedMode == aiMode else { return }
+        guard epoch == prefetchEpoch, requestedChapter == chapterNumber, requestedMode == aiMode else { return }
         guard aiMode != .none else {
             await cancelPrefetch()
             return
@@ -438,7 +435,7 @@ final class ReaderViewModel {
             while !Task.isCancelled, epoch == self.prefetchEpoch {
                 let status = await manager.currentStatus()
                 guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
-                self.prefetchStatus = status
+                await MainActor.run { self.prefetchStatus = status }
                 if !status.isRunning {
                     break
                 }
@@ -447,7 +444,7 @@ final class ReaderViewModel {
             guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
             let status = await manager.currentStatus()
             guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
-            self.prefetchStatus = status
+            await MainActor.run { self.prefetchStatus = status }
         }
     }
 
@@ -460,7 +457,9 @@ final class ReaderViewModel {
         let end = min(chapterNumber + settingsStore.effectivePrefetchCount(), total)
         guard end > chapterNumber else { return }
         let range = Array((chapterNumber + 1) ... end)
-        let cached = (try? processedCache.batchStatus(bookId: bookId, mode: aiMode, numbers: range)) ?? []
+        // Query failure keeps prior state (never miss-all): no resume and no
+        // VM-side log (prefetch logging belongs to the manager; no new events).
+        guard let cached = try? processedCache.batchStatus(bookId: bookId, mode: aiMode, numbers: range) else { return }
         guard cached.count < range.count else { return }
         await triggerPrefetchIfEligible()
     }
@@ -471,6 +470,9 @@ final class ReaderViewModel {
         await prefetchManager.cancel()
         prefetchPollTask?.cancel()
         prefetchPollTask = nil
+        // NOTE (pre-existing semantics): cancel runs before setAIMode assigns
+        // .none, so a .none switch lands here on not-running/"Đã hủy", not
+        // .idle. The idle-vs-cancelled contract is undefined; don't rely on it.
         if aiMode == .none {
             prefetchStatus = .idle
         } else {
