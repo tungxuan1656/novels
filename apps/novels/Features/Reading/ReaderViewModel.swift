@@ -30,6 +30,14 @@ final class ReaderViewModel {
     var aiError: String?
     private var aiService: AIReadingService?
     private var aiTask: Task<Void, Never>?
+    /// Stale-write guard: bumped synchronously on every entry that changes the
+    /// displayed chapter/mode. Post-await AI writes must match it or drop.
+    private var aiGeneration = 0
+    /// Identity of the currently held AI text (nil when none/failed).
+    /// The view renders `processedContent` only when it matches the visible
+    /// chapter + mode (see `isProcessedContentCurrent()`).
+    private(set) var processedChapterNumber: Int?
+    private(set) var processedAIMode: AIMode?
     var prefetchStatus: PrefetchStatus = .idle
     private let prefetchManager: PrefetchManager
     private var prefetchPollTask: Task<Void, Never>?
@@ -81,6 +89,14 @@ final class ReaderViewModel {
     }
 
     func load(source: LoadSource = .chapterChange) async {
+        if source == .chapterChange {
+            // New visible chapter: invalidate in-flight AI work and never flash
+            // the previous chapter's processed text while loading.
+            aiGeneration += 1
+            processedContent = nil
+            processedChapterNumber = nil
+            processedAIMode = nil
+        }
         isLoading = true
         errorMessage = nil
         do {
@@ -119,6 +135,7 @@ final class ReaderViewModel {
 
     func goNext() async {
         guard canGoNext else { return }
+        aiGeneration += 1
         await cancelPrefetch()
         chapterNumber += 1
         await load(source: .chapterChange)
@@ -127,6 +144,7 @@ final class ReaderViewModel {
 
     func goPrev() async {
         guard canGoPrev else { return }
+        aiGeneration += 1
         await cancelPrefetch()
         chapterNumber -= 1
         await load(source: .chapterChange)
@@ -134,6 +152,7 @@ final class ReaderViewModel {
     }
 
     func goToChapter(_ number: Int) async {
+        aiGeneration += 1
         await cancelPrefetch()
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
@@ -187,6 +206,7 @@ final class ReaderViewModel {
         // would strand relaunch on Library. Only Router.popReading /
         // didPopFromReading (true back) clears onScreen.
         aiTask?.cancel()
+        aiGeneration += 1
         isAIProcessing = false
         prefetchPollTask?.cancel()
         prefetchPollTask = nil
@@ -200,6 +220,8 @@ final class ReaderViewModel {
     }
 
     func setAIMode(_ mode: AIMode) async {
+        aiTask?.cancel()
+        aiGeneration += 1
         await cancelPrefetch()
         aiMode = mode
         settingsStore.aiMode = mode
@@ -220,14 +242,37 @@ final class ReaderViewModel {
 
     func reprocess() async {
         guard aiMode != .none else { return }
+        aiGeneration += 1
         await loadAIContent(isReprocess: true)
         if errorMessage == nil {
             await triggerPrefetchIfEligible()
         }
     }
 
+    /// Identity gate for the AI section: processed text renders only when it
+    /// was produced for the currently visible chapter + mode.
+    func isProcessedContentCurrent() -> Bool {
+        guard aiMode != .none else { return false }
+        guard let content = processedContent, !content.isEmpty else { return false }
+        return processedChapterNumber == chapterNumber && processedAIMode == aiMode
+    }
+
+    /// Processed text for the visible chapter + mode; nil while loading,
+    /// on mode `.none`, or when only a stale generation has resolved.
+    var currentProcessedContent: String? {
+        guard !isAIProcessing, isProcessedContentCurrent() else { return nil }
+        return processedContent
+    }
+
     private func loadAIContent(isReprocess: Bool) async {
+        // Snapshot generation + identity before the await. Only the latest
+        // generation may publish; superseded tasks (nav/mode-switch/reprocess,
+        // disappear) return silently even when their await still resolves.
+        let generation = aiGeneration
+        let chapter = chapterNumber
+        let mode = aiMode
         guard let raw = readRawTextForAI() else {
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             aiError = "Không tìm thấy chương"
             return
         }
@@ -250,10 +295,14 @@ final class ReaderViewModel {
                     rawText: raw
                 ) ?? raw
             }
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             processedContent = result
+            processedChapterNumber = chapter
+            processedAIMode = mode
         } catch is CancellationError {
             // Cancelled (nav/disappear/mode switch): no aiError/toast, defer clears flag.
         } catch {
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             aiError = error.localizedDescription
             toastCenter?.show(aiError ?? "AI processing failed.", type: .error)
         }

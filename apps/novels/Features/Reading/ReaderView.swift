@@ -135,7 +135,7 @@ struct ReaderView: View {
 
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
-            if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
+            if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
                 aiProcessedContent(processed)
             } else if viewModel.isLoading || (viewModel.isAIProcessing && viewModel.blocks.isEmpty) {
                 ProgressView()
