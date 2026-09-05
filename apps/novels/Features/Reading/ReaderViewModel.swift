@@ -364,6 +364,13 @@ final class ReaderViewModel {
     }
 
     private func triggerPrefetchIfEligible() async {
+        // feat-023 Phase 4: 200ms trigger debounce. Rapid successive triggers
+        // (steady forward reading) collapse: a trigger whose chapter/mode moved
+        // on while waiting bows out, so only the latest window starts a batch.
+        let requestedChapter = chapterNumber
+        let requestedMode = aiMode
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        guard requestedChapter == chapterNumber, requestedMode == aiMode else { return }
         guard aiMode != .none else {
             await cancelPrefetch()
             return

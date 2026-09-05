@@ -50,6 +50,8 @@ final class TrackingAIClient {
     var calls: [Int] = []
     var delayPerCall: UInt64 = 10_000_000
     var shouldFail: [Int: Error] = [:]
+    // Chapters mapped here fail the next N mock transport attempts, then succeed.
+    var failRemaining: [Int: Int] = [:]
 
     func service(cache: ProcessedChapterCaching, settings: SettingsStore) -> AIReadingService {
         let config = URLSessionConfiguration.ephemeral
@@ -104,6 +106,14 @@ final class TrackingAIClient {
                 return 0
             }()
             self.calls.append(num)
+            if let remaining = self.failRemaining[num], remaining > 0 {
+                self.failRemaining[num] = remaining - 1
+                throw NSError(
+                    domain: "ai",
+                    code: 500,
+                    userInfo: [NSLocalizedDescriptionKey: "flaky \(num)"]
+                )
+            }
             if let err = self.shouldFail[num] {
                 throw err
             }
@@ -424,5 +434,173 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertNotEqual(run2, run4, "each prefetched chapter is its own run")
         XCTAssertNotEqual(missingRun, run2)
         XCTAssertNotEqual(missingRun, run4)
+    }
+
+    // MARK: - feat-023 Phase 4: bounded retry + overlap-preserving window
+
+    func testFailedChapterRetriedOnceInBatch() async throws {
+        // Transient failure is recovered inside the same batch with at most one
+        // retry (2 attempts total): no error recorded, chapter cached.
+        // The single in-batch retry is the per-chunk attempt loop in AIClient;
+        // the manager must never re-issue a failed chapter inside one batch
+        // (that would amplify into 2x2 attempts and break the count==2 contract).
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 5)
+        client.failRemaining = [3: 1]
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 5,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
+        XCTAssertTrue(status.errors.isEmpty, "errors \(status.errors)")
+        XCTAssertEqual(
+            client.calls.filter { $0 == 3 }.count,
+            2,
+            "chapter 3 attempted at most twice (1 initial + <=1 retry), got \(client.calls)"
+        )
+        XCTAssertNotNil(
+            try cache.get(bookId: "book-slug", chapterNumber: 3, mode: .rewrite),
+            "3 cached after in-batch retry"
+        )
+    }
+
+    func testFailedChapterPrioritizedInNextWindow() async throws {
+        // Persistent failure in batch 1 is recorded; the next window for the
+        // same book+mode attempts the failed chapter before the fresh tail and
+        // logs the retry-enqueue detail on the existing batchCheck event.
+        // Backward navigation makes the failed chapter (6) larger than the
+        // fresh misses (3,4), so failed-first [6,3,4] differs from ascending.
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 2, totalChapters: 10)
+        client.shouldFail = [6: NSError(domain: "ai", code: 500, userInfo: [NSLocalizedDescriptionKey: "fail 6"])]
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 4,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let firstStatus = await manager.currentStatus()
+        XCTAssertFalse(firstStatus.isRunning, "status \(firstStatus)")
+        XCTAssertEqual(firstStatus.errors.count, 1, "errors \(firstStatus.errors)")
+        client.shouldFail = [:]
+        await MainActor.run { settings.prefetchCount = 4 }
+        let callsBeforeSecond = client.calls.count
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 2,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let newCalls = Array(client.calls.dropFirst(callsBeforeSecond))
+        XCTAssertEqual(newCalls, [6, 3, 4], "failed chapter 6 before fresh tail, got \(newCalls)")
+        XCTAssertNotNil(
+            try cache.get(bookId: "book-slug", chapterNumber: 6, mode: .rewrite),
+            "6 cached after next-window retry"
+        )
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        XCTAssertTrue(
+            checks.contains { ($0.detail ?? "").contains("retry-enqueue") && ($0.detail ?? "").contains("6") },
+            "batchCheck must carry retry-enqueue detail for chapter 6, got \(checks.map { $0.detail })"
+        )
+    }
+
+    func testOverlappingStartKeepsRunningBatch() async throws {
+        // Same book+mode with non-empty overlap keeps the running batch:
+        // kept chapters are processed exactly once, only the new tail is
+        // appended (overlapKept/topUpAdded on the existing batchCheck event).
+        await DiagnosticsLog.shared.clear()
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 4, totalChapters: 10)
+        client.delayPerCall = 300_000_000
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 150_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 2,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 3_000_000_000)
+        XCTAssertEqual(client.calls, [2, 3, 4, 5, 6], "kept chapters exactly once + new tail, got \(client.calls)")
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
+        XCTAssertTrue(status.errors.isEmpty, "errors \(status.errors)")
+        XCTAssertEqual(status.totalChapters, 5, "totals updated with top-up, got \(status)")
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        XCTAssertTrue(
+            checks.contains { ($0.detail ?? "").contains("overlapKept=3") && ($0.detail ?? "").contains("topUpAdded=1") },
+            "batchCheck must carry overlapKept=3/topUpAdded=1, got \(checks.map { $0.detail })"
+        )
+    }
+
+    func testJumpFarRestarts() async throws {
+        // Far jump with empty overlap is a clean restart (boundary of the
+        // overlap-keep rule): the new window is fully processed.
+        // (Characterization: restart-on-every-start is the pre-023 behavior.)
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 10)
+        client.delayPerCall = 300_000_000
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 150_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 7,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 2_500_000_000)
+        XCTAssertEqual(Array(client.calls.suffix(3)), [8, 9, 10], "new window fully processed, got \(client.calls)")
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 8, mode: .rewrite))
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 9, mode: .rewrite))
+        XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 10, mode: .rewrite))
+        let status = await manager.currentStatus()
+        XCTAssertFalse(status.isRunning, "status \(status)")
     }
 }
