@@ -345,7 +345,11 @@ import Observation
             return SettingDescriptor.parsedPrefetchCount(str)
         }
         if let doubleVal = obj as? Double {
-            return Int(doubleVal)
+            // Int(Double) traps on finite-but-out-of-range values (e.g. a
+            // corrupted 1e100 in UserDefaults); truncate toward zero via
+            // Int(exactly:) so overflow is nil and load() keeps the default.
+            guard doubleVal.isFinite else { return nil }
+            return Int(exactly: doubleVal.rounded(.towardZero))
         }
         if let num = obj as? NSNumber {
             return num.intValue

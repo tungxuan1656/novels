@@ -156,4 +156,20 @@ final class SettingsEditorValidationTests: XCTestCase {
         XCTAssertEqual(store.prefetchCount, 1001)
         XCTAssertEqual(SettingsViewModel.prefetchCountRowValue(store), "3")
     }
+
+    /// PR-26 review (High): finite-but-out-of-range Doubles must not trap.
+    /// `Int(Double)` fatally traps on values like 1e100; the parser must
+    /// return nil so the editor keeps the old value instead of crashing.
+    func testPrefetchOverflowInputReturnsNilWithoutTrap() {
+        XCTAssertNil(SettingDescriptor.parsedPrefetchCount("1e100"))
+        XCTAssertNil(SettingDescriptor.parsedPrefetchCount("1e19"))
+        XCTAssertNil(SettingDescriptor.parsedPrefetchCount("99999999999999999999"))
+        let desc = SettingsViewModel.descriptor(for: "PREFETCH_COUNT")
+        XCTAssertNotNil(desc.validate("1e100"))
+        XCTAssertNotNil(desc.validate("1e19"))
+        XCTAssertNotNil(desc.validate("99999999999999999999"))
+        // Truncation behavior for in-range decimals is unchanged.
+        XCTAssertEqual(SettingDescriptor.parsedPrefetchCount("20.9"), 20)
+        XCTAssertEqual(SettingDescriptor.parsedPrefetchCount("1e3"), 1000)
+    }
 }

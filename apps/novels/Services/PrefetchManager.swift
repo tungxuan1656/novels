@@ -132,7 +132,10 @@ actor PrefetchManager {
         // (keep ∩ + append tail) instead of restarting.
         if activeBookId == bookId, activeMode == mode, task != nil, !batchFinished {
             let kept = ensureWindow(cur: currentChapter, appliedN: appliedN, total: totalChapters, misses: misses)
-            statusValue.totalChapters += kept.topUpAdded
+            // PR 26 review (parked M4): recompute instead of accumulating —
+            // ensureWindow drops out-of-window entries, so `+= topUpAdded`
+            // inflated total unbounded on steady reading and far jumps.
+            statusValue.totalChapters = statusValue.processedChapters + pending.count + (inFlight == nil ? 0 : 1)
             statusValue.currentBookId = bookId
             await logPrefetch(
                 event: "prefetch.batchCheck",

@@ -655,6 +655,92 @@ final class PrefetchManagerTests: XCTestCase {
         XCTAssertFalse(status.isRunning, "status \(status)")
     }
 
+    // MARK: - PR 26 review (parked M4): top-up must recompute total, not accumulate
+
+    func testSteadyTopUpKeepsTotalEqualToWindow() async throws {
+        // PR 26 review finding (parked M4): every top-up did
+        // `totalChapters += topUpAdded` while `ensureWindow` silently drops
+        // out-of-window entries, so steady goNext inflated the
+        // `Đang tải trước processed/total` display unbounded (N=20 at ch450
+        // grew 20→~30 over 10 nexts). Total must be recomputed so it holds
+        // at the window size while the worker is still on its first chapter.
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 30)
+        client.delayPerCall = 300_000_000
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 30,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        // Worker is still on chapter 2 (300ms/call): both top-ups reconcile
+        // against processed=0, so total must stay 4 (3 queued + 1 in flight).
+        try await Task.sleep(nanoseconds: 150_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 2,
+            totalChapters: 30,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        try await Task.sleep(nanoseconds: 50_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 3,
+            totalChapters: 30,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        let status = await manager.currentStatus()
+        XCTAssertEqual(status.totalChapters, 4, "steady top-up must recompute total, got \(status)")
+        await manager.cancel(reason: "testDone")
+    }
+
+    func testFarJumpTopUpTotalEqualsActualWindow() async throws {
+        // PR 26 review finding (parked M4): a far same-book jump filters
+        // pending down to ~0 then appends the fresh window; accumulating
+        // total reported 40 for a 20-window. Total must equal the actual
+        // remaining work: 3 queued + 1 stale in-flight chapter.
+        let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 3, totalChapters: 30)
+        client.delayPerCall = 300_000_000
+        let svc = client.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 30,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        // Worker is still on chapter 2 (300ms/call) when the far jump lands.
+        try await Task.sleep(nanoseconds: 150_000_000)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 20,
+            totalChapters: 30,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: svc,
+            repository: repo
+        )
+        let status = await manager.currentStatus()
+        XCTAssertEqual(status.totalChapters, 4, "far-jump total must equal actual window work, got \(status)")
+        await manager.cancel(reason: "testDone")
+    }
+
     // MARK: - feat-023 Phase 5: resource worst-case guards
 
     func testNoRuntimeCapWindowIsHonored() async throws {

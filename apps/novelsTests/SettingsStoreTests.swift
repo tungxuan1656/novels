@@ -139,4 +139,27 @@ final class SettingsStoreTests: XCTestCase {
         XCTAssertEqual(store2.session?.bookId, "slug")
         XCTAssertEqual(store2.session?.chapterNumber, 3)
     }
+
+    /// PR-26 review (High): a corrupted out-of-range Double in UserDefaults
+    /// must not trap on load/launch; the default is kept instead.
+    func testOutOfRangeDoublePrefetchDoesNotCrashOnLoad() throws {
+        let suite = UUID().uuidString
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        userDefaults.set(1e100, forKey: "PREFETCH_COUNT")
+        let reloaded = SettingsStore(userDefaults: userDefaults)
+        XCTAssertEqual(reloaded.prefetchCount, 3)
+        XCTAssertEqual(reloaded.effectivePrefetchCount(), 3)
+
+        userDefaults.set(1e19, forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
+
+        userDefaults.set("99999999999999999999", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
+
+        // Editor path also keeps the old value instead of crashing.
+        let store = SettingsStore(userDefaults: userDefaults)
+        store.prefetchCount = 5
+        store.setValue("1e100", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 5)
+    }
 }

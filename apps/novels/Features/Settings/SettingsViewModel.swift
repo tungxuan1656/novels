@@ -93,7 +93,9 @@ struct SettingDescriptor {
             return intValue
         }
         if let doubleValue = Double(trimmed), doubleValue.isFinite {
-            return Int(doubleValue)
+            // Int(Double) traps on finite-but-out-of-range values (e.g. 1e100,
+            // 1e19); truncate toward zero via Int(exactly:) so overflow is nil.
+            return Int(exactly: doubleValue.rounded(.towardZero))
         }
         return nil
     }
