@@ -3,7 +3,8 @@ import Observation
 
 /// Trigger source for ReaderViewModel.load: only `.chapterChange` may start
 /// current-chapter AI work and prefetch. `.returnFromLog` (back from Log to the
-/// same chapter + mode) makes zero API calls and keeps prefetchStatus as-is.
+/// same chapter + mode) makes zero API calls for the current chapter but
+/// resyncs prefetch status once and resumes background prefetch on misses.
 enum LoadSource {
     case chapterChange
     case returnFromLog
@@ -38,9 +39,16 @@ final class ReaderViewModel {
     /// chapter + mode (see `isProcessedContentCurrent()`).
     private var processedChapterNumber: Int?
     private var processedAIMode: AIMode?
+    /// Debug mirror of manager batch state — do NOT bind Reader UI to this
+    /// (header stays on `isAIProcessing`). Deletion deferred to roadmap.
     var prefetchStatus: PrefetchStatus = .idle
     private let prefetchManager: PrefetchManager
     private var prefetchPollTask: Task<Void, Never>?
+    /// Poll generation for the stale-publish guard (bumped on trigger/cancel/
+    /// disappear; polls publish only on epoch match). Readable in tests.
+    private(set) var prefetchEpoch = 0
+    /// Ordered disappear-cancel joined by the next `.returnFromLog` resync.
+    private var disappearCancelTask: Task<Void, Never>?
     private let processedCache: ProcessedChapterCaching
     private(set) var lastVisibleChapter: Int?
     private(set) var lastVisibleMode: AIMode?
@@ -122,7 +130,20 @@ final class ReaderViewModel {
         }
         isLoading = false
         if source == .returnFromLog {
-            // Back from Log to same chapter + mode: zero API, keep prefetchStatus as-is.
+            // Back from Log: zero current-chapter API. Join the ordered
+            // disappear-cancel so the resync observes its terminal state,
+            // then resync once and re-attach the poll / resume on misses.
+            if let pendingCancel = disappearCancelTask {
+                disappearCancelTask = nil
+                await pendingCancel.value
+            }
+            prefetchEpoch += 1
+            prefetchStatus = await prefetchManager.currentStatus()
+            if prefetchStatus.isRunning {
+                startPrefetchPoll(epoch: prefetchEpoch)
+            } else {
+                await resumePrefetchIfMissesRemain()
+            }
             return
         }
         if aiMode != .none {
@@ -222,15 +243,12 @@ final class ReaderViewModel {
         aiTask?.cancel()
         aiGeneration += 1
         isAIProcessing = false
+        // Single ordered cancel path: sync epoch bump kills stale polls, drop
+        // the poll task, then run cancelPrefetch() once (writes the terminal).
+        prefetchEpoch += 1
         prefetchPollTask?.cancel()
         prefetchPollTask = nil
-        if aiMode == .none {
-            prefetchStatus = .idle
-        } else {
-            prefetchStatus.isRunning = false
-            prefetchStatus.message = "Đã hủy"
-        }
-        Task { await prefetchManager.cancel() }
+        disappearCancelTask = Task { await cancelPrefetch() }
     }
 
     func setAIMode(_ mode: AIMode) async {
@@ -367,6 +385,8 @@ final class ReaderViewModel {
         // feat-023 Phase 4: 200ms trigger debounce. Rapid successive triggers
         // (steady forward reading) collapse: a trigger whose chapter/mode moved
         // on while waiting bows out, so only the latest window starts a batch.
+        prefetchEpoch += 1
+        let epoch = prefetchEpoch
         let requestedChapter = chapterNumber
         let requestedMode = aiMode
         try? await Task.sleep(nanoseconds: 200_000_000)
@@ -405,23 +425,49 @@ final class ReaderViewModel {
             aiService: service,
             repository: repo
         )
+        startPrefetchPoll(epoch: epoch)
+    }
+
+    /// Status poll for `epoch`: every publish (in-loop + trailing) drops on
+    /// cancel or epoch mismatch, so stale reads never overwrite terminal state.
+    private func startPrefetchPoll(epoch: Int) {
         prefetchPollTask?.cancel()
+        let manager = prefetchManager
         prefetchPollTask = Task { [weak self] in
             guard let self else { return }
-            while !Task.isCancelled {
+            while !Task.isCancelled, epoch == self.prefetchEpoch {
                 let status = await manager.currentStatus()
-                await MainActor.run { self.prefetchStatus = status }
+                guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
+                self.prefetchStatus = status
                 if !status.isRunning {
                     break
                 }
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
+            guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
             let status = await manager.currentStatus()
-            await MainActor.run { self.prefetchStatus = status }
+            guard !Task.isCancelled, epoch == self.prefetchEpoch else { return }
+            self.prefetchStatus = status
         }
     }
 
+    /// Log-return resume on remaining window misses. Cache reads only — zero
+    /// network unless the manager itself starts a batch.
+    private func resumePrefetchIfMissesRemain() async {
+        guard aiMode != .none, errorMessage == nil else { return }
+        guard let total = book?.count, total > 0 else { return }
+        guard aiService != nil else { return }
+        let end = min(chapterNumber + settingsStore.effectivePrefetchCount(), total)
+        guard end > chapterNumber else { return }
+        let range = Array((chapterNumber + 1) ... end)
+        let cached = (try? processedCache.batchStatus(bookId: bookId, mode: aiMode, numbers: range)) ?? []
+        guard cached.count < range.count else { return }
+        await triggerPrefetchIfEligible()
+    }
+
     private func cancelPrefetch() async {
+        // Bump first: in-flight polls die on guard check; terminal writes once.
+        prefetchEpoch += 1
         await prefetchManager.cancel()
         prefetchPollTask?.cancel()
         prefetchPollTask = nil

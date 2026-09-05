@@ -155,4 +155,86 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         XCTAssertFalse(vm.prefetchStatus.isRunning)
         XCTAssertEqual(vm.prefetchStatus.errors.count, 1, "errors \(vm.prefetchStatus.errors)")
     }
+
+    // MARK: - feat-023 Phase 2 Step 2: epoch-guarded poll + log-return resync
+
+    private func waitForPrefetch(timeoutSeconds: Double = 10, _ condition: @autoclosure () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while !condition() {
+            if Date() > deadline {
+                return
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+
+    /// Cancel prefetch, then let trailing reads run: the stale isRunning=true
+    /// must never overwrite the terminal state. The epoch seam pins the
+    /// generation discipline (fails to compile before the fix).
+    func testCancelTrailingReadKeepsTerminalState() async throws {
+        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 3, total: 10)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        client.delayPerCall = 200_000_000
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        await waitForPrefetch(vm.prefetchStatus.isRunning)
+        XCTAssertTrue(vm.prefetchStatus.isRunning, "poll should track the running batch")
+        let epochBeforeCancel = vm.prefetchEpoch
+        await vm.setAIMode(.none)
+        // Single terminal write (cancel runs before the mode assignment, so
+        // the terminal is not-running/"Đã hủy" rather than .idle)…
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        XCTAssertGreaterThan(vm.prefetchEpoch, epochBeforeCancel)
+        // …then silence across several poll windows and trailing reads.
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+    }
+
+    /// Rapid goNext -> goPrev -> goNext: every navigation advances the poll
+    /// epoch and the status converges on the latest batch (old polls never
+    /// overwrite the new one). Epoch assertions fail to compile pre-fix.
+    func testRapidNavPollEpochAdvancesAndConverges() async throws {
+        let (vm, _, _, _, tmp) = try makeVM(prefetchCount: 2, total: 10)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        let base = vm.prefetchEpoch
+        await vm.goNext()
+        XCTAssertGreaterThan(vm.prefetchEpoch, base)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        let afterNext = vm.prefetchEpoch
+        await vm.goPrev()
+        XCTAssertGreaterThan(vm.prefetchEpoch, afterNext)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        let afterPrev = vm.prefetchEpoch
+        await vm.goNext()
+        XCTAssertGreaterThan(vm.prefetchEpoch, afterPrev)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+        XCTAssertEqual(vm.chapterNumber, 2)
+    }
+
+    /// Mid-batch Log peek and return to the same chapter+mode: status resyncs
+    /// from the manager and background prefetch resumes on remaining misses —
+    /// with zero API calls for the current (cached) chapter.
+    func testReturnFromLogResyncsAndResumesRunningBatch() async throws {
+        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        client.delayPerCall = 400_000_000
+        await vm.load()
+        await vm.setAIMode(.rewrite)
+        // Batch mid-flight: peek Log (disappear cancels everything).
+        await waitForPrefetch(vm.prefetchStatus.isRunning)
+        vm.onDisappear()
+        client.calls.removeAll()
+        // Back to the same chapter+mode: resync + resume, no current-chapter API.
+        await vm.load(source: .returnFromLog)
+        await waitForPrefetch(vm.prefetchStatus.isRunning)
+        XCTAssertTrue(vm.prefetchStatus.isRunning, "resumed batch should publish running")
+        await waitForPrefetch(!client.calls.isEmpty)
+        XCTAssertFalse(client.calls.contains(1), "current chapter must stay zero-API, got \(client.calls)")
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        XCTAssertFalse(vm.prefetchStatus.isRunning)
+    }
 }
