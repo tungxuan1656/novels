@@ -850,11 +850,19 @@ final class LogScreenGroupingTests: XCTestCase {
         XCTAssertEqual(status, .success)
     }
 
-    /// feat-023 Phase 2 (badge): dedup.shared (joined with its origin cache.save)
-    /// is terminal, never stuck Processing.
+    /// feat-023 Phase 2 (badge): dedup.shared joined with its origin cache.save
+    /// (equal keyHash, same group) is terminal Success. Round 1 (I4): real join, no standalone credit.
     func testSharedGroupNeverStuckProcessing() {
         let run = UUID()
         let status = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 8,
+                event: "cache.save",
+                detail: "chunkCount=1 outputHash=abc keyHash=def456",
+                runId: run
+            ),
             LogEntry(
                 sessionId: UUID(),
                 bookId: "b",
@@ -866,6 +874,22 @@ final class LogScreenGroupingTests: XCTestCase {
         ])
         XCTAssertEqual(status, .success)
         XCTAssertNotEqual(status, .processing)
+    }
+
+    /// Round 1 (I4): a lone dedup.shared with no matching origin save stays non-terminal.
+    func testStandaloneSharedWithoutOriginStaysProcessing() {
+        let run = UUID()
+        let lone = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 8,
+                event: "dedup.shared",
+                detail: "keyHash=def456",
+                runId: run
+            ),
+        ])
+        XCTAssertEqual(lone, .processing)
     }
 
     /// feat-023 Phase 2 (badge): allCached/emptyRange skips are terminal Success.
@@ -909,6 +933,80 @@ final class LogScreenGroupingTests: XCTestCase {
         XCTAssertNotEqual(status.color, DesignTokens.error)
     }
 
+    /// Round 1 (C1): muted cancels are never errors — Cancelled rows stay non-red
+    /// and the Lỗi tab never lists them. Non-allowlist cancels stay errors.
+    func testMutedCancelNotErrorAtRowLevelAndFilter() {
+        let muted = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=chapterChange"
+        )
+        XCTAssertFalse(LogRowView.isError(muted))
+        XCTAssertFalse(LogKindFilter.error.matches(muted))
+        let manual = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=manual"
+        )
+        XCTAssertFalse(LogRowView.isError(manual))
+        XCTAssertFalse(LogKindFilter.error.matches(manual))
+        let budget = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=budgetExhausted scope=global"
+        )
+        XCTAssertTrue(LogRowView.isError(budget))
+        XCTAssertTrue(LogKindFilter.error.matches(budget))
+    }
+
+    /// Round 1 (C2): only allowlisted reasons mute; budgetExhausted/bookDeleted/unknown
+    /// (or missing detail) stay Failed.
+    func testNonAllowlistCancelStillFailed() {
+        for detail in [
+            "reason=budgetExhausted scope=global",
+            "reason=budgetExhausted scope=perChapter",
+            "reason=bookDeleted",
+            "reason=somethingWeird",
+        ] as [String?] {
+            let status = LogRunBuilder.status(of: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 4,
+                    event: "prefetch.cancel",
+                    detail: detail
+                ),
+            ])
+            XCTAssertEqual(status, .failed, "detail: \(detail ?? "nil")")
+        }
+        let missingDetail = LogRunBuilder.status(of: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 4, event: "prefetch.cancel"),
+        ])
+        XCTAssertEqual(missingDetail, .failed)
+    }
+
+    /// Round 1 (I8): non-terminal skips stay Processing (only allCached/emptyRange succeed).
+    func testNonTerminalSkipsStayProcessing() {
+        for detail in ["reason=modeNone", "reason=invalidRange"] {
+            let status = LogRunBuilder.status(of: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 1,
+                    event: "prefetch.skip",
+                    detail: detail
+                ),
+            ])
+            XCTAssertEqual(status, .processing, "detail: \(detail)")
+        }
+    }
+
     /// A real error alongside a cancel still reads Failed.
     func testCancelPlusRealErrorStillFailed() {
         let status = LogRunBuilder.status(of: [
@@ -932,13 +1030,10 @@ final class LogScreenGroupingTests: XCTestCase {
 
     /// feat-023 Phase 3 transparency: batchCheck carries storedN/effectiveN so a settings
     /// fault is distinguishable from a cache/total cut. Counts only — no raw text.
+    /// Round 1 (I8/I9): pins that the logged range used effectiveN, leaves the shared log clean.
     @MainActor
     func testBatchCheckDetailCarriesStoredAndEffectiveN() async throws {
         await DiagnosticsLog.shared.clear()
-        defer {
-            Task { await DiagnosticsLog.shared.clear() }
-            AIMockURLProtocol.handler = nil
-        }
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let suite = try XCTUnwrap(UserDefaults(suiteName: "test.batchN.\(UUID().uuidString)"))
         let settings = SettingsStore(userDefaults: suite)
@@ -964,7 +1059,11 @@ final class LogScreenGroupingTests: XCTestCase {
         let detail = checks.first?.detail ?? ""
         XCTAssertTrue(detail.contains("storedN=1001"), "missing storedN in: \(detail)")
         XCTAssertTrue(detail.contains("effectiveN=3"), "missing effectiveN in: \(detail)")
+        // The window itself consumed effectiveN=3 (ch 2...4), not the stored 1001.
+        XCTAssertTrue(detail.contains("rangeFrom=2"), "missing rangeFrom in: \(detail)")
+        XCTAssertTrue(detail.contains("rangeTo=4"), "missing rangeTo in: \(detail)")
         await manager.cancel(reason: "testDone")
+        await DiagnosticsLog.shared.clear()
     }
 }
 

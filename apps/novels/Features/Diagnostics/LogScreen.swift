@@ -326,18 +326,17 @@ enum LogRunBuilder {
     }
 
     static func status(of entries: [LogEntry]) -> LogRunStatus {
-        // Cancellations are intentional control flow (navigate/mode/disappear), never
-        // failures: excluded from the Failed check and mapped to muted Cancelled below.
-        // (Row-level `LogRowView.isError` is owned elsewhere and intentionally untouched.)
-        if entries.contains(where: { LogRowView.isError($0) && !isMutedCancel($0) }) {
+        if entries.contains(where: LogRowView.isError) {
             return .failed
         }
         if entries.contains(where: { $0.event == "cache.save" }) {
             return .success
         }
-        // Terminal read-path successes: no AI work was needed (feat-023 Phase 2).
-        // `dedup.shared` joins its origin `cache.save` via the shared keyHash.
-        if entries.contains(where: { $0.event == "cache.hit" || $0.event == "dedup.shared" }) {
+        // Terminal read-path success: the chapter was already processed (feat-023 Phase 2).
+        if entries.contains(where: { $0.event == "cache.hit" }) {
+            return .success
+        }
+        if isJoinedDedupSuccess(entries) {
             return .success
         }
         if entries.contains(where: isAllCachedSkip) {
@@ -355,10 +354,42 @@ enum LogRunBuilder {
         return .processing
     }
 
-    /// Any `prefetch.cancel` is deliberate (chapter/mode change, disappear, manual) —
-    /// muted Cancelled, never Failed-red. A genuine error in the same group still wins (.failed above).
+    /// Deliberate navigation/disappear/manual cancels — muted Cancelled, never Failed-red.
+    /// Anything else (`budgetExhausted`, `bookDeleted`, unknown or missing reason) stays an error.
+    static let mutedCancelReasons: Set<String> = ["chapterChange", "modeChange", "disappear", "manual", "testDone"]
+
+    /// Extracts `reason=<token>` from a `prefetch.cancel` detail
+    /// (`"reason=budgetExhausted scope=global"` → `"budgetExhausted"`).
+    static func cancelReason(of entry: LogEntry) -> String? {
+        guard entry.event == "prefetch.cancel",
+              let detail = entry.detail,
+              let range = detail.range(of: "reason=")
+        else { return nil }
+        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
+        return token.isEmpty ? nil : String(token)
+    }
+
     static func isMutedCancel(_ entry: LogEntry) -> Bool {
-        entry.event == "prefetch.cancel"
+        guard let reason = cancelReason(of: entry) else { return false }
+        return mutedCancelReasons.contains(reason)
+    }
+
+    /// Extracts `keyHash=<token>` from a cache-event detail for origin joining.
+    static func keyHash(of entry: LogEntry) -> String? {
+        guard let detail = entry.detail,
+              let range = detail.range(of: "keyHash=")
+        else { return nil }
+        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
+        return token.isEmpty ? nil : String(token)
+    }
+
+    /// `dedup.shared` is terminal only when joined with its origin `cache.save`
+    /// in the same group (equal `keyHash`); a lone share with no origin stays non-terminal.
+    static func isJoinedDedupSuccess(_ entries: [LogEntry]) -> Bool {
+        let sharedHashes = Set(entries.filter { $0.event == "dedup.shared" }.compactMap(keyHash(of:)))
+        guard !sharedHashes.isEmpty else { return false }
+        let savedHashes = Set(entries.filter { $0.event == "cache.save" }.compactMap(keyHash(of:)))
+        return !sharedHashes.isDisjoint(with: savedHashes)
     }
 
     /// `prefetch.skip` with nothing left to fetch is terminal success; other skip
@@ -632,6 +663,11 @@ struct LogRowView: View {
     }
 
     static func isError(_ entry: LogEntry) -> Bool {
+        // Muted cancels are intentional control flow, never errors (feat-023 Phase 2):
+        // Cancelled rows stay non-red and the Lỗi tab never lists them.
+        if LogRunBuilder.isMutedCancel(entry) {
+            return false
+        }
         if let code = entry.statusCode, code >= 400 {
             return true
         }

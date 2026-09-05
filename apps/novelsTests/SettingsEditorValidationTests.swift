@@ -112,15 +112,22 @@ final class SettingsEditorValidationTests: XCTestCase {
     }
 
     /// feat-023 Phase 3: one shared trim rule — validate agrees with setValue/intValue.
+    /// Double-path intent pinned (round 1): "20.9"→20, "1e3"→1000, "+20"→20; nan/inf blocked.
     func testPrefetchTrimRuleUnified() {
         let desc = SettingsViewModel.descriptor(for: "PREFETCH_COUNT")
         XCTAssertNil(desc.validate("20"))
         XCTAssertNil(desc.validate(" 20"))
         XCTAssertNil(desc.validate("20 "))
         XCTAssertNil(desc.validate("20.0"))
+        XCTAssertNil(desc.validate("20.9"))
+        XCTAssertNil(desc.validate("1e3"))
+        XCTAssertNil(desc.validate("+20"))
+        XCTAssertNotNil(desc.validate("nan"))
+        XCTAssertNotNil(desc.validate("inf"))
     }
 
     /// feat-023 Phase 3: editor blocks (keeps old value); copy must say so, not promise fallback-to-3.
+    /// Round 1 (C3): the visible description tells the same truth as the error message.
     func testPrefetchCopyStatesBlockKeepsOld() {
         let desc = SettingsViewModel.descriptor(for: "PREFETCH_COUNT")
         let blocked = desc.validate("1001")
@@ -130,6 +137,8 @@ final class SettingsEditorValidationTests: XCTestCase {
         XCTAssertNotNil(desc.validate("abc"))
         XCTAssertNotNil(desc.validate("-1"))
         XCTAssertFalse(desc.allowsVerbatimSave)
+        XCTAssertTrue(desc.description.contains("giữ giá trị cũ"))
+        XCTAssertFalse(desc.description.contains("về 3"))
     }
 
     /// feat-023 Phase 3: Settings row exposes the effective N the manager consumes.

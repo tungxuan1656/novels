@@ -82,7 +82,8 @@ struct SettingDescriptor {
 
     /// Single trim rule for PREFETCH_COUNT shared by editor validation,
     /// `SettingsStore.setValue`, and `SettingsStore.intValue`: trim surrounding
-    /// whitespace, then `Int`, then finite-`Double` truncation (so `"20.0"` == `20`).
+    /// whitespace, then `Int`, then finite-`Double` truncation (so `"20.0"` and
+    /// `"20.9"` mean `20`, `"1e3"` means `1000`, `"+20"` means `20`).
     /// Returns nil when nothing numeric remains. Range checks (`0...1000 else 3`,
     /// BR-08) stay with the callers — this parser never clamps.
     static func parsedPrefetchCount(_ raw: String) -> Int? {
@@ -161,7 +162,7 @@ enum SettingsViewModel {
             key: "PREFETCH_COUNT",
             label: "Số chương tải trước",
             placeholder: "3",
-            description: "0..1000, ngoài khoảng về 3 (BR-08)",
+            description: "0..1000; ngoài khoảng không lưu (giữ giá trị cũ), khi đọc dùng 3 (BR-08)",
             defaultValue: "3",
             allowsVerbatimSave: false
         ),

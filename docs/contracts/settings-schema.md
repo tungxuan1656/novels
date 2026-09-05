@@ -30,8 +30,8 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Headers/Body:** must be valid JSON object when non-empty; invalid → treated as empty, request proceeds without merge. No throw.
 - **Provider:** case-insensitive compare; only `openai` accepted.
 - **Prompt:** non-empty string. If empty → sanitize to default prompt.
-- **Chunk size / Prefetch N parsing (one shared trim rule):** trim surrounding whitespace, then `Int`, then finite-`Double` truncation — so `" 20"`, `"20 "`, and `"20.0"` all mean `20`. Shared by editor validation, `setValue`, and `intValue`. Nothing numeric (or non-finite like `nan`/`inf`) → parse failure.
-- **Chunk size / Prefetch N block-vs-coerce:** the editor **blocks** invalid or out-of-range input (save disabled, old value kept — it never writes a fallback). `save()` → `sanitize()` **coerces** an out-of-range stored value (`PREFETCH_COUNT` → `3`, chunk → `1300`). Out of range or NaN on read → `1300` / `3`.
+- **Prefetch N parsing (one shared trim rule):** trim surrounding whitespace, then `Int`, then finite-`Double` truncation — so `" 20"`, `"20 "`, `"20.0"`/`"20.9"`→`20`, `"1e3"`→`1000`, `"+20"`→`20`. Shared by editor validation, `setValue`, and `intValue` for `PREFETCH_COUNT` only (chunk size still parses strict `Int`). Nothing numeric (or non-finite like `nan`/`inf`) → parse failure.
+- **Prefetch N block-vs-coerce:** the editor **blocks** invalid or out-of-range input (save disabled, old value kept — it never writes a fallback). `save()` → `sanitize()` **coerces** an out-of-range stored value (`PREFETCH_COUNT` → `3`). Chunk size follows the same shape with fallback `1300`. Out of range or NaN on read → `1300` / `3`.
 - **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
 - **Reading theme:** rawValue string of `ReadingTheme` (`vangGiay` / `trang` / `den`); missing, non-string, or unknown → `vangGiay`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
