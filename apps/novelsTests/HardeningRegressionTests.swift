@@ -1,6 +1,7 @@
 // swiftlint:disable file_length
 // swiftlint:disable trailing_comma
 @testable import novels
+import SwiftUI
 import XCTest
 
 final class HardeningRegressionTests: XCTestCase {
@@ -566,6 +567,7 @@ final class HardeningEdgeTests: XCTestCase {
 
 // MARK: - feat-019 Log run grouping + JSON viewer (UI scope)
 
+// swiftlint:disable:next type_body_length
 final class LogScreenGroupingTests: XCTestCase {
     private func repoRoot() -> URL {
         let fileURL = URL(fileURLWithPath: #filePath)
@@ -830,6 +832,238 @@ final class LogScreenGroupingTests: XCTestCase {
         XCTAssertTrue(stripped(router).contains("case apiLog(bookId: String?, initialFilter: LogKindFilter)"))
         let screen = try source("apps/novels/Features/Diagnostics/LogScreen.swift")
         XCTAssertTrue(stripped(screen).contains("initialFilter == .error"))
+    }
+
+    /// feat-023 Phase 2 (badge): hit-only groups read terminal Success, never stuck Processing.
+    func testHitOnlyGroupIsSuccess() {
+        let run = UUID()
+        let status = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 7,
+                event: "cache.hit",
+                detail: "keyHash=abc123",
+                runId: run
+            ),
+        ])
+        XCTAssertEqual(status, .success)
+    }
+
+    /// feat-023 Phase 2 (badge): dedup.shared joined with its origin cache.save
+    /// (equal keyHash, same group) is terminal Success. Round 1 (I4): real join, no standalone credit.
+    func testSharedGroupNeverStuckProcessing() {
+        let run = UUID()
+        let status = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 8,
+                event: "cache.save",
+                detail: "chunkCount=1 outputHash=abc keyHash=def456",
+                runId: run
+            ),
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 8,
+                event: "dedup.shared",
+                detail: "keyHash=def456",
+                runId: run
+            ),
+        ])
+        XCTAssertEqual(status, .success)
+        XCTAssertNotEqual(status, .processing)
+    }
+
+    /// Round 1 (I4): a lone dedup.shared with no matching origin save stays non-terminal.
+    func testStandaloneSharedWithoutOriginStaysProcessing() {
+        let run = UUID()
+        let lone = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 8,
+                event: "dedup.shared",
+                detail: "keyHash=def456",
+                runId: run
+            ),
+        ])
+        XCTAssertEqual(lone, .processing)
+    }
+
+    /// feat-023 Phase 2 (badge): allCached/emptyRange skips are terminal Success.
+    func testAllCachedAndEmptyRangeSkipIsSuccess() {
+        let allCached = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 1,
+                event: "prefetch.skip",
+                detail: "reason=allCached hit=3"
+            ),
+        ])
+        XCTAssertEqual(allCached, .success)
+        let emptyRange = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 10,
+                event: "prefetch.skip",
+                detail: "reason=emptyRange"
+            ),
+        ])
+        XCTAssertEqual(emptyRange, .success)
+    }
+
+    /// feat-023 Phase 2 (badge): legitimate cancel is muted (Đã hủy), never Failed-red.
+    func testLegitimateCancelIsMutedNeverRed() {
+        let status = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 4,
+                event: "prefetch.cancel",
+                detail: "reason=chapterChange"
+            ),
+        ])
+        XCTAssertEqual(status, .cancelled)
+        XCTAssertEqual(status.title, "Đã hủy")
+        XCTAssertEqual(status.color, DesignTokens.muted)
+        XCTAssertNotEqual(status.color, DesignTokens.error)
+    }
+
+    /// Round 1 (C1): muted cancels are never errors — Cancelled rows stay non-red
+    /// and the Lỗi tab never lists them. Non-allowlist cancels stay errors.
+    func testMutedCancelNotErrorAtRowLevelAndFilter() {
+        let muted = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=chapterChange"
+        )
+        XCTAssertFalse(LogRowView.isError(muted))
+        XCTAssertFalse(LogKindFilter.error.matches(muted))
+        let manual = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=manual"
+        )
+        XCTAssertFalse(LogRowView.isError(manual))
+        XCTAssertFalse(LogKindFilter.error.matches(manual))
+        let budget = LogEntry(
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 4,
+            event: "prefetch.cancel",
+            detail: "reason=budgetExhausted scope=global"
+        )
+        XCTAssertTrue(LogRowView.isError(budget))
+        XCTAssertTrue(LogKindFilter.error.matches(budget))
+    }
+
+    /// Round 1 (C2): only allowlisted reasons mute; budgetExhausted/bookDeleted/unknown
+    /// (or missing detail) stay Failed.
+    func testNonAllowlistCancelStillFailed() {
+        for detail in [
+            "reason=budgetExhausted scope=global",
+            "reason=budgetExhausted scope=perChapter",
+            "reason=bookDeleted",
+            "reason=somethingWeird",
+        ] as [String?] {
+            let status = LogRunBuilder.status(of: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 4,
+                    event: "prefetch.cancel",
+                    detail: detail
+                ),
+            ])
+            XCTAssertEqual(status, .failed, "detail: \(detail ?? "nil")")
+        }
+        let missingDetail = LogRunBuilder.status(of: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 4, event: "prefetch.cancel"),
+        ])
+        XCTAssertEqual(missingDetail, .failed)
+    }
+
+    /// Round 1 (I8): non-terminal skips stay Processing (only allCached/emptyRange succeed).
+    func testNonTerminalSkipsStayProcessing() {
+        for detail in ["reason=modeNone", "reason=invalidRange"] {
+            let status = LogRunBuilder.status(of: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 1,
+                    event: "prefetch.skip",
+                    detail: detail
+                ),
+            ])
+            XCTAssertEqual(status, .processing, "detail: \(detail)")
+        }
+    }
+
+    /// A real error alongside a cancel still reads Failed.
+    func testCancelPlusRealErrorStillFailed() {
+        let status = LogRunBuilder.status(of: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 4,
+                event: "prefetch.cancel",
+                detail: "reason=chapterChange"
+            ),
+            LogEntry(
+                sessionId: UUID(),
+                kind: .api,
+                bookId: "b",
+                chapterNumber: 4,
+                errorDomain: "AIClientError.noResponse"
+            ),
+        ])
+        XCTAssertEqual(status, .failed)
+    }
+
+    /// feat-023 Phase 3 transparency: batchCheck carries storedN/effectiveN so a settings
+    /// fault is distinguishable from a cache/total cut. Counts only — no raw text.
+    /// Round 1 (I8/I9): pins that the logged range used effectiveN, leaves the shared log clean.
+    @MainActor
+    func testBatchCheckDetailCarriesStoredAndEffectiveN() async throws {
+        await DiagnosticsLog.shared.clear()
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let suite = try XCTUnwrap(UserDefaults(suiteName: "test.batchN.\(UUID().uuidString)"))
+        let settings = SettingsStore(userDefaults: suite)
+        settings.prefetchCount = 1001 // stored out-of-range, unsaved: diverges from effectiveN
+        let manager = PrefetchManager()
+        let repo = MockBookRepo(slug: "book-slug", count: 10)
+        let tracking = TrackingAIClient()
+        tracking.delayPerCall = 0
+        let service = tracking.service(cache: cache, settings: settings)
+        await manager.start(
+            bookId: "book-slug",
+            currentChapter: 1,
+            totalChapters: 10,
+            mode: .rewrite,
+            settings: settings,
+            cache: cache,
+            aiService: service,
+            repository: repo
+        )
+        let entries = await DiagnosticsLog.shared.snapshot()
+        let checks = entries.filter { $0.event == "prefetch.batchCheck" }
+        XCTAssertEqual(checks.count, 1)
+        let detail = checks.first?.detail ?? ""
+        XCTAssertTrue(detail.contains("storedN=1001"), "missing storedN in: \(detail)")
+        XCTAssertTrue(detail.contains("effectiveN=3"), "missing effectiveN in: \(detail)")
+        // The window itself consumed effectiveN=3 (ch 2...4), not the stored 1001.
+        XCTAssertTrue(detail.contains("rangeFrom=2"), "missing rangeFrom in: \(detail)")
+        XCTAssertTrue(detail.contains("rangeTo=4"), "missing rangeTo in: \(detail)")
+        await manager.cancel(reason: "testDone")
+        await DiagnosticsLog.shared.clear()
     }
 }
 

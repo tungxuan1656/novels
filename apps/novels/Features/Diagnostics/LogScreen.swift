@@ -259,7 +259,7 @@ struct LogScreen: View {
 // MARK: - Run grouping (UI-only, feat-019)
 
 enum LogRunStatus: String, Equatable {
-    case failed, success, processing
+    case failed, success, processing, cancelled
 
     var title: String {
         // swiftlint:disable switch_case_alignment
@@ -267,6 +267,7 @@ enum LogRunStatus: String, Equatable {
             case .failed: return "Thất bại"
             case .success: return "Thành công"
             case .processing: return "Đang xử lý"
+            case .cancelled: return "Đã hủy"
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -277,6 +278,7 @@ enum LogRunStatus: String, Equatable {
             case .failed: return DesignTokens.error
             case .success: return DesignTokens.success
             case .processing: return DesignTokens.accent
+            case .cancelled: return DesignTokens.muted
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -330,13 +332,71 @@ enum LogRunBuilder {
         if entries.contains(where: { $0.event == "cache.save" }) {
             return .success
         }
+        // Terminal read-path success: the chapter was already processed (feat-023 Phase 2).
+        if entries.contains(where: { $0.event == "cache.hit" }) {
+            return .success
+        }
+        if isJoinedDedupSuccess(entries) {
+            return .success
+        }
+        if entries.contains(where: isAllCachedSkip) {
+            return .success
+        }
         if let total = entries.compactMap({ $0.chunkTotal }).first, total > 0 {
             let done = Set(entries.filter { $0.event == "chunk.success" }.compactMap { $0.chunkIndex }).count
             if done >= total {
                 return .success
             }
         }
+        if entries.contains(where: isMutedCancel) {
+            return .cancelled
+        }
         return .processing
+    }
+
+    /// Deliberate navigation/disappear/manual cancels — muted Cancelled, never Failed-red.
+    /// Anything else (`budgetExhausted`, `bookDeleted`, unknown or missing reason) stays an error.
+    static let mutedCancelReasons: Set<String> = ["chapterChange", "modeChange", "disappear", "manual", "testDone"]
+
+    /// Extracts `reason=<token>` from a `prefetch.cancel` detail
+    /// (`"reason=budgetExhausted scope=global"` → `"budgetExhausted"`).
+    static func cancelReason(of entry: LogEntry) -> String? {
+        guard entry.event == "prefetch.cancel",
+              let detail = entry.detail,
+              let range = detail.range(of: "reason=")
+        else { return nil }
+        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
+        return token.isEmpty ? nil : String(token)
+    }
+
+    static func isMutedCancel(_ entry: LogEntry) -> Bool {
+        guard let reason = cancelReason(of: entry) else { return false }
+        return mutedCancelReasons.contains(reason)
+    }
+
+    /// Extracts `keyHash=<token>` from a cache-event detail for origin joining.
+    static func keyHash(of entry: LogEntry) -> String? {
+        guard let detail = entry.detail,
+              let range = detail.range(of: "keyHash=")
+        else { return nil }
+        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
+        return token.isEmpty ? nil : String(token)
+    }
+
+    /// `dedup.shared` is terminal only when joined with its origin `cache.save`
+    /// in the same group (equal `keyHash`); a lone share with no origin stays non-terminal.
+    static func isJoinedDedupSuccess(_ entries: [LogEntry]) -> Bool {
+        let sharedHashes = Set(entries.filter { $0.event == "dedup.shared" }.compactMap(keyHash(of:)))
+        guard !sharedHashes.isEmpty else { return false }
+        let savedHashes = Set(entries.filter { $0.event == "cache.save" }.compactMap(keyHash(of:)))
+        return !sharedHashes.isDisjoint(with: savedHashes)
+    }
+
+    /// `prefetch.skip` with nothing left to fetch is terminal success; other skip
+    /// reasons (modeNone, invalidRange) stay `.processing`.
+    static func isAllCachedSkip(_ entry: LogEntry) -> Bool {
+        guard entry.event == "prefetch.skip", let detail = entry.detail else { return false }
+        return detail.contains("reason=allCached") || detail.contains("reason=emptyRange")
     }
 
     static func chunkProgress(of entries: [LogEntry]) -> String? {
@@ -603,6 +663,11 @@ struct LogRowView: View {
     }
 
     static func isError(_ entry: LogEntry) -> Bool {
+        // Muted cancels are intentional control flow, never errors (feat-023 Phase 2):
+        // Cancelled rows stay non-red and the Lỗi tab never lists them.
+        if LogRunBuilder.isMutedCancel(entry) {
+            return false
+        }
         if let code = entry.statusCode, code >= 400 {
             return true
         }

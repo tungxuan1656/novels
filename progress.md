@@ -252,3 +252,67 @@
 **Evidence**: `apps/novels/Features/Reading/ReaderView.swift` (net negative), `apps/novelsTests/ReaderViewFixTests.swift`, `features/feat-022.md` (acceptance 4/4), `./init.sh` full PASS 2026-09-05 (format/lint/build/test PASS incl. restore-once + UITests/drift PASS 21/22)
 **Blockers**: none (tree uncommitted — not committed as not requested)
 **Next**: repo idle — user retests on Simulator (scroll→back→re-enter shows X; scroll→wait>1s→kill→relaunch shows X after brief top; chapter change→top; different book→top)
+
+## 2026-09-06 — feat-023 plan
+
+**State**: active
+**Done**: Investigation complete (3 explorer lanes + 10 oracle lanes P1A/P1B/P2A/P2B/P3A/P3B/P4A/P4B/P5A/P5B, all read-only) + plan approved full 5 phases; created `features/feat-023.md` (separate plan link, 3-lane ownership) + `docs/plans/feat-023.md` (Phase 0 baseline, P1 state guard, P2 status/log, P3 count transparency, P4 bounded retry/window, P5 resource guards, roadmap, owner defaults) + `feature_index.json` feat-023 active
+**Evidence**: `docs/plans/feat-023.md`, `features/feat-023.md`, `feature_index.json` (feat-023 active, depends_on feat-004/005/006/007/014/018); Phase 0 baseline `./init.sh` full PASS 2026-09-06 (format/lint/build TEST SUCCEEDED/drift 21/22)
+**Blockers**: none
+**Next**: Phase 1 Lane R (generation guard + `ReaderStaleGuardTests`) — awaiting execution approach choice
+
+## 2026-09-06 — feat-023 R+S reconcile
+
+**State**: active
+**Done**: Lane R Phase 1 loop closed (`bfed666` + fix `634ae88`: aiGeneration guard, guarded flag clear, aiTask tracking, deterministic GatedAIURLProtocol tests; re-review 7/7 + no breakage) + Lane S Phase 3/2-badge loop closed (`360ebbb` + fix `af25fab`: shared trim rule, effective-N row, badge/isError/allowlist/keyHash-join, hygiene tests; re-review 9/10, I10 closed by full init below); `./init.sh` full PASS post-merge (format/lint/build TEST SUCCEEDED incl. new StaleGuard 4/4 + Grouping/drift 21/22); parked minors: R M1/M4 + S 11-14 (ledgered for final review)
+**Evidence**: `features/feat-023.md` (handoff updated), commits `bfed666`/`634ae88`/`360ebbb`/`af25fab`, `./init.sh` full PASS 2026-09-06
+**Blockers**: none
+**Next**: Lane P Phases 4-5 (bounded retry/window + resource guards), then final whole-branch review + manual walks
+
+## 2026-09-06 — feat-023 done
+
+**State**: done
+**Done**: All 5 phases landed + reviewed (Lane R `bfed666`/`634ae88` generation guard + `758a26e`/`b75f78c` poll epoch/resume; Lane S `360ebbb`/`af25fab` trim/effective-N/badge contract; Lane P `3ebf9de`/`9225cc9`/`33be48b` retry-topup/cap); every review loop closed via scoped re-reviews (no open Critical/Important; parked minors: R M1/M4, S 11-14, P log-spam); `./init.sh` full PASS (format 0/98, lint 0, build PASS, test PASS incl. new StaleGuard/Grouping/Integration suites, drift 21/22; one retry past the known Simulator bundle-instance flake)
+**Evidence**: `features/feat-023.md` (acceptance 6/6), `docs/plans/feat-023.md`, `feature_index.json` feat-023 done (zero active), commits listed above
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests the 4 reported walks on device/Simulator; roadmap (durable queue, event-driven status, cache migration) awaits owner sign-off
+
+## 2026-09-06 — feat-023 commit
+
+**State**: done
+**Done**: Commit-time verification per repo rule: first `./init.sh` full FAIL on test step (`PrefetchManagerTests.testEndOfBookMessageNamesRemainingChapters` timed out under parallel 2-clone load + one Simulator launch-denied infra flake); targeted single-test run PASS; full retry `./init.sh` PASS with 0 failures — confirmed flake, no production/test code change needed. Committed feat-023 records (`feature_index.json`, `progress.md`, `docs/plans/feat-023.md`, `features/feat-023.md`).
+**Evidence**: first run failing test `testEndOfBookMessageNamesRemainingChapters` + `FBSOpenApplicationServiceErrorDomain RequestDenied`, single-test `** TEST SUCCEEDED **`, retry `EXIT:0` (PASS format/lint/build/test/drift)
+**Blockers**: none
+**Next**: feat-024 (feat-023 extend: FIFO prefetch refactor) plan for owner approval, refactor after approval
+
+## 2026-09-06 — feat-024 plan
+
+**State**: todo
+**Done**: Extend plan written (writing-plans skill): `docs/plans/feat-024.md` (P0 baseline, P1 FIFO queue core, P2 drop debounce/poll/epoch, P3 single-N, P4 specs + close; Lane P engine / Lane R reader / Lane S spec ownership; owner defaults: no hardCap, cancel only on book/mode change, attempts≤1 requeue) + `features/feat-024.md` (separate plan link, acceptance 6/6) + `feature_index.json` feat-024 todo (zero active)
+**Evidence**: `docs/plans/feat-024.md`, `features/feat-024.md`, `feature_index.json` (feat-024 todo, depends_on feat-023)
+**Blockers**: owner approval of plan (notably hardCap removal + queue-cancel policy) before activation; refactor NOT started
+**Next**: approve plan + choose execution approach (subagent-driven vs inline), then Phase 0 baseline
+
+## 2026-09-06 — feat-024 active
+
+**State**: active
+**Done**: Owner approved plan with defaults (no hardCap, cancel only on book/mode change, attempts≤1) and chose subagent-driven execution; SDD workspace `.agent-work/sdd/feat-024` ready (fresh ledger); feat-024 activated (zero other active)
+**Evidence**: `features/feat-024.md` (handoff active), `feature_index.json` (feat-024 active)
+**Blockers**: none
+**Next**: Phase 0 baseline + dispatch Lane P implementer (FIFO core)
+
+## 2026-09-06 — feat-024 done
+
+**State**: done
+**Done**: Durable FIFO queue keeps running task across same-book navigate (ensureWindow keep ∩ + append tail, attempts≤1 tail requeue, cancel only on book/mode/none/deletion); reader drops 200ms debounce + poll/epoch (synchronous trigger + one-shot resync, returnFromLog zero-API + resume); single-N (hardCap removed, storedN/effectiveN only); specs amended (chapter-prefetch §4 Step 5 + settings-schema BR-08); NSLock around cache entry points (oracle: correct/deadlock-free); M3 same-mode guard attempted then reverted (broke 2 suites) and parked with M1/M2/M4/M5 + test gaps
+**Evidence**: `974661a` + uncommitted 8 files (ReaderViewModel/PrefetchManager/ProcessedChapterCache + 3 test suites incl. `testNavigateViaViewModelKeepsRunningTask` + 2 spec docs); oracle review 0 blockers; `./init.sh` full PASS post-revert (format/lint/build/test/drift); `feature_index.json` feat-024 done (zero active)
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests walks #2/#4 on device/Simulator (steady-next ~1 tail, N=20 keep+append-471, returnFromLog resume)
+
+## 2026-09-06 — feat-024 commit
+
+**State**: done
+**Done**: Commit-time verification per repo rule: first `./init.sh` full FAIL on build/test step (tail showed UITests green with overall FAIL; failing test not captured); retry full `./init.sh` EXIT:0 PASS with 0 failures — confirmed flake, no production/test code change needed. Committed feat-024 records (11 files: 3 prod + 3 test suites + 2 spec docs + `feature_index.json`/`features/feat-024.md`/`progress.md`).
+**Evidence**: `init-commit.log` PASS format/lint/build/test/drift (`Verification passed`), retry `EXIT:0`
+**Blockers**: none
+**Next**: repo idle — push when user requests

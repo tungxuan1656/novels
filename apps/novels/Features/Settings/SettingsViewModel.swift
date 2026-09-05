@@ -38,10 +38,10 @@ struct SettingDescriptor {
                 }
                 return nil
             case "PREFETCH_COUNT":
-                if let number = Int(value), (0 ... 1000).contains(number) {
+                if let number = Self.parsedPrefetchCount(value), (0 ... 1000).contains(number) {
                     return nil
                 }
-                return "0..1000, ngoài khoảng sẽ về 3"
+                return "0..1000, ngoài khoảng không lưu (giữ giá trị cũ)"
             case "AI_MIN_CHUNK_SIZE":
                 if let number = Int(value), (500 ... 10000).contains(number) {
                     return nil
@@ -78,6 +78,26 @@ struct SettingDescriptor {
         }
         let normalized = ReaderFontMapper.normalizedFontName(value)
         return normalized == "System" && trimmed.lowercased() != "system" ? "Phông chữ không hợp lệ" : nil
+    }
+
+    /// Single trim rule for PREFETCH_COUNT shared by editor validation,
+    /// `SettingsStore.setValue`, and `SettingsStore.intValue`: trim surrounding
+    /// whitespace, then `Int`, then finite-`Double` truncation (so `"20.0"` and
+    /// `"20.9"` mean `20`, `"1e3"` means `1000`, `"+20"` means `20`).
+    /// Returns nil when nothing numeric remains. Range checks (`0...1000 else 3`,
+    /// BR-08) stay with the callers — this parser never clamps.
+    static func parsedPrefetchCount(_ raw: String) -> Int? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let intValue = Int(trimmed) {
+            return intValue
+        }
+        if let doubleValue = Double(trimmed), doubleValue.isFinite {
+            // Int(Double) traps on finite-but-out-of-range values (e.g. 1e100,
+            // 1e19); truncate toward zero via Int(exactly:) so overflow is nil.
+            return Int(exactly: doubleValue.rounded(.towardZero))
+        }
+        return nil
     }
 }
 
@@ -144,7 +164,7 @@ enum SettingsViewModel {
             key: "PREFETCH_COUNT",
             label: "Số chương tải trước",
             placeholder: "3",
-            description: "0..1000, ngoài khoảng về 3 (BR-08)",
+            description: "0..1000; ngoài khoảng không lưu (giữ giá trị cũ), khi đọc dùng 3 (BR-08)",
             defaultValue: "3",
             allowsVerbatimSave: false
         ),
@@ -200,5 +220,13 @@ enum SettingsViewModel {
             defaultValue: "",
             allowsVerbatimSave: false
         )
+    }
+
+    /// Row string for the PREFETCH_COUNT settings row: the effective N the
+    /// prefetch manager consumes (clamped read), not the raw stored value.
+    /// Tested directly (no pixel assertions); the view only renders this string.
+    @MainActor
+    static func prefetchCountRowValue(_ store: SettingsStore) -> String {
+        "\(store.effectivePrefetchCount())"
     }
 }

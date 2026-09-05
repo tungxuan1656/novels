@@ -149,4 +149,44 @@ final class SettingsStoreCoercionTests: XCTestCase {
         store.save()
         XCTAssertEqual(store.effectiveHeaders()["Authorization"], "Bearer x")
     }
+
+    /// feat-023 Phase 3: setValue shares the trim rule with validate/intValue.
+    /// Double-path intent pinned (round 1): "20.9"→20, "1e3"→1000, "+20"→20; nan/inf keep prior.
+    func testSetValuePrefetchTrimsAndAcceptsDoubleForm() throws {
+        let suite = "test.setvalue.trim.\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        let store = SettingsStore(userDefaults: userDefaults)
+        store.prefetchCount = 3
+        store.setValue(" 20", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("20 ", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("20.0", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("20.9", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("1e3", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 1000)
+        store.setValue("+20", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("nan", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+        store.setValue("inf", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(store.prefetchCount, 20)
+    }
+
+    /// feat-023 Phase 3: persisted string forms reload identically (intValue path).
+    func testIntValuePrefetchLenientFormsReload() throws {
+        let suite = "test.intvalue.trim.\(UUID().uuidString)"
+        let userDefaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        userDefaults.set(" 20", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+        userDefaults.set("20.0", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+        userDefaults.set("20 ", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 20)
+        // Non-finite strings parse to nothing → default stands (round 1, I7).
+        userDefaults.set("nan", forKey: "PREFETCH_COUNT")
+        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).prefetchCount, 3)
+    }
 }

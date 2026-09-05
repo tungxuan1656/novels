@@ -243,7 +243,7 @@ import Observation
         case "AI_PROMPT":
             aiPrompt = value
         case "PREFETCH_COUNT":
-            if let intValue = Int(value) {
+            if let intValue = SettingDescriptor.parsedPrefetchCount(value) {
                 prefetchCount = intValue
             } // keep prior valid value on parse failure
         case "AI_MIN_CHUNK_SIZE":
@@ -341,17 +341,15 @@ import Observation
             return intVal
         }
         if let str = obj as? String {
-            let trimmed = str.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let intVal = Int(trimmed) {
-                return intVal
-            }
-            if let doubleVal = Double(trimmed) {
-                return Int(doubleVal)
-            }
-            return nil
+            // Shared trim rule with editor validation and setValue (feat-023 Phase 3).
+            return SettingDescriptor.parsedPrefetchCount(str)
         }
         if let doubleVal = obj as? Double {
-            return Int(doubleVal)
+            // Int(Double) traps on finite-but-out-of-range values (e.g. a
+            // corrupted 1e100 in UserDefaults); truncate toward zero via
+            // Int(exactly:) so overflow is nil and load() keeps the default.
+            guard doubleVal.isFinite else { return nil }
+            return Int(exactly: doubleVal.rounded(.towardZero))
         }
         if let num = obj as? NSNumber {
             return num.intValue

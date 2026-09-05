@@ -1,9 +1,9 @@
 import Foundation
 import Observation
 
-/// Trigger source for ReaderViewModel.load: only `.chapterChange` may start
-/// current-chapter AI work and prefetch. `.returnFromLog` (back from Log to the
-/// same chapter + mode) makes zero API calls and keeps prefetchStatus as-is.
+/// Load trigger: `.chapterChange` may start current-chapter AI + prefetch.
+/// `.returnFromLog` (back from Log) makes zero current-chapter API calls but
+/// resyncs prefetch status once and resumes background prefetch on misses.
 enum LoadSource {
     case chapterChange
     case returnFromLog
@@ -30,9 +30,20 @@ final class ReaderViewModel {
     var aiError: String?
     private var aiService: AIReadingService?
     private var aiTask: Task<Void, Never>?
+    /// Stale-write guard: bumped synchronously on every entry that changes the
+    /// displayed chapter/mode. Post-await AI writes must match it or drop.
+    private var aiGeneration = 0
+    /// Identity of the currently held AI text (nil when none/failed).
+    /// The view renders `processedContent` only when it matches the visible
+    /// chapter + mode (see `isProcessedContentCurrent()`).
+    private var processedChapterNumber: Int?
+    private var processedAIMode: AIMode?
+    /// Debug mirror of manager batch state — do NOT bind Reader UI to this
+    /// (header stays on `isAIProcessing`). Deletion deferred to roadmap.
     var prefetchStatus: PrefetchStatus = .idle
     private let prefetchManager: PrefetchManager
-    private var prefetchPollTask: Task<Void, Never>?
+    /// Ordered disappear-cancel joined by the next `.returnFromLog` resync.
+    private var disappearCancelTask: Task<Void, Never>?
     private let processedCache: ProcessedChapterCaching
     private(set) var lastVisibleChapter: Int?
     private(set) var lastVisibleMode: AIMode?
@@ -81,6 +92,17 @@ final class ReaderViewModel {
     }
 
     func load(source: LoadSource = .chapterChange) async {
+        if source == .chapterChange {
+            // Invalidate in-flight AI work. Nil out only when the held text
+            // does not already belong here: same-chapter reloads (reselect)
+            // keep showing current content instead of flashing empty.
+            aiGeneration += 1
+            if processedChapterNumber != chapterNumber || processedAIMode != aiMode {
+                processedContent = nil
+                processedChapterNumber = nil
+                processedAIMode = nil
+            }
+        }
         isLoading = true
         errorMessage = nil
         do {
@@ -103,23 +125,38 @@ final class ReaderViewModel {
         }
         isLoading = false
         if source == .returnFromLog {
-            // Back from Log to same chapter + mode: zero API, keep prefetchStatus as-is.
+            // Back from Log: zero current-chapter API. Join the ordered
+            // disappear-cancel, resync once, then resume on window misses
+            // (covers running batches via the ordered trigger path too).
+            if let pendingCancel = disappearCancelTask {
+                disappearCancelTask = nil
+                await pendingCancel.value
+            }
+            prefetchStatus = await prefetchManager.currentStatus()
+            await resumePrefetchIfMissesRemain()
             return
         }
         if aiMode != .none {
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
+        // feat-024 Phase 2: same-book+mode navigates never cancel — the FIFO
+        // queue reconciles (keep ∩ + append tail). Cancel only on mode .none;
+        // other ineligibility (error) keeps the running queue untouched.
         if aiMode != .none, errorMessage == nil {
             await triggerPrefetchIfEligible()
-        } else {
+        } else if aiMode == .none {
             await cancelPrefetch()
         }
     }
 
     func goNext() async {
         guard canGoNext else { return }
-        await cancelPrefetch()
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes. No prefetch cancel here:
+        // the queue keeps the running task across same-book navigates.
+        aiGeneration += 1
         chapterNumber += 1
         await load(source: .chapterChange)
         persistChapter()
@@ -127,14 +164,23 @@ final class ReaderViewModel {
 
     func goPrev() async {
         guard canGoPrev else { return }
-        await cancelPrefetch()
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes. No prefetch cancel here.
+        aiGeneration += 1
         chapterNumber -= 1
         await load(source: .chapterChange)
         persistChapter()
     }
 
     func goToChapter(_ number: Int) async {
-        await cancelPrefetch()
+        // Double-bump with load(.chapterChange) below is intentional: the
+        // guard is equality-based so magnitude is harmless, and this closes
+        // the gap before chapterNumber changes. Same-chapter targets still
+        // bump (invalidates in-flight refresh races); load() skips the
+        // nil-out when the held content already belongs to this chapter.
+        // No prefetch cancel here: same-book navigate keeps the queue.
+        aiGeneration += 1
         if let count = book?.count {
             chapterNumber = min(max(1, number), count)
         } else {
@@ -187,19 +233,18 @@ final class ReaderViewModel {
         // would strand relaunch on Library. Only Router.popReading /
         // didPopFromReading (true back) clears onScreen.
         aiTask?.cancel()
+        aiGeneration += 1
         isAIProcessing = false
-        prefetchPollTask?.cancel()
-        prefetchPollTask = nil
-        if aiMode == .none {
-            prefetchStatus = .idle
-        } else {
-            prefetchStatus.isRunning = false
-            prefetchStatus.message = "Đã hủy"
-        }
-        Task { await prefetchManager.cancel() }
+        // Single ordered cancel path: cancel any previous disappear-cancel
+        // before overwrite, then run cancelPrefetch() once (it writes the
+        // terminal state). Joined by the next .returnFromLog resync.
+        disappearCancelTask?.cancel()
+        disappearCancelTask = Task { await cancelPrefetch() }
     }
 
     func setAIMode(_ mode: AIMode) async {
+        aiTask?.cancel()
+        aiGeneration += 1
         await cancelPrefetch()
         aiMode = mode
         settingsStore.aiMode = mode
@@ -207,12 +252,17 @@ final class ReaderViewModel {
         aiError = nil
         if mode == .none {
             processedContent = nil
+            processedChapterNumber = nil
+            processedAIMode = nil
             if let html = readChapterHTML(number: chapterNumber) {
                 blocks = HtmlParser.parse(html: html)
             }
             return
         }
-        await loadAIContent(isReprocess: false)
+        // Tracked in aiTask so outside cancellation (disappear/nav) hits it.
+        aiTask?.cancel()
+        aiTask = Task { await loadAIContent(isReprocess: false) }
+        await aiTask?.value
         if errorMessage == nil {
             await triggerPrefetchIfEligible()
         }
@@ -220,19 +270,52 @@ final class ReaderViewModel {
 
     func reprocess() async {
         guard aiMode != .none else { return }
-        await loadAIContent(isReprocess: true)
+        aiGeneration += 1
+        // Tracked in aiTask so a newer generation cancels this one.
+        aiTask?.cancel()
+        aiTask = Task { await loadAIContent(isReprocess: true) }
+        await aiTask?.value
         if errorMessage == nil {
             await triggerPrefetchIfEligible()
         }
     }
 
+    /// Identity gate for the AI section: processed text renders only when it
+    /// was produced for the currently visible chapter + mode.
+    func isProcessedContentCurrent() -> Bool {
+        guard aiMode != .none else { return false }
+        guard let content = processedContent, !content.isEmpty else { return false }
+        return processedChapterNumber == chapterNumber && processedAIMode == aiMode
+    }
+
+    /// Processed text for the visible chapter + mode; nil when there is no
+    /// current content (not loaded yet, cleared, or superseded) or while its
+    /// generation is still in flight.
+    var currentProcessedContent: String? {
+        guard !isAIProcessing, isProcessedContentCurrent() else { return nil }
+        return processedContent
+    }
+
     private func loadAIContent(isReprocess: Bool) async {
+        // Snapshot generation + identity before the await. Only the latest
+        // generation may publish; superseded tasks (nav/mode-switch/reprocess,
+        // disappear) return silently even when their await still resolves.
+        let generation = aiGeneration
+        let chapter = chapterNumber
+        let mode = aiMode
         guard let raw = readRawTextForAI() else {
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             aiError = "Không tìm thấy chương"
             return
         }
         isAIProcessing = true
-        defer { isAIProcessing = false }
+        // Clear only while this generation is still current: a stale task must
+        // never switch off a newer generation's spinner (raw-blocks flicker).
+        defer {
+            if generation == aiGeneration {
+                isAIProcessing = false
+            }
+        }
         do {
             let result: String
             if isReprocess {
@@ -250,10 +333,14 @@ final class ReaderViewModel {
                     rawText: raw
                 ) ?? raw
             }
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             processedContent = result
+            processedChapterNumber = chapter
+            processedAIMode = mode
         } catch is CancellationError {
             // Cancelled (nav/disappear/mode switch): no aiError/toast, defer clears flag.
         } catch {
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
             aiError = error.localizedDescription
             toastCenter?.show(aiError ?? "AI processing failed.", type: .error)
         }
@@ -286,23 +373,17 @@ final class ReaderViewModel {
     }
 
     private func triggerPrefetchIfEligible() async {
+        // feat-024 Phase 2: no debounce — the FIFO queue absorbs rapid
+        // navigates (keep ∩ + append tail), so start synchronously right
+        // after the eligibility guards. Only mode .none cancels; other
+        // ineligibility keeps the running queue untouched.
         guard aiMode != .none else {
             await cancelPrefetch()
             return
         }
-        guard errorMessage == nil else {
-            await cancelPrefetch()
-            return
-        }
-        guard let total = book?.count, total > 0 else {
-            await cancelPrefetch()
-            return
-        }
-        guard let service = aiService else {
-            await cancelPrefetch()
-            return
-        }
-        prefetchPollTask?.cancel()
+        guard errorMessage == nil else { return }
+        guard let total = book?.count, total > 0 else { return }
+        guard let service = aiService else { return }
         let mode = aiMode
         let current = chapterNumber
         let slug = bookId
@@ -320,26 +401,35 @@ final class ReaderViewModel {
             aiService: service,
             repository: repo
         )
-        prefetchPollTask?.cancel()
-        prefetchPollTask = Task { [weak self] in
-            guard let self else { return }
-            while !Task.isCancelled {
-                let status = await manager.currentStatus()
-                await MainActor.run { self.prefetchStatus = status }
-                if !status.isRunning {
-                    break
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000)
-            }
-            let status = await manager.currentStatus()
-            await MainActor.run { self.prefetchStatus = status }
-        }
+        // One-shot mirror so steady reading shows running synchronously;
+        // terminal states arrive via cancelPrefetch or the next
+        // returnFromLog resync (no poll task).
+        prefetchStatus = await manager.currentStatus()
+    }
+
+    /// Log-return resume on remaining window misses. Cache reads only — zero
+    /// network unless the manager itself starts a batch.
+    private func resumePrefetchIfMissesRemain() async {
+        guard aiMode != .none, errorMessage == nil else { return }
+        guard let total = book?.count, total > 0 else { return }
+        guard aiService != nil else { return }
+        let end = min(chapterNumber + settingsStore.effectivePrefetchCount(), total)
+        guard end > chapterNumber else { return }
+        let range = Array((chapterNumber + 1) ... end)
+        // Query failure keeps prior state (never miss-all): no resume and no
+        // VM-side log (prefetch logging belongs to the manager; no new events).
+        guard let cached = try? processedCache.batchStatus(bookId: bookId, mode: aiMode, numbers: range) else { return }
+        guard cached.count < range.count else { return }
+        await triggerPrefetchIfEligible()
     }
 
     private func cancelPrefetch() async {
+        // Single cancel path (book/mode change, .none, disappear, explicit):
+        // manager cancel + terminal write once (no poll, no epoch).
         await prefetchManager.cancel()
-        prefetchPollTask?.cancel()
-        prefetchPollTask = nil
+        // NOTE (pre-existing semantics): cancel runs before setAIMode assigns
+        // .none, so a .none switch lands here on not-running/"Đã hủy", not
+        // .idle. The idle-vs-cancelled contract is undefined; don't rely on it.
         if aiMode == .none {
             prefetchStatus = .idle
         } else {
