@@ -138,8 +138,12 @@ final class ReaderViewModel {
         }
         if aiMode != .none {
             // Sync flag so aiSection shows spinner, not stale original,
-            // during the async gap before loadAIContent sets it.
-            isAIProcessing = true
+            // during the async gap before loadAIContent sets it. Skipped
+            // when the held content is already current (same-chapter
+            // reload): it keeps showing instead of flashing the spinner.
+            if !isProcessedContentCurrent() {
+                isAIProcessing = true
+            }
             aiTask?.cancel()
             aiTask = Task { await loadAIContent(isReprocess: false) }
         }
@@ -306,18 +310,20 @@ final class ReaderViewModel {
         let generation = aiGeneration
         let chapter = chapterNumber
         let mode = aiMode
-        guard let raw = readRawTextForAI() else {
-            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
-            aiError = "Không tìm thấy chương"
-            return
-        }
         isAIProcessing = true
         // Clear only while this generation is still current: a stale task must
         // never switch off a newer generation's spinner (raw-blocks flicker).
+        // Installed before the raw guard so early returns (missing/empty
+        // chapter) also clear a flag set synchronously by load().
         defer {
             if generation == aiGeneration {
                 isAIProcessing = false
             }
+        }
+        guard let raw = readRawTextForAI() else {
+            guard generation == aiGeneration, chapter == chapterNumber, mode == aiMode else { return }
+            aiError = "Không tìm thấy chương"
+            return
         }
         do {
             let result: String
