@@ -25,50 +25,52 @@ struct LibraryView: View {
                 .background(DesignTokens.backgroundWhite)
                 .accessibilityIdentifier("library.empty")
             } else {
-                List(viewModel.books, id: \.id) { book in
-                    Button {
-                        router.push(.reading(bookId: book.id))
-                    } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(book.name)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(DesignTokens.text)
-                                .lineLimit(2)
-                            HStack(spacing: 8) {
-                                if let author = book.author {
-                                    Text(author)
-                                        .font(.footnote)
-                                        .foregroundStyle(DesignTokens.muted)
+                List {
+                    Section {
+                        ForEach(viewModel.books, id: \.id) { book in
+                            Button {
+                                router.push(.reading(bookId: book.id))
+                            } label: {
+                                VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
+                                    Text(book.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(DesignTokens.text)
+                                        .lineLimit(2)
+                                    HStack(spacing: DesignTokens.spacing8) {
+                                        if let author = book.author {
+                                            Text(author)
+                                                .font(.footnote)
+                                                .foregroundStyle(DesignTokens.muted)
+                                        }
+                                        Text("\(book.count) chương")
+                                            .font(.footnote)
+                                            .foregroundStyle(DesignTokens.muted)
+                                    }
                                 }
-                                Text("\(book.count) chương")
-                                    .font(.footnote)
-                                    .foregroundStyle(DesignTokens.muted)
+                                .frame(minHeight: DesignTokens.rowMinHeight)
+                                .contentShape(Rectangle())
                             }
+                            .listRowBackground(DesignTokens.surface)
+                            .listRowSeparatorTint(DesignTokens.border)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    viewModel.confirmDelete(book)
+                                } label: {
+                                    Label("Xóa", systemImage: "trash")
+                                }
+                                .tint(DesignTokens.error)
+                                Button {
+                                    viewModel.selected = book
+                                    viewModel.showInfo = true
+                                } label: {
+                                    Label("Thông tin", systemImage: "info.circle")
+                                }
+                                .tint(DesignTokens.accent)
+                            }
+                            .accessibilityIdentifier("library.row.\(book.id)")
                         }
-                        .padding(.vertical, 4)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
                     }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(DesignTokens.backgroundWhite)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) {
-                            viewModel.confirmDelete(book)
-                        } label: {
-                            Label("Xóa", systemImage: "trash")
-                        }
-                        .tint(DesignTokens.error)
-                        Button {
-                            viewModel.selected = book
-                            viewModel.showInfo = true
-                        } label: {
-                            Label("Thông tin", systemImage: "info.circle")
-                        }
-                        .tint(DesignTokens.accent)
-                    }
-                    .accessibilityIdentifier("library.row.\(book.id)")
                 }
-                .listStyle(.plain)
                 .scrollContentBackground(.hidden)
                 .background(DesignTokens.backgroundWhite)
                 .refreshable {

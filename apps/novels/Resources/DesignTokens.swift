@@ -38,7 +38,7 @@ private extension UIColor {
 enum DesignTokens {
     #if canImport(UIKit)
     static let backgroundPaper = Color(uiColor: .adapted(lightHex: 0xF5F1E5, dark: UIColor(hex: 0x0F1419)))
-    static let backgroundWhite = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: UIColor(hex: 0x0F1419)))
+    static let backgroundWhite = Color(uiColor: .adapted(lightHex: 0xF5F5F5, dark: UIColor(hex: 0x0F1419)))
     static let backgroundGrouped = Color(uiColor: .adapted(lightHex: 0xF5F5F5, dark: UIColor(hex: 0x171D23)))
     static let surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: UIColor(hex: 0x171D23)))
     static let text = Color(uiColor: .adapted(lightHex: 0x111111, dark: .label))
@@ -50,7 +50,7 @@ enum DesignTokens {
     static let border = Color(uiColor: .adapted(lightHex: 0xE5E7EB, dark: UIColor(hex: 0x232B33)))
     #else
     static let backgroundPaper = Color(hex: 0xF5F1E5)
-    static let backgroundWhite = Color(hex: 0xFFFFFF)
+    static let backgroundWhite = Color(hex: 0xF5F5F5)
     static let backgroundGrouped = Color(hex: 0xF5F5F5)
     static let surface = Color(hex: 0xFFFFFF)
     static let text = Color(hex: 0x111111)
@@ -74,7 +74,7 @@ enum DesignTokens {
     static let spacing24: CGFloat = 24
     static let spacing32: CGFloat = 32
 
-    static let rowMinHeight: CGFloat = 56
+    static let rowMinHeight: CGFloat = 48
     static let sidePadding: CGFloat = 16
 }
 
@@ -132,9 +132,9 @@ extension ReadingTheme {
         // swiftlint:disable switch_case_alignment
         switch self {
             case .vangGiay:
-                return Color(hex: 0xE8DDC0)
+                return Color(hex: 0xD3D4D9)
             case .trang:
-                return Color(hex: 0xEFEFF1)
+                return Color(hex: 0xD3D4D9)
             case .den:
                 return Color(hex: 0x2A2724)
         }
@@ -145,7 +145,7 @@ extension ReadingTheme {
         // swiftlint:disable switch_case_alignment
         switch self {
             case .vangGiay:
-                return Color(hex: 0xDCD2B6)
+                return Color(hex: 0xE5E7EB)
             case .trang:
                 return Color(hex: 0xE5E7EB)
             case .den:

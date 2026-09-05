@@ -130,6 +130,12 @@
       "title": "Reading Themes Trio (Vàng giấy / Trắng / Đen)",
       "status": "done",
       "depends_on": ["feat-004", "feat-005"]
+    },
+    {
+      "id": "feat-022",
+      "title": "Reading Position Restore (Simple)",
+      "status": "done",
+      "depends_on": ["feat-004"]
     }
   ]
 }

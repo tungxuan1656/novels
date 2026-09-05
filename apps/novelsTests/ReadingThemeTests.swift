@@ -97,9 +97,14 @@ final class ReadingThemeTests: XCTestCase {
         let src = try source("apps/novels/Resources/DesignTokens.swift")
         let code = stripped(src)
         XCTAssertTrue(code.contains("0xF5F1E5"))
-        XCTAssertTrue(code.contains("0xE8DDC0"))
-        XCTAssertTrue(code.contains("0xDCD2B6"))
-        XCTAssertTrue(code.contains("0xEFEFF1"))
+        // Light chips unified to D3D4D9 for contrast on both paper F5F1E5 and white FFFFFF.
+        // Retired intermediates must stay out: E8DDC0->D9CBA6->D3D4D9, EFEFF1->E0E1E6->D3D4D9, DCD2B6.
+        XCTAssertTrue(code.contains("0xD3D4D9"))
+        XCTAssertFalse(code.contains("0xE8DDC0"))
+        XCTAssertFalse(code.contains("0xD9CBA6"))
+        XCTAssertFalse(code.contains("0xDCD2B6"))
+        XCTAssertFalse(code.contains("0xEFEFF1"))
+        XCTAssertFalse(code.contains("0xE0E1E6"))
         XCTAssertTrue(code.contains("0xE5E7EB"))
         XCTAssertTrue(code.contains("0x171512"))
         XCTAssertTrue(code.contains("0xECE7DF"))
@@ -132,5 +137,59 @@ final class ReadingThemeTests: XCTestCase {
         XCTAssertTrue(themeSrc.contains("Vàng giấy"))
         XCTAssertTrue(themeSrc.contains("Trắng"))
         XCTAssertTrue(themeSrc.contains("\"Đen\"") || themeSrc.contains("return \"Đen\""))
+    }
+
+    func testLightChipDiffersFromWhiteBackground() throws {
+        let src = try stripped(source("apps/novels/Resources/DesignTokens.swift"))
+        // Both light chips (vangGiay + trang) unify to D3D4D9 so they stand off paper F5F1E5 and white FFFFFF.
+        XCTAssertTrue(src.contains("0xD3D4D9"))
+        XCTAssertFalse(src.contains("0xEFEFF1"))
+        XCTAssertFalse(src.contains("0xE0E1E6"))
+        // Retired vangGiay intermediates must stay out
+        XCTAssertFalse(src.contains("0xD9CBA6"))
+        XCTAssertFalse(src.contains("0xDCD2B6"))
+        XCTAssertFalse(src.contains("0xE8DDC0"))
+        // Dark chip stays untouched
+        XCTAssertTrue(src.contains("0x2A2724"))
+    }
+
+    func testStepperValueWidthFitsDynamicType() throws {
+        let sheet = try stripped(source("apps/novels/Features/Reading/ReaderBottomSheet.swift"))
+        XCTAssertFalse(sheet.contains("frame(width: 32"))
+        XCTAssertTrue(sheet.contains("minWidth: 48"))
+        XCTAssertTrue(sheet.contains("fixedSize(horizontal: true"))
+        XCTAssertTrue(sheet.contains("lineLimit(1)"))
+    }
+
+    func testCachePillsHaveReadableFill() throws {
+        let src = try stripped(source("apps/novels/Features/Settings/CacheManagerView.swift"))
+        XCTAssertTrue(src.contains("muted.opacity(0.2)"))
+        XCTAssertFalse(src.contains("muted.opacity(0.12)"))
+        // Xóa pill: fill >= 0.2 + stroke 0.5 so edge survives on white surface
+        XCTAssertTrue(src.contains("error.opacity(0.2)"))
+        XCTAssertTrue(src.contains("error.opacity(0.5)"))
+        // Exact-match with closing paren: 0.12 icon tint at line 114 stays
+        XCTAssertFalse(src.contains("error.opacity(0.1)"))
+        XCTAssertFalse(src.contains("error.opacity(0.15)"))
+        XCTAssertFalse(src.contains("error.opacity(0.25)"))
+        XCTAssertFalse(src.contains("error.opacity(0.35)"))
+    }
+
+    func testReaderChipsUseSolidFill() throws {
+        let reader = try stripped(source("apps/novels/Features/Reading/ReaderView.swift"))
+        XCTAssertFalse(reader.contains("chipBackground.opacity(0.7)"))
+        XCTAssertTrue(reader.contains("theme.chipBackground"))
+    }
+
+    func testSettingsRowSeparatesFromBackground() throws {
+        let src = try stripped(source("apps/novels/Resources/DesignTokens.swift"))
+        // Settings rows (surface, white) must stand off the screen bg (backgroundWhite, grouped gray)
+        XCTAssertTrue(src.contains("backgroundWhite = Color(uiColor: .adapted(lightHex: 0xF5F5F5"))
+        XCTAssertTrue(src.contains("surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF"))
+        XCTAssertTrue(src.contains("backgroundWhite = Color(hex: 0xF5F5F5)"))
+        XCTAssertTrue(src.contains("surface = Color(hex: 0xFFFFFF)"))
+        // Dark stays differentiated
+        XCTAssertTrue(src.contains("0x0F1419"))
+        XCTAssertTrue(src.contains("0x171D23"))
     }
 }

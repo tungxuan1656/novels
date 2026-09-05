@@ -105,8 +105,11 @@ final class ReaderViewModelTests: XCTestCase {
         viewModel.onAppear()
         XCTAssertEqual(store.session?.bookId, "test-slug")
         XCTAssertEqual(store.session?.onScreen, true)
+        // Cover (push TOC/references/log over Reader) must NOT clear onScreen:
+        // only Router.popReading/didPopFromReading (true back) clears it.
         viewModel.onDisappear()
-        XCTAssertEqual(store.session?.onScreen, false)
+        XCTAssertEqual(store.session?.onScreen, true)
+        XCTAssertEqual(store.session?.bookId, "test-slug")
     }
 
     func testSaveOffsetPersists() async {

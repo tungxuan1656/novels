@@ -26,12 +26,13 @@ struct SettingEditorView: View {
                 // swiftlint:disable:next opening_brace
                 {
                     TextEditor(text: $draft)
-                        .frame(minHeight: 120)
+                        .frame(minHeight: 350)
                         .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
                 } else {
                     TextField(descriptor.placeholder, text: $draft)
+                        .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
                 }

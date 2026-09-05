@@ -12,6 +12,7 @@
 
 <!-- Add each new block below this note. Do not edit older blocks. -->
 
+
 ## 2026-08-24 — feat-001
 
 **State**: todo
@@ -235,3 +236,19 @@
 **Evidence**: `features/feat-021.md` (acceptance 7/7), `feature_index.json` feat-021 done (zero active), `apps/novels/Domain/ReadingTheme.swift`, `apps/novels/Persistence/DefaultsKeys.swift` + `SettingsStore.swift` (`loadReadingTheme` + `loadDiagnosticsTypographySession` refactor), `apps/novels/Resources/DesignTokens.swift` palette extension, `apps/novels/Features/Reading/ReaderView.swift` (no `backgroundPaper`/`systemGray5`), `apps/novels/Features/Reading/ReaderBottomSheet.swift` (`themePicker`/`theme-vangGiay`/`Màu nền`), `apps/novelsTests/ReadingThemeTests.swift` 6/6, `docs/contracts/settings-schema.md` + `docs/design/design-system.md`; `./init.sh` full PASS 2026-09-05 (format 0/96, lint 0/96, build PASS, test PASS incl. ReadingTheme 6/6 + UITests, drift PASS 21/22)
 **Blockers**: none (tree uncommitted incl. prior feats + feat-021 — not committed as not requested)
 **Next**: repo idle — user retests 3 themes live + relaunch persist + Đen + Light sheet on Simulator
+
+## 2026-09-05 — feat-022
+
+**State**: todo
+**Done**: Reverted session restore edits to HEAD (`ReaderView`/`Router`/`AppRoot`/`RouterReadingTests` + deleted `ReadingRestoreFixTests.swift`; kept `CacheManagerView` pill fix, reverted incidental `init.sh`/`AGENTS.md`); created `features/feat-022.md` (inline simple plan: single restore-after-load, drop flag/poll/reassert, keep save path) + `feature_index.json` feat-022 todo
+**Evidence**: `features/feat-022.md`, `feature_index.json` (feat-022 todo, depends_on feat-004), `git status` shows only `M CacheManagerView.swift`
+**Blockers**: none
+**Next**: User approves plan (notably the brief top-flash trade-off), then activate feat-022 for implementation
+
+## 2026-09-05 — feat-022 done
+
+**State**: done
+**Done**: Reading Position Restore (Simple) — `ReaderView.restoreOffset` replaced with restore-once (100ms×20 ~2s wait for `!isLoading` + blocks/error, single `scrollPosition` assign; deleted `isRestoringOffset`/`shouldReassert`/150ms reassert; kept `offsetToRestore` + `needsScrollRestore` + chapter-equality stale guard + `scrollToTop` on chapter change; save path untouched); `ReaderViewFixTests` updated (`testShouldReassert` removed, restore-once assertions rewritten + `testReaderRestoreAssignsOnce` added); `feature_index.json` feat-022 done (zero active)
+**Evidence**: `apps/novels/Features/Reading/ReaderView.swift` (net negative), `apps/novelsTests/ReaderViewFixTests.swift`, `features/feat-022.md` (acceptance 4/4), `./init.sh` full PASS 2026-09-05 (format/lint/build/test PASS incl. restore-once + UITests/drift PASS 21/22)
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests on Simulator (scroll→back→re-enter shows X; scroll→wait>1s→kill→relaunch shows X after brief top; chapter change→top; different book→top)

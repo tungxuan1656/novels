@@ -1,9 +1,12 @@
 import SwiftUI
 
+// swiftlint:disable file_length
+
 // swiftlint:disable:next type_body_length
 struct ReaderView: View {
     let bookId: String
     @Bindable var router: Router
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: ReaderViewModel
     @State private var settingsStore: SettingsStore
     @State private var currentOffset: Double = 0
@@ -107,13 +110,15 @@ struct ReaderView: View {
                     }
                 }
                 .onDisappear {
-                    // Flush pending offset before cancelling debounce
-                    if debounceTask != nil {
-                        viewModel.saveOffset(currentOffset)
-                    }
-                    debounceTask?.cancel()
-                    debounceTask = nil
+                    flushPendingOffset()
                     viewModel.onDisappear()
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    // Kill within the 300ms debounce window must not lose position:
+                    // persist the latest offset synchronously on backgrounding.
+                    if newPhase == .background {
+                        flushPendingOffset()
+                    }
                 }
             }
         }
@@ -134,6 +139,9 @@ struct ReaderView: View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             if let processed = viewModel.processedContent, !processed.isEmpty, !viewModel.isAIProcessing {
                 aiProcessedContent(processed)
+            } else if viewModel.isLoading || (viewModel.isAIProcessing && viewModel.blocks.isEmpty) {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
             } else if viewModel.blocks.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(theme.textMuted)
@@ -337,7 +345,7 @@ struct ReaderView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.iconTint)
                     .frame(width: 24, height: 24)
-                    .background(theme.chipBackground.opacity(0.7))
+                    .background(theme.chipBackground)
                     .clipShape(Circle())
             }
             .a11yHitTarget()
@@ -427,6 +435,17 @@ struct ReaderView: View {
         }
     }
 
+    /// Synchronously persist the latest scroll offset when a debounced save is
+    /// still pending. Called from onDisappear and scenePhase background so a
+    /// kill inside the 300ms debounce window cannot lose the position.
+    private func flushPendingOffset() {
+        if debounceTask != nil {
+            viewModel.saveOffset(currentOffset)
+        }
+        debounceTask?.cancel()
+        debounceTask = nil
+    }
+
     private func scrollToTop() {
         debounceTask?.cancel()
         debounceTask = nil
@@ -455,11 +474,39 @@ struct ReaderView: View {
             sessionOffset: session?.offset,
             currentBookId: bookId
         ) else { return }
+        // Top of chapter needs no scroll work: position already starts at zero.
+        guard ReaderRestoreDecision.needsScrollRestore(offset: offset) else { return }
+        let chapter = viewModel.chapterNumber
         Task {
-            try? await Task.sleep(nanoseconds: 10_000_000)
+            // Bounded wait for real content (load finished + blocks/error present)
+            // so layout exists when we scroll. Single assign only; a brief top
+            // flash before the jump is accepted (feat-022).
+            var attempt = 0
+            while attempt < 20 {
+                let ready = await MainActor.run {
+                    !viewModel.isLoading
+                        && viewModel.chapterNumber == chapter
+                        && (!viewModel.blocks.isEmpty || viewModel.errorMessage != nil)
+                }
+                if ready {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                attempt += 1
+            }
             await MainActor.run {
+                // Never apply a stale restore onto a chapter the user already left.
+                guard viewModel.chapterNumber == chapter else { return }
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }
         }
+    }
+}
+
+/// Pure helper for scroll-restore decision — testable without UI.
+enum ReaderRestoreDecision {
+    /// Top-of-chapter (or missing) offsets need no scroll work.
+    static func needsScrollRestore(offset: Double?) -> Bool {
+        (offset ?? 0) > 0
     }
 }

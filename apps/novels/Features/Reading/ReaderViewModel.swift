@@ -20,7 +20,9 @@ final class ReaderViewModel {
     var book: Book?
     var chapterNumber: Int = 1
     var blocks: [TextBlock] = []
-    var isLoading = false
+    // Start as loading so the first frame shows an indicator instead of
+    // flashing "Không tìm thấy chương" before load() runs.
+    var isLoading = true
     var errorMessage: String?
     var aiMode: AIMode = .none
     var processedContent: String?
@@ -180,8 +182,10 @@ final class ReaderViewModel {
     func onDisappear() {
         lastVisibleChapter = chapterNumber
         lastVisibleMode = aiMode
-        settingsStore.session?.onScreen = false
-        settingsStore.save()
+        // Seamless restore: do NOT clear session.onScreen here. onDisappear also
+        // fires when References/TOC/Log cover Reader (push, not pop); clearing it
+        // would strand relaunch on Library. Only Router.popReading /
+        // didPopFromReading (true back) clears onScreen.
         aiTask?.cancel()
         isAIProcessing = false
         prefetchPollTask?.cancel()
