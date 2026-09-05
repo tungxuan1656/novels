@@ -248,16 +248,14 @@ final class ReaderRestorePhase2Tests: XCTestCase {
         XCTAssertTrue(ReaderRestoreDecision.needsScrollRestore(offset: 123.4))
     }
 
-    /// Re-assert only when the first set never took effect; never yank the user.
-    func testShouldReassert() {
-        // First set lost (still near top) -> re-assert.
-        XCTAssertTrue(ReaderRestoreDecision.shouldReassert(currentOffset: 0, target: 120))
-        // Scroll took effect -> leave alone.
-        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 119.5, target: 120))
-        // User scrolled away -> never yank back.
-        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 400, target: 120))
-        // Chapter-top target needs nothing.
-        XCTAssertFalse(ReaderRestoreDecision.shouldReassert(currentOffset: 0, target: 0))
+    /// Restore-once (feat-022): no re-assert helper; a single assign after
+    /// content is ready is the whole mechanism (brief top flash accepted).
+    func testNeedsScrollRestoreOnly() {
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: 0))
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: nil))
+        XCTAssertFalse(ReaderRestoreDecision.needsScrollRestore(offset: -5))
+        XCTAssertTrue(ReaderRestoreDecision.needsScrollRestore(offset: 0.5))
+        XCTAssertTrue(ReaderRestoreDecision.needsScrollRestore(offset: 123.4))
     }
 
     /// Flush helper exists and is called from both disappear and backgrounding.
@@ -269,22 +267,44 @@ final class ReaderRestorePhase2Tests: XCTestCase {
         XCTAssertTrue(code.contains("newPhase == .background"), "flush must trigger on background")
     }
 
-    /// Restore waits for real content with bounded retries, not a fixed sleep.
+    /// Restore-once (feat-022): waits for real content with bounded retries,
+    /// assigns the saved offset exactly once, drops the re-assert + flag.
     func testReaderRestoreWaitsForContent() throws {
         let code = try strippedReaderView()
-        XCTAssertTrue(code.contains("isRestoringOffset"), "restore must track in-flight state")
-        XCTAssertTrue(code.contains("shouldReassert"), "restore must re-assert a lost set")
         XCTAssertTrue(code.contains("viewModel.blocks.isEmpty"), "restore must wait for chapter content")
+        XCTAssertTrue(code.contains("offsetToRestore"), "restore must read the saved offset")
+        XCTAssertTrue(code.contains("needsScrollRestore"), "restore must skip chapter-top offsets")
+        XCTAssertTrue(
+            code.contains("viewModel.chapterNumber == chapter"),
+            "restore must not apply a stale offset onto a new chapter"
+        )
+        XCTAssertFalse(code.contains("isRestoringOffset"), "restore-once must not use an in-flight flag")
+        XCTAssertFalse(code.contains("shouldReassert"), "restore-once must not re-assert")
+        XCTAssertFalse(code.contains("150_000_000"), "restore-once must not re-assert after a settle sleep")
         XCTAssertFalse(code.contains("10_000_000"), "fixed 10ms restore sleep must go")
     }
 
-    /// Chapter change during a restore must not scroll back to top over it.
-    func testReaderChapterChangeGuardedDuringRestore() throws {
+    /// Restore-once assigns the saved offset exactly once per appear (the only
+    /// CGPoint restore assign; scrollToTop uses .zero).
+    func testReaderRestoreAssignsOnce() throws {
         let code = try strippedReaderView()
-        XCTAssertTrue(
-            code.contains("guard !isRestoringOffset else { return }"),
-            "onChange chapterNumber must skip scrollToTop while restoring"
+        XCTAssertEqual(
+            code.components(separatedBy: "CGPoint(x: 0, y: offset)").count - 1,
+            1,
+            "exactly one restore assign of the saved offset"
         )
+    }
+
+    /// Chapter change always scrolls to top; a stale restore is dropped by the
+    /// chapter-equality guard instead of an in-flight flag.
+    func testReaderChapterChangeScrollsTopWithChapterGuard() throws {
+        let code = try strippedReaderView()
+        XCTAssertTrue(code.contains("scrollToTop()"), "chapter change must scroll to top")
+        XCTAssertTrue(
+            code.contains("viewModel.chapterNumber == chapter"),
+            "stale restore must be guarded by chapter equality"
+        )
+        XCTAssertFalse(code.contains("isRestoringOffset"), "no in-flight flag in restore-once")
     }
 
     /// Designer chips stay solid: all 5 chipBackground usages intact.

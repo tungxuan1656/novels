@@ -16,7 +16,6 @@ struct ReaderView: View {
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
     @State private var hapticTrigger = 0
-    @State private var isRestoringOffset = false
 
     init(
         bookId: String,
@@ -73,10 +72,6 @@ struct ReaderView: View {
                     .scrollBounceBehavior(.always, axes: .vertical)
                     .scrollPosition($scrollPosition)
                     .onChange(of: viewModel.chapterNumber) { _, _ in
-                        // A restore sets scrollPosition, never chapterNumber; skip the
-                        // top-scroll while a restore is in flight so a racing change
-                        // cannot clobber the position being restored.
-                        guard !isRestoringOffset else { return }
                         scrollToTop()
                     }
                     .onScrollGeometryChange(for: Double.self) { geometry in
@@ -479,10 +474,10 @@ struct ReaderView: View {
         // Top of chapter needs no scroll work: position already starts at zero.
         guard ReaderRestoreDecision.needsScrollRestore(offset: offset) else { return }
         let chapter = viewModel.chapterNumber
-        isRestoringOffset = true
         Task {
             // Bounded wait for real content (load finished + blocks/error present)
-            // instead of a fixed sleep, so layout exists when we scroll.
+            // so layout exists when we scroll. Single assign only; a brief top
+            // flash before the jump is accepted (feat-022).
             var attempt = 0
             while attempt < 20 {
                 let ready = await MainActor.run {
@@ -493,7 +488,7 @@ struct ReaderView: View {
                 if ready {
                     break
                 }
-                try? await Task.sleep(nanoseconds: 50_000_000)
+                try? await Task.sleep(nanoseconds: 100_000_000)
                 attempt += 1
             }
             await MainActor.run {
@@ -501,33 +496,14 @@ struct ReaderView: View {
                 guard viewModel.chapterNumber == chapter else { return }
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }
-            // Let layout settle, then re-assert once if the first set never took
-            // effect (still near top) — but never yank a user who scrolled away.
-            try? await Task.sleep(nanoseconds: 150_000_000)
-            await MainActor.run {
-                guard viewModel.chapterNumber == chapter else { return }
-                if ReaderRestoreDecision.shouldReassert(currentOffset: currentOffset, target: offset) {
-                    scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
-                }
-            }
-            await MainActor.run {
-                isRestoringOffset = false
-            }
         }
     }
 }
 
-/// Pure helpers for scroll-restore decisions — testable without UI.
+/// Pure helper for scroll-restore decision — testable without UI.
 enum ReaderRestoreDecision {
     /// Top-of-chapter (or missing) offsets need no scroll work.
     static func needsScrollRestore(offset: Double?) -> Bool {
         (offset ?? 0) > 0
-    }
-
-    /// Re-assert the restored position only when the first set never took effect
-    /// (still near top) for a positive target. A user who scrolled away, or a
-    /// chapter-top target, is always left alone.
-    static func shouldReassert(currentOffset: Double, target: Double) -> Bool {
-        target > 0 && currentOffset < 1
     }
 }

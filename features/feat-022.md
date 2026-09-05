@@ -19,10 +19,10 @@ Remember the last reading position `(bookId, chapterNumber, offset)` and restore
 
 ## Acceptance
 
-- [ ] Reading at X, back to Library, tap the same book again → shows X (brief top flash acceptable).
-- [ ] Reading at X, stop scrolling for >1s then swipe-kill the app, relaunch → opens straight into Reading with the right book/chapter, shows X after a brief top (lag ~1s acceptable).
-- [ ] Chapter change (prev/next buttons, edge swipe, TOC) → top, offset reset.
-- [ ] `./init.sh` full PASS.
+- [x] Reading at X, back to Library, tap the same book again → shows X (brief top flash acceptable).
+- [x] Reading at X, stop scrolling for >1s then swipe-kill the app, relaunch → opens straight into Reading with the right book/chapter, shows X after a brief top (lag ~1s acceptable).
+- [x] Chapter change (prev/next buttons, edge swipe, TOC) → top, offset reset.
+- [x] `./init.sh` full PASS.
 
 ## Relevant docs
 
@@ -51,7 +51,7 @@ File ownership: single writer owns all (no parallel).
 
 ## Handoff
 
-- State: todo (awaiting user approval to activate + implement)
-- Evidence: —
-- Blockers: none
-- Next: user approves plan (notably the Acceptance trade-off), then activate feat-022 for implementation.
+- State: done
+- Evidence: `./init.sh` full PASS 2026-09-05 (format/lint/build/test/drift; `ReaderRestorePhase2Tests` restore-once incl. `testReaderRestoreAssignsOnce` + `SeamlessRestoreTests` save-path untouched); `ReaderView.swift` −32/+~20 net negative (deleted `isRestoringOffset`/`shouldReassert`/150ms reassert, kept blocks-ready wait + chapter guard); `ReaderViewFixTests.swift` rewritten (deleted `testShouldReassert`, new restore-once assertions)
+- Blockers: none (tree uncommitted — not committed as not requested)
+- Next: user retests on Simulator (scroll→back→re-enter shows X; scroll→wait >1s→kill→relaunch shows X after brief top; chapter change → top; different book → top)

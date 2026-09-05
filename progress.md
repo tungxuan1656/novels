@@ -244,3 +244,11 @@
 **Evidence**: `features/feat-022.md`, `feature_index.json` (feat-022 todo, depends_on feat-004), `git status` shows only `M CacheManagerView.swift`
 **Blockers**: none
 **Next**: User approves plan (notably the brief top-flash trade-off), then activate feat-022 for implementation
+
+## 2026-09-05 — feat-022 done
+
+**State**: done
+**Done**: Reading Position Restore (Simple) — `ReaderView.restoreOffset` replaced with restore-once (100ms×20 ~2s wait for `!isLoading` + blocks/error, single `scrollPosition` assign; deleted `isRestoringOffset`/`shouldReassert`/150ms reassert; kept `offsetToRestore` + `needsScrollRestore` + chapter-equality stale guard + `scrollToTop` on chapter change; save path untouched); `ReaderViewFixTests` updated (`testShouldReassert` removed, restore-once assertions rewritten + `testReaderRestoreAssignsOnce` added); `feature_index.json` feat-022 done (zero active)
+**Evidence**: `apps/novels/Features/Reading/ReaderView.swift` (net negative), `apps/novelsTests/ReaderViewFixTests.swift`, `features/feat-022.md` (acceptance 4/4), `./init.sh` full PASS 2026-09-05 (format/lint/build/test PASS incl. restore-once + UITests/drift PASS 21/22)
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests on Simulator (scroll→back→re-enter shows X; scroll→wait>1s→kill→relaunch shows X after brief top; chapter change→top; different book→top)

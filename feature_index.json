@@ -134,7 +134,7 @@
     {
       "id": "feat-022",
       "title": "Reading Position Restore (Simple)",
-      "status": "todo",
+      "status": "done",
       "depends_on": ["feat-004"]
     }
   ]
