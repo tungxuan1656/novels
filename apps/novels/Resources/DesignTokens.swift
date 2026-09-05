@@ -132,7 +132,7 @@ extension ReadingTheme {
         // swiftlint:disable switch_case_alignment
         switch self {
             case .vangGiay:
-                return Color(hex: 0xD9CBA6)
+                return Color(hex: 0xD3D4D9)
             case .trang:
                 return Color(hex: 0xD3D4D9)
             case .den:
@@ -145,7 +145,7 @@ extension ReadingTheme {
         // swiftlint:disable switch_case_alignment
         switch self {
             case .vangGiay:
-                return Color(hex: 0xDCD2B6)
+                return Color(hex: 0xE5E7EB)
             case .trang:
                 return Color(hex: 0xE5E7EB)
             case .den:
