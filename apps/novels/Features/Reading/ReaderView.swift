@@ -127,8 +127,7 @@ struct ReaderView: View {
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
-                .presentationDetents([.height(600), .large])
-                .presentationBackground(.ultraThinMaterial)
+                .presentationDetents([.height(484), .large])
                 .preferredColorScheme(theme.preferredColorScheme)
         }
     }

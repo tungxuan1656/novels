@@ -89,6 +89,8 @@ A feature is done only when:
 - Full: `./init.sh` — format + lint + build + test + drift (source of truth, use for CI / pre-push / feature done)
 - Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build/test (for fast local loops)
 - Help: `./init.sh --help`
+- Testing: unit tests only. Do not add UI test targets.
+- Suites: `novelsTests` on iOS Simulator + hostless `novelsLogicTests` on macOS (pure-logic sources only, drift-guarded).
 
 `init.sh` is the source of truth. Full runs format, lint, build, test, drift. Quick skips build/test to save time. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
 
