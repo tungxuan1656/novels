@@ -79,6 +79,6 @@ correctly by run — still minimal, RAM-only, no over-engineering.
 ## Handoff
 
 - State: done
-- Evidence: `./init.sh` full PASS 2026-09-06 (format 0, lint 0 --strict, build PASS, test PASS incl. LogScreenGroupingTests + DiagnosticsLogTests, drift PASS 21/22)
+- Evidence: `./init.sh` full PASS 2026-09-06 (format 0, lint 0 --strict, build PASS, test PASS incl. LogScreenGroupingTests + DiagnosticsLogTests, drift PASS 21/22); commits `0df5025` + `1ccd7de` (PR review lows) pushed to PR 28
 - Blockers: none (tree uncommitted — not committed as not requested)
 - Next: repo idle — user retests Log screen (book filter, API vs Cache titles, realtime, retry success, search, JSON) on Simulator
