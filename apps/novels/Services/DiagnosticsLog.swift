@@ -171,7 +171,7 @@ struct AIResponseShape: Sendable, Equatable {
 actor DiagnosticsLog {
     static let shared = DiagnosticsLog()
     static let sessionId = UUID()
-    static let capacity = 500
+    nonisolated static let capacity = 500
 
     private static let logger = Logger(
         subsystem: "com.tungxuan.novels.diagnostics",

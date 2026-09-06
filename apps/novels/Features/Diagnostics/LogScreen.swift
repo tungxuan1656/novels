@@ -32,10 +32,13 @@ struct LogScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await store.refresh()
-            if initialFilter == .error {
-                groupExpanded = Set(filteredGroups.filter { $0.status == .failed }.map { $0.id })
-            } else if groupExpanded.isEmpty, let newest = runGroups.first {
-                groupExpanded = [newest.id]
+            // Search owns expansion while a query is active; auto-expand only on entry.
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if initialFilter == .error {
+                    groupExpanded = Set(filteredGroups.filter { $0.status == .failed }.map { $0.id })
+                } else if groupExpanded.isEmpty, let newest = runGroups.first {
+                    groupExpanded = [newest.id]
+                }
             }
             await store.observe()
         }
@@ -101,9 +104,10 @@ struct LogScreen: View {
                 .background(DesignTokens.backgroundWhite)
                 .accessibilityIdentifier("logList")
                 .accessibilityLabel("Danh sách nhật ký, \(filteredGroups.count) nhóm")
-                // Mirrors the DiagnosticsLog ring capacity; oldest entries evict beyond this.
-                if footnoteEntryCount >= 500 {
-                    Text("Chỉ giữ 500 mục mới nhất · mục cũ tự xóa")
+                // Reports ring eviction, so it always reflects the ring total,
+                // even when the visible list is narrowed by book or search.
+                if store.entries.count >= DiagnosticsLog.capacity {
+                    Text("Chỉ giữ \(DiagnosticsLog.capacity) mục mới nhất · mục cũ tự xóa")
                         .font(.caption)
                         .foregroundStyle(DesignTokens.muted)
                         .padding(.vertical, DesignTokens.spacing8)
@@ -164,17 +168,10 @@ struct LogScreen: View {
         }
     }
 
-    /// Ring footnote follows the visible scope: the global total when unfiltered,
-    /// the book-filtered visible count when opened from a book.
-    private var footnoteEntryCount: Int {
-        guard bookId != nil else { return store.entries.count }
-        return filteredGroups.reduce(0) { $0 + $1.entries.count }
-    }
-
     private func groupSubtitle(_ group: LogRunGroup) -> String {
         // Entries arrive newest-first, so the last one is the earliest — no scan per row.
-        // Count and range describe the visible entries (search hits when filtering);
-        // title, status, and progress always reflect the full run.
+        // Count, range, and latest describe the visible entries (search hits when
+        // filtering); title, status, and progress always reflect the full run.
         let earliest = group.entries.last?.timestamp ?? group.latest
         let start = logGroupHourFormatter.string(from: earliest)
         if Calendar.current.isDate(earliest, inSameDayAs: group.latest) {
@@ -286,10 +283,12 @@ struct LogScreen: View {
             guard LogRunBuilder.matches(group, needle: needle) else { return nil }
             let hits = LogRunBuilder.matchedEntries(group, needle: needle)
             guard !hits.isEmpty else { return group }
+            // Search narrows the visible scope: entries and latest describe the
+            // hits, while title/status/progress still reflect the full run.
             return LogRunGroup(
                 id: group.id,
                 title: group.title,
-                latest: group.latest,
+                latest: hits.first?.timestamp ?? group.latest,
                 entries: hits,
                 status: group.status,
                 chunkProgress: group.chunkProgress
