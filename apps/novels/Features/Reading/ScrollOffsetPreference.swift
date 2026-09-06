@@ -3,10 +3,11 @@ import SwiftUI
 
 /// Pure helper for edge-swipe chapter navigation — testable without UI.
 ///
-/// Convention: swipe right starting within the left third goes to previous
-/// chapter, swipe left starting within the right third goes to next chapter.
-/// The middle third ignores the gesture. Anything else (vertical, diagonal,
-/// short, wrong direction) is ignored.
+/// Convention: swipe right starting within the left 4/5 goes to previous
+/// chapter, swipe left starting within the right 4/5 goes to next chapter.
+/// The middle 3/5 overlaps and is disambiguated by direction. The far 1/5
+/// on the opposite edge acts as a guard against wrong-direction swipes.
+/// Anything else (vertical, diagonal, short, wrong direction) is ignored.
 enum EdgeSwipeDirection: Equatable {
     case prev
     case next
@@ -20,17 +21,17 @@ enum EdgeSwipeDecision {
     /// Decide navigation from a horizontal drag.
     /// - Parameters:
     ///   - startX: drag start x in content coordinates.
-    ///   - width: content width defining the left/right thirds.
+    ///   - width: content width defining the left/right 4/5 zones.
     ///   - dx: horizontal translation (positive = swipe right).
     ///   - dy: vertical translation.
     /// - Returns: `.prev` / `.next` when the gesture matches an edge swipe, else nil.
     static func decision(startX: CGFloat, width: CGFloat, dx: CGFloat, dy: CGFloat) -> EdgeSwipeDirection? {
         guard width > 0 else { return nil }
         guard abs(dx) >= minimumDistance, abs(dx) > directionRatio * abs(dy) else { return nil }
-        if startX <= width / 3, dx > 0 {
+        if startX <= width * 4 / 5, dx > 0 {
             return .prev
         }
-        if startX >= width * 2 / 3, dx < 0 {
+        if startX >= width / 5, dx < 0 {
             return .next
         }
         return nil

@@ -5,7 +5,7 @@ import XCTest
 final class ReaderViewFixTests: XCTestCase {
     private let width: CGFloat = 400
 
-    // MARK: - Edge swipe: happy paths (screen thirds)
+    // MARK: - Edge swipe: happy paths (screen 4/5 zones)
 
     func testLeftEdgeSwipeRightGoesPrev() {
         XCTAssertEqual(
@@ -16,9 +16,14 @@ final class ReaderViewFixTests: XCTestCase {
             EdgeSwipeDecision.decision(startX: 100, width: width, dx: 60, dy: 0),
             .prev
         )
-        // Boundary: exactly one third still counts as left third
+        // Boundary: exactly 4/5 still counts as left zone
         XCTAssertEqual(
-            EdgeSwipeDecision.decision(startX: width / 3, width: width, dx: 60, dy: 0),
+            EdgeSwipeDecision.decision(startX: width * 4 / 5, width: width, dx: 60, dy: 0),
+            .prev
+        )
+        // Overlap middle: direction decides
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 200, width: width, dx: 80, dy: 0),
             .prev
         )
     }
@@ -32,9 +37,14 @@ final class ReaderViewFixTests: XCTestCase {
             EdgeSwipeDecision.decision(startX: 300, width: width, dx: -60, dy: 0),
             .next
         )
-        // Boundary: exactly two thirds still counts as right third
+        // Boundary: exactly 1/5 still counts as right zone
         XCTAssertEqual(
-            EdgeSwipeDecision.decision(startX: width * 2 / 3, width: width, dx: -60, dy: 0),
+            EdgeSwipeDecision.decision(startX: width / 5, width: width, dx: -60, dy: 0),
+            .next
+        )
+        // Overlap middle: direction decides
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 200, width: width, dx: -80, dy: 0),
             .next
         )
     }
@@ -48,9 +58,9 @@ final class ReaderViewFixTests: XCTestCase {
     // MARK: - Edge swipe: ignored gestures
 
     func testWrongDirectionInEdgeIgnored() {
-        // Left third but swiping left is not prev
+        // Left 4/5 zone but swiping left is not prev
         XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: -80, dy: 0))
-        // Right third but swiping right is not next
+        // Right 4/5 zone but swiping right is not next
         XCTAssertNil(EdgeSwipeDecision.decision(startX: 390, width: width, dx: 80, dy: 0))
     }
 
@@ -73,19 +83,40 @@ final class ReaderViewFixTests: XCTestCase {
         XCTAssertNil(EdgeSwipeDecision.decision(startX: 10, width: width, dx: 0, dy: 0))
     }
 
-    func testMiddleSwipeIgnored() {
-        // Middle third ignores both directions
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 200, width: width, dx: 120, dy: 0))
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 200, width: width, dx: -120, dy: 0))
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 140, width: width, dx: 120, dy: 0))
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 260, width: width, dx: -120, dy: 0))
+    func testMiddleSwipeDirectionBased() {
+        // Overlap middle 1/5...4/5: swipe right -> prev, swipe left -> next
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 200, width: width, dx: 120, dy: 0),
+            .prev
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 200, width: width, dx: -120, dy: 0),
+            .next
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 140, width: width, dx: 120, dy: 0),
+            .prev
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 260, width: width, dx: -120, dy: 0),
+            .next
+        )
     }
 
-    func testJustOutsideThirdIgnored() {
-        // Just past the left third is middle: swipe right ignored
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 140, width: width, dx: 80, dy: 0))
-        // Just before the right third is middle: swipe left ignored
-        XCTAssertNil(EdgeSwipeDecision.decision(startX: 260, width: width, dx: -80, dy: 0))
+    func testJustOutsideFourFifthsIgnored() {
+        // Just past the left 4/5 is guard: swipe right ignored
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 330, width: width, dx: 80, dy: 0))
+        // Just before the right 4/5 (i.e. below 1/5) is guard: swipe left ignored
+        XCTAssertNil(EdgeSwipeDecision.decision(startX: 70, width: width, dx: -80, dy: 0))
+        // Just inside still fires
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 310, width: width, dx: 80, dy: 0),
+            .prev
+        )
+        XCTAssertEqual(
+            EdgeSwipeDecision.decision(startX: 90, width: width, dx: -80, dy: 0),
+            .next
+        )
     }
 
     func testVerticalSwipeIgnored() {
