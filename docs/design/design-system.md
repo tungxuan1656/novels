@@ -18,31 +18,33 @@ Elevation: flat / raised / overlay
 
 Tokens map to values and uses.
 
-- **background (reading)** — trio theo `ReadingTheme` (feat-021, code canonical): Vàng giấy `#F5F1E5` (mặc định), Trắng `#FFFFFF`, Đen `#171512`. Drift `#FDFCF8` trong docs cũ đã resolved về `#F5F1E5` theo code `DesignTokens.swift`. `headerBg` trùng `background` để liền mạch khi cuộn.
+- **background (reading)** — Full 5 theo `ReadingTheme` (feat-026, code canonical): Sách `#F7F1E3` (mặc định), Xanh dịu `#EEF3F0`, Xanh lam `#EEF4F8`, Đêm `#1C1C1E`, AMOLED `#000000`. `headerBg` trùng `background` để liền mạch khi cuộn. Không dùng nền vàng đậm / xanh đậm / tím đậm cho nền đọc chính (chỉ làm accent).
 - **background (non-reading)** — #FFFFFF white for Library and Settings, #F5F5F5 light gray for grouped sections
 - **surface** — #FFFFFF for cards and sheets (non-reading; reading sheet dùng `ultraThinMaterial` + forced scheme theo theme)
-- **text (reading)** — theo theme: Vàng/Trắng `#111111`, Đen `#ECE7DF` (trắng ấm, không dùng `#FFFFFF` để đỡ lóa). Body contrast AAA (~12–19:1).
+- **text (reading)** — theo theme: Sách `#38342E`, Xanh dịu `#29332F`, Xanh lam `#29343B`, Đêm `#D2D2D2`, AMOLED `#C8C8C8` (trắng thuần không dùng cho Đêm để đỡ lóa). Body contrast AAA (~11–13:1).
 - **text (non-reading)** — #111111 near-black for titles
-- **muted/icon (reading)** — theo theme: Vàng/Trắng `#6B7280`, Đen `#A8A29E` (`#6B7280` trên nền đen chỉ ~3.2:1 nên bắt buộc sáng lên để đạt AA ~6:1)
+- **muted/icon (reading)** — theo theme: Sách `#655C4E`, Xanh dịu `#55645D`, Xanh lam `#55636E`, Đêm `#A8A8A8`, AMOLED `#A0A0A0` (muted giữ cùng họ hue với text để hài hòa; tất cả đạt AA ≥4.5:1 trên nền tương ứng, vượt 3:1 cho icon)
 - **muted (non-reading)** — #6B7280 for meta and hints
-- **chip (reading)** — Vàng `#E8DDC0`, Trắng `#EFEFF1`, Đen `#2A2724`
-- **border (reading)** — Vàng `#DCD2B6`, Trắng `#E5E7EB`, Đen `#3B3732`; divider trong sheet dùng theme border
-- **accent (reading)** — Vàng/Trắng `#2563EB`, Đen `#60A5FA` (`#2563EB` trên nền đen chỉ ~3.3:1 nên đổi riêng để đạt AA)
+- **chip (reading)** — Sách `#E7DEC7`, Xanh dịu `#DCE5DF`, Xanh lam `#DCE6EE`, Đêm `#2C2C2E`, AMOLED `#1C1C1E` (nút pill/icon nổi nhẹ trên nền; icon trên chip vẫn ≥4.5:1)
+- **border (reading)** — Sách `#D8CCAC`, Xanh dịu `#C2CFC8`, Xanh lam `#BFD0DC`, Đêm `#3A3A3C`, AMOLED `#2E2E30`; divider trong sheet dùng theme border
+- **accent (reading)** — Sáng `#2563EB` (cả 3 theme sáng, ~4.6:1 trên nền), Tối `#7AB8FF` (Đêm ~8.2:1, AMOLED ~10.1:1; dịu mắt khi đọc đêm)
 - **accent (non-reading)** — #2563EB blue for active states and info
 - **success** — #16A34A green for confirm and enabled
 - **warning** — #EA580C orange for warnings
 - **error** — #DC2626 red for delete and errors
 - **border (non-reading)** — #E5E7EB light neutral, 1px for dividers
 
-Reading trio (approved feat-021, giữ nguyên từng số):
+Reading Full 5 (approved feat-026, giữ nguyên từng số bg/text):
 
 | Theme | bg/header | text | muted/icon | chip | border | accent |
 |---|---|---|---|---|---|---|
-| Vàng giấy (default) | `#F5F1E5` | `#111111` | `#6B7280` | `#E8DDC0` | `#DCD2B6` | `#2563EB` |
-| Trắng | `#FFFFFF` | `#111111` | `#6B7280` | `#EFEFF1` | `#E5E7EB` | `#2563EB` |
-| Đen | `#171512` | `#ECE7DF` | `#A8A29E` | `#2A2724` | `#3B3732` | `#60A5FA` |
+| Sách (default) | `#F7F1E3` | `#38342E` | `#655C4E` | `#E7DEC7` | `#D8CCAC` | `#2563EB` |
+| Xanh dịu | `#EEF3F0` | `#29332F` | `#55645D` | `#DCE5DF` | `#C2CFC8` | `#2563EB` |
+| Xanh lam | `#EEF4F8` | `#29343B` | `#55636E` | `#DCE6EE` | `#BFD0DC` | `#2563EB` |
+| Đêm | `#1C1C1E` | `#D2D2D2` | `#A8A8A8` | `#2C2C2E` | `#3A3A3C` | `#7AB8FF` |
+| AMOLED | `#000000` | `#C8C8C8` | `#A0A0A0` | `#1C1C1E` | `#2E2E30` | `#7AB8FF` |
 
-Nguyên tắc: theme đọc override system dark mode chỉ trong Reader stack (`preferredColorScheme` .light cho Vàng/Trắng, .dark cho Đen); disabled icon opacity 0.35 (sáng) / 0.42 (tối), giữ `.disabled`; sheet force scheme theo theme để `ultraThinMaterial` không chói.
+Nguyên tắc: theme đọc override system dark mode chỉ trong Reader stack (`preferredColorScheme` .light cho Sách/Xanh dịu/Xanh lam, .dark cho Đêm/AMOLED); disabled icon opacity 0.35 (sáng) / 0.42 (tối), giữ `.disabled`; sheet force scheme theo theme để `ultraThinMaterial` không chói. Picker `Màu nền` 5-across một hàng (swatch 42pt + nhãn 12pt, ring accent 2.5pt + check + semibold khi chọn).
 
 Icons use muted/iconTint for idle and surface for on-color. Contrast is 4.5:1 for text and 3:1 for icons.
 

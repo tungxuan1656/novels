@@ -18,7 +18,7 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
 | `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite`); unknown → `none` |
-| `readingTheme` | `string` | `vangGiay` | Reading theme trio (`vangGiay` / `trang` / `den`); unknown → `vangGiay`; offline-first via `SettingsStore` |
+| `readingTheme` | `string` | `sach` | Reading theme Full 5 (`sach` / `xanhDiu` / `xanhLam` / `dem` / `amoled`); unknown → `sach`; offline-first via `SettingsStore` |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
@@ -33,7 +33,7 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **Prefetch N parsing (one shared trim rule):** trim surrounding whitespace, then `Int`, then finite-`Double` truncation — so `" 20"`, `"20 "`, `"20.0"`/`"20.9"`→`20`, `"1e3"`→`1000`, `"+20"`→`20`. Shared by editor validation, `setValue`, and `intValue` for `PREFETCH_COUNT` only (chunk size still parses strict `Int`). Nothing numeric (or non-finite like `nan`/`inf`) → parse failure.
 - **Prefetch N block-vs-coerce:** the editor **blocks** invalid or out-of-range input (save disabled, old value kept — it never writes a fallback). `save()` → `sanitize()` **coerces** an out-of-range stored value (`PREFETCH_COUNT` → `3`). Chunk size follows the same shape with fallback `1300`. Out of range or NaN on read → `1300` / `3`.
 - **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
-- **Reading theme:** rawValue string of `ReadingTheme` (`vangGiay` / `trang` / `den`); missing, non-string, or unknown → `vangGiay`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
+- **Reading theme:** rawValue string of `ReadingTheme` (`sach` / `xanhDiu` / `xanhLam` / `dem` / `amoled`); missing, non-string, unknown, or legacy trio (`vangGiay` / `trang` / `den`) → `sach`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
 - **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..50 step 0.5`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
 
@@ -48,7 +48,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 - **Stored N vs effective N:** `prefetchCount` (stored) may transiently hold an out-of-range value until `save()` coerces it; readers (prefetch manager, Settings row) always use `effectivePrefetchCount()` (clamped, read-only). The Settings row shows the effective N. `prefetch.batchCheck` logs the single consumed N (`storedN=`/`effectiveN=`) so a settings fault is distinguishable from a cache/total cut.
 - **No runtime cap (BR-08):** there is no runtime window cap; the effective N is honored as-is (N=1000 is paced by the sequential FIFO worker plus the 600s per-chapter / 1800s global budgets, not clamped). `prefetch.batchCheck` logs the single consumed N only, with no applied cap field. Range `0..1000` else `3` is unchanged.
 - If `AI_MODE` is not `none` or `rewrite`, use `none`.
-- If `readingTheme` is not `vangGiay`, `trang`, or `den`, use `vangGiay`.
+- If `readingTheme` is not `sach`, `xanhDiu`, `xanhLam`, `dem`, or `amoled` (including legacy `vangGiay`, `trang`, `den`), use `sach`.
 - If `AI_CUSTOM_HEADERS` or `AI_EXTRA_BODY` is invalid JSON, ignore it and continue.
 
 ## Avoid

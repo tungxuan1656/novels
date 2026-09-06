@@ -12,6 +12,14 @@
 
 <!-- Add each new block below this note. Do not edit older blocks. -->
 
+## 2026-09-06 — feat-026 done
+
+**State**: done
+**Done**: Reading Themes Full 5 — `ReadingTheme` sach/xanhDiu/xanhLam/dem/amoled (default sach, legacy trio → sach), full palette AA (body 11–12.5 AAA, muted ≥4.5, accent #2563EB light / #7AB8FF dark), sheet picker 5-across 42pt live + haptic + a11y VI + force scheme, docs 5-row tables; version bump 1.0.3 → 1.0.4
+**Evidence**: `features/feat-026.md` (acceptance 6/6), `feature_index.json` feat-026 done (zero active), `Domain/ReadingTheme.swift` + `Resources/DesignTokens.swift` + `Persistence/SettingsStore.swift` + `Features/Reading/ReaderBottomSheet.swift` + `ReadingThemeTests` + 2 docs; `./init.sh` full PASS (format/lint/build/test incl. UITests/drift PASS)
+**Blockers**: none (tree uncommitted on `main` — branch/commit/PR tiếp theo)
+**Next**: checkout branch `feat/026-reading-themes-full-5`, commit, tạo PR
+
 ## 2026-09-06 — feat-025 done
 
 **State**: done

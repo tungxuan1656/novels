@@ -78,18 +78,22 @@ enum DesignTokens {
     static let sidePadding: CGFloat = 16
 }
 
-// MARK: - Reading themes (feat-021, approved trio, exact hex)
+// MARK: - Reading themes (feat-026, approved Full 5, exact bg/text hex)
 
 extension ReadingTheme {
     var background: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
-                return Color(hex: 0xF5F1E5)
-            case .trang:
-                return Color(hex: 0xFFFFFF)
-            case .den:
-                return Color(hex: 0x171512)
+            case .sach:
+                return Color(hex: 0xF7F1E3)
+            case .xanhDiu:
+                return Color(hex: 0xEEF3F0)
+            case .xanhLam:
+                return Color(hex: 0xEEF4F8)
+            case .dem:
+                return Color(hex: 0x1C1C1E)
+            case .amoled:
+                return Color(hex: 0x000000)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -101,12 +105,16 @@ extension ReadingTheme {
     var textPrimary: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
-                return Color(hex: 0x111111)
-            case .trang:
-                return Color(hex: 0x111111)
-            case .den:
-                return Color(hex: 0xECE7DF)
+            case .sach:
+                return Color(hex: 0x38342E)
+            case .xanhDiu:
+                return Color(hex: 0x29332F)
+            case .xanhLam:
+                return Color(hex: 0x29343B)
+            case .dem:
+                return Color(hex: 0xD2D2D2)
+            case .amoled:
+                return Color(hex: 0xC8C8C8)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -114,12 +122,16 @@ extension ReadingTheme {
     var textMuted: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
-                return Color(hex: 0x6B7280)
-            case .trang:
-                return Color(hex: 0x6B7280)
-            case .den:
-                return Color(hex: 0xA8A29E)
+            case .sach:
+                return Color(hex: 0x655C4E)
+            case .xanhDiu:
+                return Color(hex: 0x55645D)
+            case .xanhLam:
+                return Color(hex: 0x55636E)
+            case .dem:
+                return Color(hex: 0xA8A8A8)
+            case .amoled:
+                return Color(hex: 0xA0A0A0)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -131,12 +143,16 @@ extension ReadingTheme {
     var chipBackground: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
-                return Color(hex: 0xD3D4D9)
-            case .trang:
-                return Color(hex: 0xD3D4D9)
-            case .den:
-                return Color(hex: 0x2A2724)
+            case .sach:
+                return Color(hex: 0xE7DEC7)
+            case .xanhDiu:
+                return Color(hex: 0xDCE5DF)
+            case .xanhLam:
+                return Color(hex: 0xDCE6EE)
+            case .dem:
+                return Color(hex: 0x2C2C2E)
+            case .amoled:
+                return Color(hex: 0x1C1C1E)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -144,12 +160,16 @@ extension ReadingTheme {
     var borderColor: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
-                return Color(hex: 0xE5E7EB)
-            case .trang:
-                return Color(hex: 0xE5E7EB)
-            case .den:
-                return Color(hex: 0x3B3732)
+            case .sach:
+                return Color(hex: 0xD8CCAC)
+            case .xanhDiu:
+                return Color(hex: 0xC2CFC8)
+            case .xanhLam:
+                return Color(hex: 0xBFD0DC)
+            case .dem:
+                return Color(hex: 0x3A3A3C)
+            case .amoled:
+                return Color(hex: 0x2E2E30)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -157,12 +177,10 @@ extension ReadingTheme {
     var accentColor: Color {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay:
+            case .sach, .xanhDiu, .xanhLam:
                 return Color(hex: 0x2563EB)
-            case .trang:
-                return Color(hex: 0x2563EB)
-            case .den:
-                return Color(hex: 0x60A5FA)
+            case .dem, .amoled:
+                return Color(hex: 0x7AB8FF)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -170,16 +188,16 @@ extension ReadingTheme {
     var preferredColorScheme: ColorScheme {
         // swiftlint:disable switch_case_alignment
         switch self {
-            case .vangGiay, .trang:
+            case .sach, .xanhDiu, .xanhLam:
                 return .light
-            case .den:
+            case .dem, .amoled:
                 return .dark
         }
         // swiftlint:enable switch_case_alignment
     }
 
     var isDark: Bool {
-        self == .den
+        self == .dem || self == .amoled
     }
 
     var disabledIconOpacity: Double {

@@ -120,7 +120,7 @@ struct ReaderBottomSheet: View {
             Text("Màu nền")
                 .font(.subheadline)
                 .foregroundStyle(theme.textPrimary)
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 ForEach(ReadingTheme.allCases) { option in
                     themeOption(option: option)
                 }
@@ -140,7 +140,7 @@ struct ReaderBottomSheet: View {
                 ZStack {
                     Circle()
                         .fill(option.background)
-                        .frame(width: 48, height: 48)
+                        .frame(width: 42, height: 42)
                         .overlay(
                             Circle()
                                 .strokeBorder(
@@ -150,15 +150,17 @@ struct ReaderBottomSheet: View {
                         )
                     if isSelected {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 15, weight: .bold))
                             .foregroundStyle(option.textPrimary)
                             .accessibilityHidden(true)
                     }
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 42, height: 42)
                 Text(option.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                     .foregroundStyle(theme.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
