@@ -179,6 +179,8 @@ actor DiagnosticsLog {
     )
 
     private var buffer: [LogEntry] = []
+    private var continuation: AsyncStream<Void>.Continuation?
+    private var subscriberGeneration = 0
 
     func append(_ entry: LogEntry) {
         if buffer.count >= Self.capacity {
@@ -186,6 +188,44 @@ actor DiagnosticsLog {
         }
         buffer.append(entry)
         Self.logger.info("\(entry.debugSummary, privacy: .private)")
+        continuation?.yield()
+    }
+
+    /// Single-subscriber realtime signal: one Void tick per append.
+    /// Newest-1 buffering so a gone observer never grows the buffer.
+    /// Debounce lives in `DiagnosticsStore.observe()` (MainActor), never in a Task here.
+    /// Single-instance assumption: the app presents at most one log viewer, so a
+    /// new subscription supersedes the previous one, whose loop then ends.
+    func updates() -> AsyncStream<Void> {
+        subscribe().stream
+    }
+
+    /// Opens the single-subscriber stream and vends its generation token.
+    /// `finishUpdates(generation:)` only ends the matching generation, so a stale
+    /// cancellation can never kill a fresh subscription after reappear.
+    func subscribe() -> (stream: AsyncStream<Void>, generation: Int) {
+        subscriberGeneration += 1
+        let generation = subscriberGeneration
+        let stream = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+            self.continuation?.finish()
+            self.continuation = continuation
+        }
+        return (stream, generation)
+    }
+
+    /// Ends the current subscription so a cancelled observer releases promptly.
+    func finishUpdates() {
+        finishUpdates(generation: nil)
+    }
+
+    /// Ends the subscription only when the token still matches the latest
+    /// subscriber; a superseded generation is left alone.
+    func finishUpdates(generation: Int?) {
+        if let generation, generation != subscriberGeneration {
+            return
+        }
+        continuation?.finish()
+        continuation = nil
     }
 
     func snapshot() -> [LogEntry] {
@@ -209,14 +249,39 @@ final class DiagnosticsStore {
 
     var entries: [LogEntry] = []
 
+    /// Rows the error filter would list. Same definition as `LogKindFilter.error`
+    /// (`LogEntry.isError`): HTTP status >= 400, error domain/code present, or
+    /// fail/error/timeout/cancel markers; muted cancels are excluded.
     var errorCount: Int {
-        entries.filter { $0.event == "chunk.fail" || $0.errorCode != nil }.count
+        entries.filter(LogEntry.isError).count
     }
 
     init() {}
 
     func refresh() async {
         entries = await DiagnosticsLog.shared.snapshot()
+    }
+
+    /// Realtime follow with MainActor-side debounce: rapid ticks coalesce
+    /// into one refresh 250ms after the last tick. The final pending refresh
+    /// is flushed before exit, and cancellation finishes only this observer's
+    /// generation, so a reappearing viewer is never killed by a stale cancel.
+    func observe() async {
+        let subscription = await DiagnosticsLog.shared.subscribe()
+        await withTaskCancellationHandler {
+            var pending: Task<Void, Never>?
+            for await _ in subscription.stream {
+                pending?.cancel()
+                pending = Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                    guard !Task.isCancelled else { return }
+                    await self?.refresh()
+                }
+            }
+            await pending?.value
+        } onCancel: {
+            Task { await DiagnosticsLog.shared.finishUpdates(generation: subscription.generation) }
+        }
     }
 
     func clear() async {

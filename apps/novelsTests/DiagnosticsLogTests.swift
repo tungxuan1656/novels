@@ -118,6 +118,62 @@ final class DiagnosticsLogTests: XCTestCase {
         XCTAssertEqual(entries.last?.detail, "i=500")
     }
 
+    // MARK: - Realtime (feat-025)
+
+    func testUpdatesEmitsTickOnAppend() async throws {
+        let log = DiagnosticsLog()
+        // Subscribe before appending: updates() registers synchronously,
+        // so the tick can never be lost to subscribe/append ordering.
+        let stream = await log.updates()
+        let waiter = Task { () -> Bool in
+            for await _ in stream {
+                return true
+            }
+            return false
+        }
+        defer { waiter.cancel() }
+        await log.append(LogEntry(
+            sessionId: DiagnosticsLog.sessionId,
+            bookId: "tick",
+            chapterNumber: 1,
+            event: "tick.probe"
+        ))
+        let got = try await withThrowingTaskGroup(of: Bool.self) { group in
+            group.addTask { await waiter.value }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                return false
+            }
+            guard let first = try await group.next() else { return false }
+            await log.finishUpdates()
+            group.cancelAll()
+            return first
+        }
+        XCTAssertTrue(got)
+    }
+
+    @MainActor
+    func testErrorCountReusesIsError() async {
+        await DiagnosticsLog.shared.clear()
+        await DiagnosticsLog.shared.append(LogEntry(
+            sessionId: DiagnosticsLog.sessionId,
+            bookId: "b",
+            chapterNumber: 1,
+            event: "chunk.fail"
+        ))
+        await DiagnosticsLog.shared.append(LogEntry(
+            sessionId: DiagnosticsLog.sessionId,
+            bookId: "b",
+            chapterNumber: 1,
+            event: "prefetch.cancel",
+            detail: "reason=chapterChange"
+        ))
+        let store = DiagnosticsStore()
+        await store.refresh()
+        XCTAssertEqual(store.errorCount, 1)
+        await DiagnosticsLog.shared.clear()
+    }
+
     // MARK: - Timeout config
 
     func testTimeoutConfigurationValues() {

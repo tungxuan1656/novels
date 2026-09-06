@@ -7,7 +7,7 @@ enum LogKind: String, Sendable, Equatable {
 
 struct LogEntry: Identifiable, Sendable, Equatable {
     let id: UUID = .init()
-    let timestamp: Date = .init()
+    let timestamp: Date
     let requestId: UUID
     let sessionId: UUID
     let kind: LogKind
@@ -50,6 +50,7 @@ struct LogEntry: Identifiable, Sendable, Equatable {
 
     init(
         requestId: UUID = UUID(),
+        timestamp: Date = Date(),
         sessionId: UUID,
         kind: LogKind = .event,
         bookId: String = "",
@@ -84,6 +85,7 @@ struct LogEntry: Identifiable, Sendable, Equatable {
         responseBody: String? = nil
     ) {
         self.requestId = requestId
+        self.timestamp = timestamp
         self.sessionId = sessionId
         self.kind = kind
         self.bookId = bookId
@@ -143,6 +145,48 @@ struct LogEntry: Identifiable, Sendable, Equatable {
             parts.append("content=\(contentKind)")
         }
         return parts.joined(separator: " ")
+    }
+}
+
+/// Shared error predicates for log entries. Lives in Domain so both the
+/// diagnostics store (Services) and the viewer (Features) use one definition.
+extension LogEntry {
+    /// Deliberate navigation/disappear/manual cancels — muted Cancelled, never Failed-red.
+    /// Anything else (`budgetExhausted`, `bookDeleted`, unknown or missing reason) stays an error.
+    static let mutedCancelReasons: Set<String> = ["chapterChange", "modeChange", "disappear", "manual", "testDone"]
+
+    /// Extracts `reason=<token>` from a `prefetch.cancel` detail
+    /// (`"reason=budgetExhausted scope=global"` → `"budgetExhausted"`).
+    static func cancelReason(of entry: LogEntry) -> String? {
+        guard entry.event == "prefetch.cancel",
+              let detail = entry.detail,
+              let range = detail.range(of: "reason=")
+        else { return nil }
+        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
+        return token.isEmpty ? nil : String(token)
+    }
+
+    static func isMutedCancel(_ entry: LogEntry) -> Bool {
+        guard let reason = cancelReason(of: entry) else { return false }
+        return mutedCancelReasons.contains(reason)
+    }
+
+    /// Error heuristic behind the error filter tab, the store badge, and run status.
+    /// Muted cancels are intentional control flow, never errors:
+    /// cancelled rows stay non-red and the error tab never lists them.
+    static func isError(_ entry: LogEntry) -> Bool {
+        if isMutedCancel(entry) {
+            return false
+        }
+        if let code = entry.statusCode, code >= 400 {
+            return true
+        }
+        if entry.errorDomain != nil || entry.errorCode != nil {
+            return true
+        }
+        let marker = (entry.event ?? "").lowercased()
+        return marker.contains("fail") || marker.contains("error")
+            || marker.contains("timeout") || marker.contains("cancel")
     }
 }
 

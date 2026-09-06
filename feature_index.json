@@ -148,6 +148,12 @@
       "title": "Prefetch FIFO Queue Refactor (feat-023 extend)",
       "status": "done",
       "depends_on": ["feat-023"]
+    },
+    {
+      "id": "feat-025",
+      "title": "Log Viewer Correctness (title + realtime + grouping)",
+      "status": "done",
+      "depends_on": ["feat-019", "feat-023"]
     }
   ]
 }
