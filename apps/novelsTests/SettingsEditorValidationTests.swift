@@ -76,12 +76,10 @@ final class SettingsEditorValidationTests: XCTestCase {
         let store = SettingsStore(userDefaults: userDefaults)
         store.typography.fontSize = 99
         store.typography.lineHeight = 99
-        store.typography.letterSpacing = 5
         store.save()
         let reloaded = SettingsStore(userDefaults: userDefaults)
         XCTAssertEqual(reloaded.typography.fontSize, 16)
         XCTAssertEqual(reloaded.typography.lineHeight, 5)
-        XCTAssertEqual(reloaded.typography.letterSpacing, 0)
     }
 
     func testSurvivesRelaunch() throws {

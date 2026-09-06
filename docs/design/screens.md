@@ -24,7 +24,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 **Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
 - Font picker
 - Inline AI Rewrite picker ("AI Rewrite": Không / Rewrite) with Reprocess button ("Xử lý lại") positioned right beside it in the same row
-- Steppers for size, line height, and letter spacing
+- Steppers for size and line height
 - Log button ("Nhật ký") below AI section → push Log timeline
 Gear opens Settings.
 

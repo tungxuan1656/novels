@@ -169,7 +169,6 @@ struct ReaderView: View {
                 }
                 combined
                     .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-                    .kerning(CGFloat(settingsStore.typography.letterSpacing))
                     .multilineTextAlignment(.leading)
             }
         }
@@ -184,7 +183,6 @@ struct ReaderView: View {
             .font(font)
             .foregroundStyle(theme.textPrimary)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-            .kerning(CGFloat(settingsStore.typography.letterSpacing))
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("aiContent")

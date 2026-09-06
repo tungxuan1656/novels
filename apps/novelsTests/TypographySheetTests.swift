@@ -19,12 +19,6 @@ final class TypographySheetTests: XCTestCase {
         store.typography.lineHeight = 99
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 5)
-        store.typography.letterSpacing = 0.5
-        store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 0.5)
-        store.typography.letterSpacing = 99
-        store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 0)
     }
 
     func testTypographyFontPersists() throws {
@@ -43,23 +37,17 @@ final class TypographySheetTests: XCTestCase {
         let store = SettingsStore(userDefaults: userDefaults)
         store.typography.fontSize = 12
         store.typography.lineHeight = 1.2
-        store.typography.letterSpacing = 0
         store.save()
         store.typography.fontSize = 40
         store.typography.lineHeight = 5.0
-        store.typography.letterSpacing = 3.0
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.fontSize, 40)
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 5.0)
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 3.0)
         store.typography.fontSize = 11
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.fontSize, 16)
         store.typography.lineHeight = 0.9
         store.save()
         XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.lineHeight, 5)
-        store.typography.letterSpacing = -0.1
-        store.save()
-        XCTAssertEqual(SettingsStore(userDefaults: userDefaults).typography.letterSpacing, 0)
     }
 }

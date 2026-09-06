@@ -94,8 +94,7 @@ final class DomainCodableTests: XCTestCase {
         let setting = TypographySetting(
             font: "System",
             fontSize: 16,
-            lineHeight: 1.5,
-            letterSpacing: 0
+            lineHeight: 1.5
         )
         let data = try JSONEncoder().encode(setting)
         let decoded = try JSONDecoder().decode(TypographySetting.self, from: data)
@@ -107,7 +106,6 @@ final class DomainCodableTests: XCTestCase {
         XCTAssertEqual(defaults.font, "System")
         XCTAssertEqual(defaults.fontSize, 16)
         XCTAssertEqual(defaults.lineHeight, 5)
-        XCTAssertEqual(defaults.letterSpacing, 0)
     }
 
     func testSettingsDefaultsPrompt() {

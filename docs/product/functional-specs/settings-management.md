@@ -5,7 +5,7 @@
 ## Flow (ordered steps actor / system)
 
 1. On launch, system restores current settings from `UserDefaults` via `@Observable` store. Missing or invalid values are sanitized to defaults before features read them. Unknown and legacy keys are ignored.
-2. Actor opens Settings. System shows groups: catalog address, AI (service address, model, provider, custom headers/body, unit size, Prompt system prompt), prefetch N, typography (font, size, line height, spacing).
+2. Actor opens Settings. System shows groups: catalog address, AI (service address, model, provider, custom headers/body, unit size, Prompt system prompt), prefetch N, typography (font, size, line height).
 3. Actor edits a value. System validates and saves to `UserDefaults` via the `@Observable` store. Next operation uses the new value.
 4. Invalid edits fallback to defaults on next launch without crashing. Typography restores on launch to style the reader. No network at launch.
 

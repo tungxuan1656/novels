@@ -59,11 +59,6 @@ struct SettingDescriptor {
                 return "1.0..50"
             case "font":
                 return Self.fontError(value)
-            case "letterSpacing":
-                if let number = Double(value), (0 ... 3.0).contains(number) {
-                    return nil
-                }
-                return "0..3.0"
             default:
                 return nil
         }
@@ -198,14 +193,6 @@ enum SettingsViewModel {
             placeholder: "5",
             description: "1.0..50, bước 0.5",
             defaultValue: "5",
-            allowsVerbatimSave: false
-        ),
-        "letterSpacing": SettingDescriptor(
-            key: "letterSpacing",
-            label: "Giãn chữ",
-            placeholder: "0",
-            description: "0..3.0, bước 0.1",
-            defaultValue: "0",
             allowsVerbatimSave: false
         ),
     ]

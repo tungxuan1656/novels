@@ -20,9 +20,9 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite`); unknown → `none` |
 | `readingTheme` | `string` | `sach` | Reading theme Full 5 (`sach` / `xanhDiu` / `xanhLam` / `dem` / `amoled`); unknown → `sach`; offline-first via `SettingsStore` |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
-| Typography: `font`, `fontSize`, `lineHeight`, `letterSpacing` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
+| Typography: `font`, `fontSize`, `lineHeight` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
-UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height/spacing), reading theme (`Màu nền` in Reader sheet, not in Settings list) — see `settings-management.md` Flow step 2.
+UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), prefetch N, typography (font/size/line height), reading theme (`Màu nền` in Reader sheet, not in Settings list) — see `settings-management.md` Flow step 2.
 
 ## Validation Rules
 
@@ -35,7 +35,7 @@ UI groups: catalog address, AI (URL/model/provider/headers/body/chunk/prompt), p
 - **AI mode:** rawValue string of `AIMode`; missing or not `none`/`rewrite` → `none`.
 - **Reading theme:** rawValue string of `ReadingTheme` (`sach` / `xanhDiu` / `xanhLam` / `dem` / `amoled`); missing, non-string, unknown, or legacy trio (`vangGiay` / `trang` / `den`) → `sach`. Persisted via `UserDefaults` key `readingTheme`, applied live to `ReaderView` + `ReaderBottomSheet`.
 - **Diagnostics verbose:** boolean, default `false`; unknown → `false`.
-- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..50 step 0.5`, `letterSpacing 0..3.0 step 0.1`; invalid → defaults.
+- **Typography:** `fontSize 12..40 step 1`, `lineHeight 1.0..50 step 0.5`; invalid → defaults.
 
 ## Current Keys Only
 

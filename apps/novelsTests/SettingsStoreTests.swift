@@ -41,13 +41,11 @@ final class SettingsStoreTests: XCTestCase {
         store.aiMinChunkSize = 100
         store.typography.fontSize = 100
         store.typography.lineHeight = 99
-        store.typography.letterSpacing = 5.0
         store.sanitize()
         XCTAssertEqual(store.prefetchCount, 3)
         XCTAssertEqual(store.aiMinChunkSize, 1300)
         XCTAssertEqual(store.typography.fontSize, 16)
         XCTAssertEqual(store.typography.lineHeight, 5)
-        XCTAssertEqual(store.typography.letterSpacing, 0)
 
         store.prefetchCount = -1
         store.sanitize()

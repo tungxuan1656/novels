@@ -62,7 +62,7 @@ idle ──► checking cache ──► processing sequentially ──► done
 | **ProcessedChapter** | Cached AI result for one chapter and mode | `bookId`, `chapterNumber`, `mode`, `content`, `contentHash`, `createdAt`, `updatedAt` | Processed chapter cache |
 | **AI_PROMPT** | Configurable AI system prompt | `prompt` | Persistent settings store |
 | **ReadingSession** | Persisted reading position | `bookId`, `onScreen`, `offset` | Persistent settings store |
-| **TypographySetting** | Reader appearance | `font`, `fontSize`, `lineHeight`, `letterSpacing` | Persistent settings store |
+| **TypographySetting** | Reader appearance | `font`, `fontSize`, `lineHeight` | Persistent settings store |
 | **PrefetchStatus** | Background prefetch progress (runtime only) | `isRunning`, `currentBookId`, `totalChapters`, `processedChapters`, `message`, `errors[]` | Runtime |
 
 ## 4. Invariants
