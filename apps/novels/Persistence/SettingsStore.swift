@@ -16,7 +16,7 @@ import Observation
         static let aiMode = AIMode.none
         static let aiMinChunkSize = 1300
         static let diagnosticsVerbose = false
-        static let readingTheme = ReadingTheme.vangGiay
+        static let readingTheme = ReadingTheme.sach
     }
 
     private let userDefaults: UserDefaults
@@ -142,7 +142,8 @@ import Observation
         }
     }
 
-    /// Restores reading theme; unknown rawValues coerce to .vangGiay (BR-12).
+    /// Restores reading theme; unknown rawValues coerce to .sach (BR-12).
+    /// Legacy trio rawValues (vangGiay/trang/den) also coerce to .sach.
     private func loadReadingTheme() {
         if let raw = userDefaults.string(forKey: DefaultsKeys.readingTheme) {
             readingTheme = ReadingTheme(rawValue: raw) ?? Defaults.readingTheme
