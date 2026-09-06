@@ -29,6 +29,8 @@ Stack and toolchain live in `ARCHITECTURE.md` §1. Verification steps live in `i
 
 ## Assess the task
 
+Before any non-trivial task, use skill `using-skills` and follow its Decision Tree to pick and chain skills. Skip skills only for light, clear, low-risk work.
+
 Assess scale, complexity, and impact before you create or update a feature. Use no feature for lightweight work. Use an inline plan for bounded tracked work. Use a separate linked plan for substantial work.
 
 If the work does not need a feature, read only the relevant sources. Then run proportional verification without updating feature or progress state.
