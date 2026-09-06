@@ -625,7 +625,7 @@ final class LogScreenGroupingTests: XCTestCase {
         ]
         let groups = LogRunBuilder.build(from: entries)
         XCTAssertEqual(groups.count, 2)
-        XCTAssertTrue(groups.allSatisfy { $0.title == "Rewrite · Ch 20" })
+        XCTAssertTrue(groups.allSatisfy { $0.title == "Rewrite · Ch 20 · Cache" })
         XCTAssertEqual(Set(groups.map { $0.id }), [first.uuidString, second.uuidString])
     }
 
@@ -943,7 +943,7 @@ final class LogScreenGroupingTests: XCTestCase {
             event: "prefetch.cancel",
             detail: "reason=chapterChange"
         )
-        XCTAssertFalse(LogRowView.isError(muted))
+        XCTAssertFalse(LogEntry.isError(muted))
         XCTAssertFalse(LogKindFilter.error.matches(muted))
         let manual = LogEntry(
             sessionId: UUID(),
@@ -952,7 +952,7 @@ final class LogScreenGroupingTests: XCTestCase {
             event: "prefetch.cancel",
             detail: "reason=manual"
         )
-        XCTAssertFalse(LogRowView.isError(manual))
+        XCTAssertFalse(LogEntry.isError(manual))
         XCTAssertFalse(LogKindFilter.error.matches(manual))
         let budget = LogEntry(
             sessionId: UUID(),
@@ -961,7 +961,7 @@ final class LogScreenGroupingTests: XCTestCase {
             event: "prefetch.cancel",
             detail: "reason=budgetExhausted scope=global"
         )
-        XCTAssertTrue(LogRowView.isError(budget))
+        XCTAssertTrue(LogEntry.isError(budget))
         XCTAssertTrue(LogKindFilter.error.matches(budget))
     }
 
@@ -1026,6 +1026,128 @@ final class LogScreenGroupingTests: XCTestCase {
             ),
         ])
         XCTAssertEqual(status, .failed)
+    }
+
+    /// Retry success strictly newer than the last error clears sticky Failed.
+    func testRetrySuccessAfterFailureReadsSuccess() {
+        let run = UUID()
+        let fail = LogEntry(
+            timestamp: Date(timeIntervalSince1970: 1000),
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "chunk.fail",
+            runId: run
+        )
+        let save = LogEntry(
+            timestamp: Date(timeIntervalSince1970: 2000),
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "cache.save",
+            runId: run
+        )
+        XCTAssertEqual(LogRunBuilder.status(of: [fail, save]), .success)
+    }
+
+    /// An error newer than the last success still reads Failed.
+    func testNewerErrorAfterSuccessStillFailed() {
+        let run = UUID()
+        let save = LogEntry(
+            timestamp: Date(timeIntervalSince1970: 1000),
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "cache.save",
+            runId: run
+        )
+        let fail = LogEntry(
+            timestamp: Date(timeIntervalSince1970: 2000),
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "chunk.fail",
+            runId: run
+        )
+        XCTAssertEqual(LogRunBuilder.status(of: [save, fail]), .failed)
+    }
+
+    /// A tied timestamp never masks a fault: simultaneous writes read Failed.
+    func testTiedTimestampsReadFailed() {
+        let run = UUID()
+        let stamp = Date(timeIntervalSince1970: 3000)
+        let fail = LogEntry(
+            timestamp: stamp,
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "chunk.fail",
+            runId: run
+        )
+        let save = LogEntry(
+            timestamp: stamp,
+            sessionId: UUID(),
+            bookId: "b",
+            chapterNumber: 455,
+            event: "cache.save",
+            runId: run
+        )
+        XCTAssertEqual(LogRunBuilder.status(of: [fail, save]), .failed)
+    }
+
+    /// feat-025: same chapter/mode never shares a title across origins.
+    func testTitleSuffixDistinguishesCacheAndAPI() {
+        let cached = LogRunBuilder.build(from: [
+            LogEntry(sessionId: UUID(), bookId: "b", chapterNumber: 455, event: "cache.save", runId: UUID()),
+        ])
+        let api = LogRunBuilder.build(from: [
+            LogEntry(
+                sessionId: UUID(),
+                bookId: "b",
+                chapterNumber: 455,
+                chunkIndex: 0,
+                chunkTotal: 5,
+                event: "chunk.success",
+                runId: UUID()
+            ),
+        ])
+        XCTAssertEqual(cached.first?.title, "Rewrite · Ch 455 · Cache")
+        XCTAssertEqual(api.first?.title, "Rewrite · Ch 455 · API 1/5")
+        XCTAssertNotEqual(cached.first?.title, api.first?.title)
+    }
+
+    /// feat-025: burst search returns only matching entries inside a group.
+    func testMatchedEntriesFiltersInsideGroup() {
+        let run = UUID()
+        let group = LogRunGroup(
+            id: run.uuidString,
+            title: "Rewrite · Ch 20",
+            latest: Date(),
+            entries: [
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 20,
+                    event: "chunk.success",
+                    detail: "outputHash=abc",
+                    runId: run
+                ),
+                LogEntry(
+                    sessionId: UUID(),
+                    bookId: "b",
+                    chapterNumber: 20,
+                    event: "chunk.fail",
+                    detail: "timeout",
+                    runId: run
+                ),
+            ],
+            status: .failed,
+            chunkProgress: nil
+        )
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "timeout"))
+        let hits = LogRunBuilder.matchedEntries(group, needle: "timeout")
+        XCTAssertEqual(hits.count, 1)
+        XCTAssertEqual(hits.first?.event, "chunk.fail")
     }
 
     /// feat-023 Phase 3 transparency: batchCheck carries storedN/effectiveN so a settings

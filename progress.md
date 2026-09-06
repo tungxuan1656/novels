@@ -12,6 +12,14 @@
 
 <!-- Add each new block below this note. Do not edit older blocks. -->
 
+## 2026-09-06 — feat-025 done
+
+**State**: done
+**Done**: Log Viewer Correctness — book filter pre-build + initialFilter per-entry, title origin oldest + source suffix API/Cache/Shared, status strict-newer (tie failed, joined-dedup only), realtime AsyncStream debounce 250ms + refreshable, errorCount reuses LogEntry.isError, JSON gate body-only, intra-group search + auto-expand restore, footnote at 500
+**Evidence**: `features/feat-025.md` (acceptance 7/7), `feature_index.json` feat-025 done (zero active), `apps/novels/Features/Diagnostics/LogScreen.swift` + `apps/novels/Services/DiagnosticsLog.swift` + `apps/novels/Domain/DiagnosticsEntry.swift` + 2 test suites; `./init.sh` full PASS 2026-09-06 (format 0, lint 0, build PASS, test PASS incl. LogScreenGroupingTests + DiagnosticsLogTests, drift PASS 21/22)
+**Blockers**: none (tree uncommitted — not committed as not requested)
+**Next**: repo idle — user retests Log screen on Simulator (book filter, API vs Cache titles, realtime, retry success, search, JSON)
+
 
 ## 2026-08-24 — feat-001
 

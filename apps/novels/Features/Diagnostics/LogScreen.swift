@@ -4,13 +4,14 @@ import SwiftUI
 
 /// LogScreen — Diagnostic Log Viewer (feat-019, UI scope).
 /// Groups entries by chapter-run (runId); entries without runId go to "Phiên chung".
-/// Contract LogEntry/LogKind/DiagnosticsStore do lane khác sở hữu: chỉ reference, không redefine.
+/// Contract LogEntry/LogKind/DiagnosticsStore owned by another lane: reference only, never redefine.
 struct LogScreen: View {
     let bookId: String?
     let initialFilter: LogKindFilter
     @State private var store: DiagnosticsStore
     @State private var query = ""
     @State private var groupExpanded: Set<String> = []
+    @State private var savedExpanded: Set<String> = []
     @State private var innerExpanded: Set<UUID> = []
     @State private var selectedJSONEntry: LogEntry?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -31,8 +32,29 @@ struct LogScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await store.refresh()
-            if initialFilter == .error {
-                groupExpanded = Set(filteredGroups.filter { $0.status == .failed }.map { $0.id })
+            // Search owns expansion while a query is active; auto-expand only on entry.
+            if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if initialFilter == .error {
+                    groupExpanded = Set(filteredGroups.filter { $0.status == .failed }.map { $0.id })
+                } else if groupExpanded.isEmpty, let newest = runGroups.first {
+                    groupExpanded = [newest.id]
+                }
+            }
+            await store.observe()
+        }
+        .refreshable {
+            await store.refresh()
+        }
+        .onChange(of: query) { oldValue, newValue in
+            let wasSearching = !oldValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            let isSearching = !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            if isSearching {
+                if !wasSearching {
+                    savedExpanded = groupExpanded
+                }
+                groupExpanded = Set(filteredGroups.map { $0.id })
+            } else if wasSearching {
+                groupExpanded = savedExpanded
             }
         }
         .sheet(item: $selectedJSONEntry) { entry in
@@ -71,16 +93,26 @@ struct LogScreen: View {
         if filteredGroups.isEmpty {
             emptyState
         } else {
-            List(filteredGroups) { group in
-                groupCell(group)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(DesignTokens.backgroundWhite)
+            VStack(spacing: 0) {
+                List(filteredGroups) { group in
+                    groupCell(group)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(DesignTokens.backgroundWhite)
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .background(DesignTokens.backgroundWhite)
+                .accessibilityIdentifier("logList")
+                .accessibilityLabel("Danh sách nhật ký, \(filteredGroups.count) nhóm")
+                // Reports ring eviction, so it always reflects the ring total,
+                // even when the visible list is narrowed by book or search.
+                if store.entries.count >= DiagnosticsLog.capacity {
+                    Text("Chỉ giữ \(DiagnosticsLog.capacity) mục mới nhất · mục cũ tự xóa")
+                        .font(.caption)
+                        .foregroundStyle(DesignTokens.muted)
+                        .padding(.vertical, DesignTokens.spacing8)
+                }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(DesignTokens.backgroundWhite)
-            .accessibilityIdentifier("logList")
-            .accessibilityLabel("Danh sách nhật ký, \(filteredGroups.count) nhóm")
         }
     }
 
@@ -100,10 +132,11 @@ struct LogScreen: View {
                             .font(.subheadline)
                             .foregroundStyle(DesignTokens.text)
                             .lineLimit(1)
-                        Text(LogRowView.timeFormatter.string(from: group.latest))
+                        Text(groupSubtitle(group))
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(DesignTokens.muted)
+                            .lineLimit(1)
                     }
                     Spacer(minLength: DesignTokens.spacing8)
                     VStack(alignment: .trailing, spacing: 4) {
@@ -127,6 +160,7 @@ struct LogScreen: View {
             .accessibilityHint(groupExpanded.contains(group.id) ? "Chạm để thu gọn" : "Chạm để xem chi tiết")
             .accessibilityAddTraits(.isButton)
             if groupExpanded.contains(group.id) {
+                Divider()
                 ForEach(group.entries) { entry in
                     innerCell(entry)
                 }
@@ -134,11 +168,27 @@ struct LogScreen: View {
         }
     }
 
+    private func groupSubtitle(_ group: LogRunGroup) -> String {
+        // Entries arrive newest-first, so the last one is the earliest — no scan per row.
+        // Count, range, and latest describe the visible entries (search hits when
+        // filtering); title, status, and progress always reflect the full run.
+        let earliest = group.entries.last?.timestamp ?? group.latest
+        let start = logGroupHourFormatter.string(from: earliest)
+        if Calendar.current.isDate(earliest, inSameDayAs: group.latest) {
+            return "\(group.entries.count) mục · \(start)–\(logGroupHourFormatter.string(from: group.latest))"
+        }
+        let range = "\(logGroupDayFormatter.string(from: earliest))–\(logGroupDayFormatter.string(from: group.latest))"
+        return "\(group.entries.count) mục · \(range)"
+    }
+
     private func innerCell(_ entry: LogEntry) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            LogRowView(entry: entry, expanded: innerExpanded.contains(entry.id)) { toggleInner(entry) }
-                .accessibilityIdentifier("logRow-\(entry.id.uuidString)")
-            if innerExpanded.contains(entry.id), entry.kind == .api {
+        let hasBody = entry.requestBody != nil || entry.responseBody != nil
+        return VStack(alignment: .leading, spacing: 0) {
+            LogRowView(entry: entry, expanded: innerExpanded.contains(entry.id), isFiltered: bookId != nil) {
+                toggleInner(entry)
+            }
+            .accessibilityIdentifier("logRow-\(entry.id.uuidString)")
+            if innerExpanded.contains(entry.id), hasBody {
                 Button("Xem JSON thô") { selectedJSONEntry = entry }
                     .accessibilityIdentifier("logJsonButton")
                     .accessibilityLabel("Xem JSON thô")
@@ -216,13 +266,34 @@ struct LogScreen: View {
     }
 
     private var runGroups: [LogRunGroup] {
-        LogRunBuilder.build(from: store.entries)
+        var scoped = store.entries
+        if let bookId {
+            scoped = scoped.filter { $0.bookId == bookId }
+        }
+        if initialFilter != .all {
+            scoped = scoped.filter { initialFilter.matches($0) }
+        }
+        return LogRunBuilder.build(from: scoped)
     }
 
     private var filteredGroups: [LogRunGroup] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else { return runGroups }
-        return runGroups.filter { LogRunBuilder.matches($0, needle: needle) }
+        return runGroups.compactMap { group in
+            guard LogRunBuilder.matches(group, needle: needle) else { return nil }
+            let hits = LogRunBuilder.matchedEntries(group, needle: needle)
+            guard !hits.isEmpty else { return group }
+            // Search narrows the visible scope: entries and latest describe the
+            // hits, while title/status/progress still reflect the full run.
+            return LogRunGroup(
+                id: group.id,
+                title: group.title,
+                latest: hits.first?.timestamp ?? group.latest,
+                entries: hits,
+                status: group.status,
+                chunkProgress: group.chunkProgress
+            )
+        }
     }
 
     private func toggleGroup(_ id: String) {
@@ -255,6 +326,20 @@ struct LogScreen: View {
         }
     }
 }
+
+private let logGroupHourFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "vi_VN")
+    formatter.dateFormat = "HH:mm:ss"
+    return formatter
+}()
+
+private let logGroupDayFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "vi_VN")
+    formatter.dateFormat = "HH:mm:ss dd/MM"
+    return formatter
+}()
 
 // MARK: - Run grouping (UI-only, feat-019)
 
@@ -326,52 +411,47 @@ enum LogRunBuilder {
     }
 
     static func status(of entries: [LogEntry]) -> LogRunStatus {
-        if entries.contains(where: LogRowView.isError) {
-            return .failed
+        let sorted = entries.sorted { $0.timestamp > $1.timestamp }
+        let newestError = sorted.first(where: LogEntry.isError)?.timestamp
+        var newestSuccess: Date?
+        for entry in sorted where entry.event == "cache.save" || entry.event == "cache.hit" || isAllCachedSkip(entry) {
+            newestSuccess = max(newestSuccess ?? .distantPast, entry.timestamp)
         }
-        if entries.contains(where: { $0.event == "cache.save" }) {
-            return .success
-        }
-        // Terminal read-path success: the chapter was already processed (feat-023 Phase 2).
-        if entries.contains(where: { $0.event == "cache.hit" }) {
-            return .success
-        }
-        if isJoinedDedupSuccess(entries) {
-            return .success
-        }
-        if entries.contains(where: isAllCachedSkip) {
-            return .success
+        // Only joined shares count: a lone share newer than the last error
+        // must not clear Failed, it has no origin save in this group.
+        let savedHashes = Set(entries.filter { $0.event == "cache.save" }.compactMap(keyHash(of:)))
+        let joinedStamp = sorted
+            .filter { $0.event == "dedup.shared" }
+            .compactMap { entry -> Date? in
+                guard let hash = keyHash(of: entry), savedHashes.contains(hash) else { return nil }
+                return entry.timestamp
+            }
+            .max()
+        if let joinedStamp {
+            newestSuccess = max(newestSuccess ?? .distantPast, joinedStamp)
         }
         if let total = entries.compactMap({ $0.chunkTotal }).first, total > 0 {
             let done = Set(entries.filter { $0.event == "chunk.success" }.compactMap { $0.chunkIndex }).count
-            if done >= total {
-                return .success
+            let lastChunk = sorted.first(where: { $0.event == "chunk.success" })?.timestamp
+            if done >= total, let lastChunk {
+                newestSuccess = max(newestSuccess ?? .distantPast, lastChunk)
             }
         }
-        if entries.contains(where: isMutedCancel) {
+        // Retry-after-failure: a strictly newer terminal success clears an older
+        // error; a tie still reads failed so simultaneous writes never mask a fault.
+        if let ok = newestSuccess, let err = newestError {
+            return ok > err ? .success : .failed
+        }
+        if newestError != nil {
+            return .failed
+        }
+        if newestSuccess != nil {
+            return .success
+        }
+        if entries.contains(where: LogEntry.isMutedCancel) {
             return .cancelled
         }
         return .processing
-    }
-
-    /// Deliberate navigation/disappear/manual cancels — muted Cancelled, never Failed-red.
-    /// Anything else (`budgetExhausted`, `bookDeleted`, unknown or missing reason) stays an error.
-    static let mutedCancelReasons: Set<String> = ["chapterChange", "modeChange", "disappear", "manual", "testDone"]
-
-    /// Extracts `reason=<token>` from a `prefetch.cancel` detail
-    /// (`"reason=budgetExhausted scope=global"` → `"budgetExhausted"`).
-    static func cancelReason(of entry: LogEntry) -> String? {
-        guard entry.event == "prefetch.cancel",
-              let detail = entry.detail,
-              let range = detail.range(of: "reason=")
-        else { return nil }
-        let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
-        return token.isEmpty ? nil : String(token)
-    }
-
-    static func isMutedCancel(_ entry: LogEntry) -> Bool {
-        guard let reason = cancelReason(of: entry) else { return false }
-        return mutedCancelReasons.contains(reason)
     }
 
     /// Extracts `keyHash=<token>` from a cache-event detail for origin joining.
@@ -405,8 +485,30 @@ enum LogRunBuilder {
         return "\(done)/\(total) chunk"
     }
 
-    static func title(chapter: Int, mode: String) -> String {
-        "\(mode.prefix(1).uppercased() + mode.dropFirst()) · Ch \(chapter)"
+    static func title(chapter: Int, mode: String, entries: [LogEntry] = []) -> String {
+        let base = "\(mode.prefix(1).uppercased() + mode.dropFirst()) · Ch \(chapter)"
+        guard !entries.isEmpty, let suffix = sourceSuffix(of: entries) else { return base }
+        return "\(base) · \(suffix)"
+    }
+
+    /// Origin suffix so two runs of the same chapter never share a title:
+    /// "Cache" (hit/save) > "Dùng chung" (joined share) > "API done/total".
+    /// A lone share with no joined origin falls through to the API branch.
+    static func sourceSuffix(of entries: [LogEntry]) -> String? {
+        if entries.contains(where: { $0.event == "cache.hit" || $0.event == "cache.save" }) {
+            return "Cache"
+        }
+        if isJoinedDedupSuccess(entries) {
+            return "Dùng chung"
+        }
+        if let total = entries.compactMap({ $0.chunkTotal }).first, total > 0 {
+            let done = Set(entries.filter { $0.event == "chunk.success" }.compactMap { $0.chunkIndex }).count
+            return "API \(done)/\(total)"
+        }
+        if entries.contains(where: { $0.kind == .api }) {
+            return "API"
+        }
+        return nil
     }
 
     /// Narrow search: chapter number, group status words, event, detail, snippet.
@@ -420,7 +522,14 @@ enum LogRunBuilder {
         if group.status.title.lowercased().contains(query) {
             return true
         }
-        return group.entries.contains { entry in
+        return !matchedEntries(group, needle: needle).isEmpty
+    }
+
+    /// Intra-group hits for burst search: only matching entries expand inline.
+    static func matchedEntries(_ group: LogRunGroup, needle: String) -> [LogEntry] {
+        let query = needle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !query.isEmpty else { return group.entries }
+        return group.entries.filter { entry in
             (entry.event?.lowercased().contains(query) ?? false)
                 || (entry.detail?.lowercased().contains(query) ?? false)
                 || (entry.snippet?.lowercased().contains(query) ?? false)
@@ -433,8 +542,8 @@ enum LogRunBuilder {
         let title: String
         if id == commonGroupId {
             title = commonGroupTitle
-        } else if let representative = sorted.first {
-            title = self.title(chapter: representative.chapterNumber, mode: representative.mode)
+        } else if let representative = sorted.last {
+            title = self.title(chapter: representative.chapterNumber, mode: representative.mode, entries: sorted)
         } else {
             title = commonGroupTitle
         }
@@ -474,7 +583,7 @@ enum LogKindFilter: String, CaseIterable, Identifiable, Hashable {
             case .all: return true
             case .event: return entry.kind == .event
             case .api: return entry.kind == .api
-            case .error: return LogRowView.isError(entry)
+            case .error: return LogEntry.isError(entry)
         }
         // swiftlint:enable switch_case_alignment
     }
@@ -485,7 +594,16 @@ enum LogKindFilter: String, CaseIterable, Identifiable, Hashable {
 struct LogRowView: View {
     let entry: LogEntry
     let expanded: Bool
+    let isFiltered: Bool
     let onToggle: () -> Void
+
+    init(entry: LogEntry, expanded: Bool, isFiltered: Bool = false, onToggle: @escaping () -> Void) {
+        self.entry = entry
+        self.expanded = expanded
+        self.isFiltered = isFiltered
+        self.onToggle = onToggle
+    }
+
     var body: some View {
         Button(action: onToggle) {
             VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
@@ -537,6 +655,12 @@ struct LogRowView: View {
             }
             if let detail = entry.detail {
                 detailLine(label: "Chi tiết", value: detail)
+            }
+            if let reason = LogEntry.cancelReason(of: entry) {
+                detailLine(label: "Lý do hủy", value: reason)
+            }
+            if let hash = LogRunBuilder.keyHash(of: entry) {
+                detailLine(label: "Khóa", value: hash)
             }
             if let timeoutKind = entry.timeoutKind {
                 detailLine(label: "Hết giờ", value: timeoutKind)
@@ -602,7 +726,7 @@ struct LogRowView: View {
     }
 
     private var positionText: String {
-        var text = "\(entry.bookId) · Ch \(entry.chapterNumber)"
+        var text = isFiltered ? "Ch \(entry.chapterNumber)" : "\(entry.bookId) · Ch \(entry.chapterNumber)"
         if let index = entry.chunkIndex, let total = entry.chunkTotal {
             text += " · Đoạn \(index + 1)/\(total)"
         }
@@ -627,6 +751,7 @@ struct LogRowView: View {
 
     private var statusBadge: some View {
         Text(badgeText).font(.caption2).bold().foregroundStyle(Color.white)
+            .lineLimit(1)
             .padding(.horizontal, DesignTokens.spacing8).padding(.vertical, 4)
             .background(badgeColor).clipShape(Capsule()).accessibilityHidden(true)
     }
@@ -651,7 +776,7 @@ struct LogRowView: View {
             }
             return DesignTokens.error
         }
-        return Self.isError(entry) ? DesignTokens.error : DesignTokens.accent
+        return LogEntry.isError(entry) ? DesignTokens.error : DesignTokens.accent
     }
 
     private var kindColor: Color {
@@ -662,28 +787,8 @@ struct LogRowView: View {
         "\(entry.kind == .api ? "API" : "Sự kiện"), \(positionText), \(statusText), \(entry.latencyMs) mili giây"
     }
 
-    static func isError(_ entry: LogEntry) -> Bool {
-        // Muted cancels are intentional control flow, never errors (feat-023 Phase 2):
-        // Cancelled rows stay non-red and the Lỗi tab never lists them.
-        if LogRunBuilder.isMutedCancel(entry) {
-            return false
-        }
-        if let code = entry.statusCode, code >= 400 {
-            return true
-        }
-        if entry.errorDomain != nil || entry.errorCode != nil {
-            return true
-        }
-        let marker = (entry.event ?? "").lowercased()
-        return marker.contains("fail") || marker.contains("error")
-            || marker.contains("timeout") || marker.contains("cancel")
-    }
-
     private func shortEvent(_ event: String) -> String {
-        for prefix in ["chunk.", "prefetch.", "cache.", "retry."] where event.hasPrefix(prefix) {
-            return String(event.dropFirst(prefix.count).prefix(10))
-        }
-        return String(event.prefix(10))
+        String(event.prefix(16))
     }
 
     static let timeFormatter: DateFormatter = {
