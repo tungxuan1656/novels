@@ -1,4 +1,3 @@
-@testable import novels
 import XCTest
 
 // swiftlint:disable trailing_comma
@@ -94,10 +93,16 @@ final class DiagnosticsLogTests: XCTestCase {
         AIMockURLProtocol.handler = okHandler(content: "reply-text")
         _ = try await quietClient.complete(prompt: "sys", chunk: "chunk-body")
         let quietEntries = await DiagnosticsLog.shared.snapshot()
-        XCTAssertFalse(quietEntries.isEmpty)
-        XCTAssertTrue(quietEntries.allSatisfy { $0.snippet == nil })
-        XCTAssertEqual(quietEntries.first?.bodyLen, "chunk-body".utf8.count)
-        XCTAssertNotNil(quietEntries.first?.bodyHashPrefix)
+        // Scope to this test's own chunk: a background batch leaked from an
+        // earlier test in the same runner can append foreign entries (e.g.
+        // 9-char "Content N" prefetch chunks) around our window, so never
+        // assert blindly on `first` / the whole snapshot. Match by body hash.
+        let ownHash = DiagnosticsRedactor.hashPrefix("chunk-body")
+        let mine = quietEntries.filter { $0.bodyHashPrefix == ownHash }
+        XCTAssertFalse(mine.isEmpty)
+        XCTAssertTrue(mine.allSatisfy { $0.snippet == nil })
+        XCTAssertEqual(mine.first?.bodyLen, "chunk-body".utf8.count)
+        XCTAssertNotNil(mine.first?.bodyHashPrefix)
     }
 
     // MARK: - Ring buffer
@@ -120,13 +125,15 @@ final class DiagnosticsLogTests: XCTestCase {
 
     // MARK: - Realtime (feat-025)
 
-    func testUpdatesEmitsTickOnAppend() async throws {
+    func testUpdatesEmitsTickOnAppend() async {
         let log = DiagnosticsLog()
         // Subscribe before appending: updates() registers synchronously,
         // so the tick can never be lost to subscribe/append ordering.
         let stream = await log.updates()
+        let tick = XCTestExpectation(description: "tick")
         let waiter = Task { () -> Bool in
             for await _ in stream {
+                tick.fulfill()
                 return true
             }
             return false
@@ -138,17 +145,11 @@ final class DiagnosticsLogTests: XCTestCase {
             chapterNumber: 1,
             event: "tick.probe"
         ))
-        let got = try await withThrowingTaskGroup(of: Bool.self) { group in
-            group.addTask { await waiter.value }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                return false
-            }
-            guard let first = try await group.next() else { return false }
-            await log.finishUpdates()
-            group.cancelAll()
-            return first
-        }
+        // Fulfillment-driven: returns as soon as the tick arrives instead of
+        // a fixed 1s sleep, so the fast path costs ~0ms.
+        await fulfillment(of: [tick], timeout: 2.0)
+        let got = await waiter.value
+        await log.finishUpdates()
         XCTAssertTrue(got)
     }
 
@@ -288,13 +289,29 @@ final class DiagnosticsLogTests: XCTestCase {
             aiService: service,
             repository: env.repo
         )
-        try await Task.sleep(nanoseconds: 900_000_000)
+        // Poll for the batchCheck marker instead of a fixed 0.9s sleep.
+        let batchDeadline = Date().addingTimeInterval(5)
         var entries = await DiagnosticsLog.shared.snapshot()
+        while entries.filter({ $0.event == "prefetch.batchCheck" }).count != 1, Date() < batchDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            entries = await DiagnosticsLog.shared.snapshot()
+        }
         let checks = entries.filter { $0.event == "prefetch.batchCheck" }
         XCTAssertEqual(checks.count, 1)
         XCTAssertTrue((checks.first?.detail ?? "").contains("rangeFrom=2"))
         XCTAssertTrue((checks.first?.detail ?? "").contains("rangeTo=4"))
         XCTAssertTrue((checks.first?.detail ?? "").contains("miss=3"))
+
+        // Wait for the first batch to drain before restarting: the allCached
+        // skip below only happens on a clean restart after the running batch
+        // finishes (otherwise the second start takes the top-up path and logs
+        // batchCheck instead of skip, so the skip poll would time out). The old
+        // 0.9s sleep provided this drain wait implicitly; the fast marker poll
+        // above returns long before the 3-chapter batch completes.
+        let drainedDeadline = Date().addingTimeInterval(5)
+        while await env.manager.currentStatus().isRunning, Date() < drainedDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
 
         await DiagnosticsLog.shared.clear()
         await env.manager.start(
@@ -307,8 +324,15 @@ final class DiagnosticsLogTests: XCTestCase {
             aiService: service,
             repository: env.repo
         )
-        try await Task.sleep(nanoseconds: 300_000_000)
+        // Poll for the allCached skip marker instead of a fixed 0.3s sleep.
+        let skipDeadline = Date().addingTimeInterval(5)
         entries = await DiagnosticsLog.shared.snapshot()
+        while !entries.contains(where: {
+            $0.event == "prefetch.skip" && ($0.detail ?? "").contains("reason=allCached")
+        }), Date() < skipDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            entries = await DiagnosticsLog.shared.snapshot()
+        }
         let skips = entries.filter { $0.event == "prefetch.skip" }
         XCTAssertTrue(skips.contains { ($0.detail ?? "").contains("reason=allCached") })
     }
@@ -329,12 +353,24 @@ final class DiagnosticsLogTests: XCTestCase {
             aiService: service,
             repository: env.repo
         )
-        try await Task.sleep(nanoseconds: 1_200_000_000)
-        let entries = await DiagnosticsLog.shared.snapshot()
+        // Poll for the error-continue marker instead of a fixed 1.2s sleep.
+        let errorDeadline = Date().addingTimeInterval(5)
+        var errorEntries = await DiagnosticsLog.shared.snapshot()
+        while !errorEntries.contains(where: {
+            $0.event == "prefetch.error-continue" && $0.chapterNumber == 3
+        }), Date() < errorDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            errorEntries = await DiagnosticsLog.shared.snapshot()
+        }
+        let entries = errorEntries
         let continues = entries.filter { $0.event == "prefetch.error-continue" }
         XCTAssertTrue(continues.contains { $0.chapterNumber == 3 })
         XCTAssertEqual(PrefetchManager.perChapterBudget, 600)
         XCTAssertEqual(PrefetchManager.globalBudget, 1800)
+        // Terminal hygiene: stop the batch so its in-flight transports cannot
+        // leak appends into the next test sharing this runner's
+        // DiagnosticsLog.shared.
+        await env.manager.cancel(reason: "testDone")
     }
 
     func testPrefetchCancelMarker() async throws {

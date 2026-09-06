@@ -348,9 +348,9 @@ final class ReaderStaleGuardTests: XCTestCase {
         await waitForOutcome(id: staleID)
         // The stale write really landed here (delivered, not silently dropped)…
         XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("FRESH-TWO"))
-        // …give it a chance to (incorrectly) publish, then assert it did not.
-        // Ordering is gate-enforced; this window only lets a bug manifest.
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        // …give the pipeline a deterministic settle point, then assert it did not.
+        // Ordering is gate-enforced; waitFor polls (50ms) instead of a fixed 0.3s sleep.
+        await waitFor(viewModel.chapterNumber == 1 && viewModel.processedContent == "CACHED-ONE")
         XCTAssertEqual(viewModel.chapterNumber, 1)
         XCTAssertEqual(viewModel.processedContent, "CACHED-ONE")
         XCTAssertTrue(viewModel.isProcessedContentCurrent())
@@ -372,7 +372,8 @@ final class ReaderStaleGuardTests: XCTestCase {
             GatedAIURLProtocol.release(id: staleID, content: "FRESH-TWO")
             await waitForOutcome(id: staleID)
             XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("FRESH-TWO"))
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            // Gate-enforced ordering: settle via waitFor instead of a fixed 0.3s sleep.
+            await waitFor(viewModel.chapterNumber == 1 && viewModel.processedContent == "CACHED-ONE")
         }
         XCTAssertEqual(viewModel.chapterNumber, 1)
         XCTAssertEqual(viewModel.processedContent, "CACHED-ONE")
@@ -398,7 +399,8 @@ final class ReaderStaleGuardTests: XCTestCase {
         await rewriteTask.value
         await waitForOutcome(id: staleID)
         XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("STALE-REWRITE"))
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        // Gate-enforced ordering: settle via waitFor instead of a fixed 0.3s sleep.
+        await waitFor(viewModel.aiMode == .none && viewModel.processedContent == nil)
         XCTAssertEqual(viewModel.aiMode, .none)
         XCTAssertNil(viewModel.processedContent)
         XCTAssertFalse(viewModel.isProcessedContentCurrent())

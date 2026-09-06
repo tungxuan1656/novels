@@ -1,4 +1,3 @@
-@testable import novels
 import XCTest
 
 // swiftlint:disable file_length
@@ -445,6 +444,41 @@ final class AIReadingServiceTests: XCTestCase {
         XCTAssertEqual(attempts["C"], 1, "attempts \(attempts)")
     }
 
+    /// Exactly-once resume box for the gated cancel park below.
+    /// `withTaskCancellationHandler` may invoke `onCancel` before the operation
+    /// body runs (already-cancelled task), concurrently with it, or after the
+    /// continuation is stored — the lock + flag keeps the resume count at one
+    /// in every interleaving.
+    private final class CancelPark: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Void, Error>?
+        private var finished = false
+
+        func set(_ continuation: CheckedContinuation<Void, Error>) {
+            lock.lock()
+            if finished {
+                lock.unlock()
+                continuation.resume(throwing: CancellationError())
+                return
+            }
+            self.continuation = continuation
+            lock.unlock()
+        }
+
+        func cancel() {
+            lock.lock()
+            guard !finished else {
+                lock.unlock()
+                return
+            }
+            finished = true
+            let continuation = continuation
+            self.continuation = nil
+            lock.unlock()
+            continuation?.resume(throwing: CancellationError())
+        }
+    }
+
     func testCancelThrowsCancellationError() async throws {
         let cache = try SQLiteProcessedChapterCache.inMemory()
         let settings = await makeSettings(chunkSize: 500)
@@ -461,10 +495,23 @@ final class AIReadingServiceTests: XCTestCase {
             return (response, json.data(using: .utf8)!)
         }
         // Single attempt: no retry backoff; outer cancellation surfaces as CancellationError
-        // via the cooperative sleep before the network call (deterministic, no timing flake).
+        // via a gated park before the network call (deterministic, no timing flake).
         let raw = String(repeating: "x", count: 1200)
+        let parked = XCTestExpectation(description: "task parked before network call")
+        let park = CancelPark()
         let task = Task<String, Error> {
-            try await Task.sleep(nanoseconds: 500_000_000)
+            parked.fulfill()
+            // Gated latch instead of a fixed 0.5s sleep: park until cancelled.
+            // The cancellation handler resumes the park exactly once — a bare
+            // withCheckedThrowingContinuation would leak (task.cancel() alone
+            // never resumes it) and hang the suite.
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { continuation in
+                    park.set(continuation)
+                }
+            } onCancel: {
+                park.cancel()
+            }
             return try await service.reprocess(
                 bookId: "slug",
                 chapterNumber: 12,
@@ -472,7 +519,8 @@ final class AIReadingServiceTests: XCTestCase {
                 rawText: raw
             )
         }
-        try await Task.sleep(nanoseconds: 200_000_000)
+        // Latch: cancel only after the task has parked (arrival-order, not sleep-order).
+        await fulfillment(of: [parked], timeout: 5.0)
         task.cancel()
         do {
             _ = try await task.value

@@ -234,8 +234,11 @@ final class AIReadingViewModelTests: XCTestCase {
         XCTAssertEqual(vm.processedContent, "DỊCH 1")
         // goNext should auto trigger AI for chapter 2
         await vm.goNext()
-        // wait for async aiTask to complete (load spawns Task)
-        try await Task.sleep(nanoseconds: 600_000_000)
+        // Poll for the async aiTask result (load spawns Task) instead of a fixed 0.6s sleep.
+        let aiDeadline = Date().addingTimeInterval(5)
+        while vm.processedContent != "DỊCH 2" || vm.isAIProcessing, Date() < aiDeadline {
+            try await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertEqual(vm.chapterNumber, 2)
         XCTAssertEqual(vm.processedContent, "DỊCH 2")
         XCTAssertEqual(callCount, 2)

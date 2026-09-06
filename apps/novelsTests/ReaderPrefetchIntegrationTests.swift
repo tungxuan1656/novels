@@ -103,7 +103,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     }
 
     func testPrefetchTriggeredAfterLoadWhenEligible() async throws {
-        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        let (vm, cache, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
         await vm.setAIMode(.rewrite)
         await vm.load()
@@ -111,8 +111,16 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         // trigger mirrors running synchronously, terminal arrives via the
         // one-shot returnFromLog resync (all-cached here, so no resume).
         XCTAssertTrue(vm.prefetchStatus.isRunning, "sync trigger must mirror running")
-        try await Task.sleep(nanoseconds: 800_000_000)
+        await waitForPrefetch(client.calls.contains(2) || client.calls.contains(3))
         XCTAssertTrue(client.calls.contains(2) || client.calls.contains(3), "calls \(client.calls)")
+        // Calls record at request start (before the transport delay), so poll
+        // window-chapter cache completion — not issuance — before the resync.
+        // Otherwise the batch is still draining and the idle assert below
+        // flakes when transports are slow under parallel load.
+        await waitForPrefetch(
+            ((try? cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite)) != nil) &&
+                ((try? cache.get(bookId: "test-slug", chapterNumber: 3, mode: .rewrite)) != nil)
+        )
         await vm.load(source: .returnFromLog)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
     }
@@ -125,7 +133,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         await vm.load()
         try await Task.sleep(nanoseconds: 200_000_000)
         await vm.setAIMode(.none)
-        try await Task.sleep(nanoseconds: 400_000_000)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
         XCTAssertTrue(client.calls.count < 10, "should have cancelled, got \(client.calls.count)")
     }
 
@@ -135,7 +143,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         await MainActor.run { settings.prefetchCount = 1001; settings.save() }
         await vm.setAIMode(.rewrite)
         await vm.load()
-        try await Task.sleep(nanoseconds: 800_000_000)
+        await waitForPrefetch(client.calls.filter({ $0 != 1 }).count == 3)
         // vm.load triggers AI for current chapter (1) plus prefetch 2,3,4 when coerced to 3
         let prefetchCalls = client.calls.filter { $0 != 1 }
         XCTAssertEqual(prefetchCalls.count, 3, "coerced to 3, got \(client.calls)")
@@ -147,17 +155,25 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tmp) }
         await vm.setAIMode(.rewrite)
         await vm.load()
-        try await Task.sleep(nanoseconds: 500_000_000)
+        await waitForPrefetch(vm.prefetchStatus.isRunning)
         XCTAssertNil(UserDefaults.standard.object(forKey: "PrefetchStatus"))
         XCTAssertNotNil(vm.prefetchStatus)
     }
 
     func testReturnFromLogMakesZeroAPICalls() async throws {
-        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        let (vm, cache, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
         await vm.load()
         await vm.setAIMode(.rewrite)
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitForPrefetch(client.calls.count >= 3)
+        // Calls record at request start (before the transport delay), so poll
+        // window-chapter cache completion — not issuance — before the resync
+        // below. Otherwise the batch is still draining and the mirror reads
+        // running under parallel load.
+        await waitForPrefetch(
+            ((try? cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite)) != nil) &&
+                ((try? cache.get(bookId: "test-slug", chapterNumber: 3, mode: .rewrite)) != nil)
+        )
         // feat-024 Phase 2 (see docs/plans/feat-024.md): no poll, so settle
         // the VM mirror with an explicit resync before capturing the baseline
         // (all-cached here, so this resync itself resumes nothing).
@@ -170,7 +186,8 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         let processedBefore = vm.prefetchStatus.processedChapters
         await vm.load(source: .returnFromLog)
         // Give any stray aiTask/prefetch trigger time to fire if the gate regresses.
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // Sync trigger: a regression fires immediately, so a short 200ms window suffices.
+        try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(client.calls.isEmpty, "return-from-Log must make zero API calls, got \(client.calls)")
         XCTAssertEqual(vm.prefetchStatus.isRunning, runningBefore)
         XCTAssertEqual(vm.prefetchStatus.message, messageBefore)
@@ -200,7 +217,12 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         // NOTE: load() first so vm.book is set (prefetch needs the chapter count).
         await vm.load()
         await vm.setAIMode(.rewrite)
-        try await Task.sleep(nanoseconds: 2_000_000_000)
+        // Calls record at request start, so also poll ch4 cache completion
+        // before asserting the cache/terminal state below.
+        await waitForPrefetch(
+            client.calls.filter({ $0 == 2 }).count == 4 && client.calls.filter({ $0 == 4 }).count == 1 &&
+                ((try? cache.get(bookId: "test-slug", chapterNumber: 4, mode: .rewrite)) != nil)
+        )
         XCTAssertEqual(vm.chapterNumber, 1)
         XCTAssertTrue(client.calls.first == 1, "current chapter AI first, got \(client.calls)")
         XCTAssertFalse(client.calls.contains(3), "cached chapter must be skipped, got \(client.calls)")
@@ -237,6 +259,52 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         }
     }
 
+    /// Poll-based wait for a DiagnosticsLog event (50ms interval, 10s timeout).
+    /// Replaces fixed sleeps that waited for the ordered disappear-cancel to land.
+    private func waitForLogEvent(
+        timeoutSeconds: Double = 10,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ predicate: @escaping (LogEntry) -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while await DiagnosticsLog.shared.snapshot().contains(where: predicate) == false {
+            if Date() > deadline {
+                XCTFail("waitForLogEvent timed out", file: file, line: line)
+                return
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+
+    /// Poll-based quiescence: returns once the count stays unchanged for the
+    /// quiet window (in-flight transports drain), replacing fixed pre-freeze sleeps.
+    private func waitForCallsQuiescence(
+        quietNanoseconds: UInt64 = 300_000_000,
+        timeoutSeconds: Double = 10,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ count: @autoclosure () -> Int
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        var last = count()
+        var quietStart = Date()
+        while true {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            let now = count()
+            if now != last {
+                last = now
+                quietStart = Date()
+            } else if Date().timeIntervalSince(quietStart) * 1_000_000_000 >= Double(quietNanoseconds) {
+                return
+            }
+            if Date() > deadline {
+                XCTFail("waitForCallsQuiescence timed out", file: file, line: line)
+                return
+            }
+        }
+    }
+
     /// Disappear cancels and nothing resurrects: with no debounce there is no
     /// delayed trigger to wake, so after onDisappear calls freeze and the
     /// terminal holds. (feat-024 Phase 2, see docs/plans/feat-024.md: queue
@@ -244,6 +312,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     func testStaleNavTriggerDoesNotResurrectAfterDisappear() async throws {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 3, total: 10)
         defer { try? FileManager.default.removeItem(at: tmp) }
+        await DiagnosticsLog.shared.clear()
         client.delayPerCall = 200_000_000
         await vm.load()
         await vm.setAIMode(.rewrite)
@@ -253,12 +322,15 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         XCTAssertTrue(vm.prefetchStatus.isRunning, "navigate keeps queue running")
         // …then disappear cancels once; no delayed trigger can resurrect.
         // (No returnFromLog here: it would legitimately resume on misses.
-        // Sleep lets the ordered disappear-cancel land before sampling.)
+        // Poll the cancel event + quiescence so in-flight transports drain
+        // before sampling the freeze.)
         vm.onDisappear()
-        try await Task.sleep(nanoseconds: 300_000_000)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        await waitForLogEvent({ $0.event == "prefetch.cancel" })
+        await waitForCallsQuiescence(client.calls.count)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
         let frozen = client.calls.count
-        try await Task.sleep(nanoseconds: 500_000_000)
+        try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(client.calls.count, frozen, "no resurrect batch fetched, got \(client.calls)")
     }
 
@@ -268,19 +340,23 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     func testStaleModeTriggerDoesNotResurrectAfterDisappear() async throws {
         let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 30)
         defer { try? FileManager.default.removeItem(at: tmp) }
+        await DiagnosticsLog.shared.clear()
         client.delayPerCall = 200_000_000
         await vm.load()
         await vm.goToChapter(5)
         await vm.setAIMode(.rewrite)
         await waitForPrefetch(vm.prefetchStatus.isRunning)
-        // (No returnFromLog: it would resume on misses. Sleep lets the
-        // ordered disappear-cancel land before sampling the freeze.)
+        // (No returnFromLog: it would resume on misses. Poll the cancel
+        // event + quiescence so the ordered disappear-cancel and in-flight
+        // transports land before sampling the freeze.)
         vm.onDisappear()
-        try await Task.sleep(nanoseconds: 300_000_000)
+        await waitForPrefetch(!vm.prefetchStatus.isRunning)
+        await waitForLogEvent({ $0.event == "prefetch.cancel" })
+        await waitForCallsQuiescence(client.calls.count)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
         let frozen = client.calls.count
         XCTAssertTrue(client.calls.contains(5), "ch5 AI must have run, got \(client.calls)")
-        try await Task.sleep(nanoseconds: 500_000_000)
+        try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(client.calls.count, frozen, "no resurrect after disappear, got \(client.calls)")
     }
 
@@ -291,7 +367,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     /// scope (zero calls overall, no resume) is pinned by
     /// testReturnFromLogMakesZeroAPICalls.
     func testReturnFromLogResyncsAndResumesMidBatch() async throws {
-        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        let (vm, cache, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
         client.delayPerCall = 400_000_000
         await vm.load()
@@ -309,7 +385,12 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         XCTAssertTrue(vm.prefetchStatus.isRunning, "resumed batch should publish running")
         await waitForPrefetch(!client.calls.isEmpty)
         XCTAssertFalse(client.calls.contains(1), "current chapter must stay zero-API, got \(client.calls)")
-        try await Task.sleep(nanoseconds: 2_000_000_000)
+        // Calls record at request start (before the 400ms transport delay),
+        // so poll window-chapter cache completion — not issuance — before resync.
+        await waitForPrefetch(
+            ((try? cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite)) != nil) &&
+                ((try? cache.get(bookId: "test-slug", chapterNumber: 3, mode: .rewrite)) != nil)
+        )
         await vm.load(source: .returnFromLog)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
     }
@@ -333,7 +414,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         client.calls.removeAll()
         await vm.load(source: .returnFromLog)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
-        try await Task.sleep(nanoseconds: 500_000_000)
+        try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(client.calls.isEmpty, "query failure must not resume, got \(client.calls)")
         XCTAssertFalse(vm.prefetchStatus.isRunning)
     }
@@ -365,11 +446,18 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
     /// return shows idle immediately and stays stable with zero API calls.
     /// (feat-024 Phase 2, see docs/plans/feat-024.md.)
     func testReturnFromLogResyncsWithoutPoll() async throws {
-        let (vm, _, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
+        let (vm, cache, _, client, tmp) = try makeVM(prefetchCount: 2, total: 5)
         defer { try? FileManager.default.removeItem(at: tmp) }
         await vm.load()
         await vm.setAIMode(.rewrite)
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitForPrefetch(client.calls.count >= 3)
+        // Same issuance-vs-completion hazard as testReturnFromLogMakesZeroAPICalls:
+        // wait for the window chapters to land in cache before resyncing, or the
+        // settled-idle assert below flakes when transports are still draining.
+        await waitForPrefetch(
+            ((try? cache.get(bookId: "test-slug", chapterNumber: 2, mode: .rewrite)) != nil) &&
+                ((try? cache.get(bookId: "test-slug", chapterNumber: 3, mode: .rewrite)) != nil)
+        )
         await vm.load(source: .returnFromLog)
         XCTAssertFalse(vm.prefetchStatus.isRunning, "settled resync must show idle")
         let message = vm.prefetchStatus.message
@@ -378,7 +466,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         await vm.load(source: .returnFromLog)
         XCTAssertFalse(vm.prefetchStatus.isRunning)
         XCTAssertEqual(vm.prefetchStatus.message, message)
-        try await Task.sleep(nanoseconds: 300_000_000)
+        try await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertTrue(client.calls.isEmpty, "no poll/resume calls, got \(client.calls)")
         XCTAssertFalse(vm.prefetchStatus.isRunning)
     }
@@ -400,7 +488,7 @@ final class ReaderPrefetchIntegrationTests: XCTestCase {
         await vm.goNext()
         XCTAssertTrue(vm.prefetchStatus.isRunning, "steady next must keep the queue")
         XCTAssertEqual(vm.chapterNumber, 6)
-        try await Task.sleep(nanoseconds: 3_000_000_000)
+        await waitForPrefetch(client.calls.contains(9))
         let entries = await DiagnosticsLog.shared.snapshot()
         XCTAssertFalse(
             entries.contains { $0.event == "prefetch.cancel" && ($0.detail ?? "").contains("reason=chapterChange") },

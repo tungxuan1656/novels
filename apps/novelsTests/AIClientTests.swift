@@ -1,4 +1,6 @@
+#if canImport(novels)
 @testable import novels
+#endif
 import XCTest
 
 // swiftlint:disable file_length

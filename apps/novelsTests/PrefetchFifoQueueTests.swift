@@ -82,6 +82,50 @@ final class PrefetchFifoQueueTests: XCTestCase {
         return (PrefetchManager(), cache, settings, repo, client)
     }
 
+    /// Poll-based wait (50ms interval, 10s timeout) replacing fixed sleeps.
+    private func waitForCondition(
+        timeoutSeconds: Double = 10,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: () async -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while await condition() == false {
+            if Date() > deadline {
+                XCTFail("waitForCondition timed out", file: file, line: line)
+                return
+            }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+    }
+
+    /// Poll-based quiescence: returns once client.calls stays unchanged for
+    /// the quiet window (in-flight transports drain), mirroring
+    /// ReaderPrefetchIntegrationTests.waitForCallsQuiescence.
+    private func waitForCallsQuiescence(
+        quietNanoseconds: UInt64 = 300_000_000,
+        timeoutSeconds: Double = 10,
+        _ count: @autoclosure () -> Int
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        var last = count()
+        var quietStart = Date()
+        while true {
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            let now = count()
+            if now != last {
+                last = now
+                quietStart = Date()
+            } else if Date().timeIntervalSince(quietStart) * 1_000_000_000 >= Double(quietNanoseconds) {
+                return
+            }
+            if Date() > deadline {
+                XCTFail("waitForCallsQuiescence timed out")
+                return
+            }
+        }
+    }
+
     func testNavigateKeepsRunningTaskAndAppendsOnlyTail() async throws {
         // N=20 at 450 issues 451-470; go to 451 keeps the task, appends only 471.
         // Per feat-024 plan Phase 3 + settings-schema BR-08 note: no runtime
@@ -95,7 +139,7 @@ final class PrefetchFifoQueueTests: XCTestCase {
         await manager.start(bookId: "book-slug", currentChapter: 450, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
         try await Task.sleep(nanoseconds: 300_000_000)
         await manager.start(bookId: "book-slug", currentChapter: 451, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        try await Task.sleep(nanoseconds: 3_000_000_000)
+        await waitForCondition({ client.calls == Array(451...471) })
         let calls = client.calls
         XCTAssertEqual(calls, Array(451...471), "kept chapters processed once in FIFO order, got \(calls)")
         let entries = await DiagnosticsLog.shared.snapshot()
@@ -103,6 +147,7 @@ final class PrefetchFifoQueueTests: XCTestCase {
             entries.contains { $0.event == "prefetch.cancel" && ($0.detail ?? "").contains("reason=chapterChange") },
             "same-book navigate must not cancel, got \(entries.map { ($0.event, $0.detail) })"
         )
+        await manager.cancel()
     }
 
     func testTransientFailureRetriedOnceThenDropped() async throws {
@@ -114,7 +159,7 @@ final class PrefetchFifoQueueTests: XCTestCase {
         client.failRemaining = [52: 1]
         let svc = client.service(cache: cache, settings: settings)
         await manager.start(bookId: "book-slug", currentChapter: 50, totalChapters: 100, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        try await Task.sleep(nanoseconds: 2_500_000_000)
+        await waitForCondition({ await manager.currentStatus().isRunning == false && client.calls.filter({ $0 == 52 }).count == 2 })
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
         XCTAssertEqual(client.calls.filter({ $0 == 52 }).count, 2, "one retry max, got \(client.calls)")
@@ -133,9 +178,31 @@ final class PrefetchFifoQueueTests: XCTestCase {
         let callsBeforeChange = client.calls.count
         XCTAssertGreaterThan(callsBeforeChange, 0, "book-a work must be underway before the change, got \(client.calls)")
         await manager.start(bookId: "book-b", currentChapter: 10, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        try await Task.sleep(nanoseconds: 2_000_000_000)
+        // Poll the full book-b window (11...30, 20 chapters) — not just first
+        // issuance — so no background batch leaks into the next test via the
+        // shared AIMockURLProtocol handler.
+        await waitForCondition({
+            let pending = Array(client.calls.dropFirst(callsBeforeChange)).filter({ $0 >= 11 && $0 <= 30 })
+            return pending.count >= 20
+        })
+        // Quiescence: let in-flight transports drain so the snapshot below is
+        // terminal — a truly broken cancel keeps issuing and fails loudly here
+        // instead of flaking the range check below.
+        await waitForCallsQuiescence(client.calls.count)
         let newCalls = Array(client.calls.dropFirst(callsBeforeChange))
         XCTAssertFalse(newCalls.isEmpty, "book-b window must be processed, got \(client.calls)")
-        XCTAssertTrue(newCalls.allSatisfy({ $0 >= 11 && $0 <= 30 }), "old-book work cancelled, got \(client.calls)")
+        // Old-book work may legitimately drain between the callsBeforeChange
+        // sample and cancel propagation (calls record at request start), so
+        // scope the range check to everything from the first book-b call on:
+        // once book-b started, no old-book call may appear after it.
+        let firstNewIndex = try XCTUnwrap(
+            newCalls.firstIndex(where: { $0 >= 11 && $0 <= 30 }),
+            "book-b window must be processed, got \(client.calls)"
+        )
+        XCTAssertTrue(
+            newCalls[firstNewIndex...].allSatisfy({ $0 >= 11 && $0 <= 30 }),
+            "old-book work after book-b started, got \(client.calls)"
+        )
+        await manager.cancel()
     }
 }

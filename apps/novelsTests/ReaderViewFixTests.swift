@@ -225,7 +225,7 @@ final class ReaderViewFixTests: XCTestCase {
         func debouncedSave(_ offset: Double) {
             task?.cancel()
             task = Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 guard !Task.isCancelled else { return }
                 await MainActor.run { counter.save(offset) }
             }
@@ -236,8 +236,11 @@ final class ReaderViewFixTests: XCTestCase {
         // Before debounce interval, no save yet
         try? await Task.sleep(nanoseconds: 100_000_000)
         XCTAssertEqual(counter.count, 0)
-        // After interval, only last value saved once
-        try? await Task.sleep(nanoseconds: 300_000_000)
+        // Poll for the single coalesced save (20ms steps, 1s timeout) instead of a fixed 0.3s sleep.
+        let saveDeadline = Date().addingTimeInterval(1.0)
+        while counter.count < 1, Date() < saveDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertEqual(counter.count, 1)
         XCTAssertEqual(counter.lastValue, 3)
         task?.cancel()
@@ -255,14 +258,19 @@ final class ReaderViewFixTests: XCTestCase {
         func debouncedSave(_ offset: Double) {
             task?.cancel()
             task = Task {
-                try? await Task.sleep(nanoseconds: 300_000_000)
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 guard !Task.isCancelled else { return }
                 await MainActor.run { counter.save(offset) }
             }
         }
         debouncedSave(42)
         task?.cancel()
-        try? await Task.sleep(nanoseconds: 400_000_000)
+        // Step past the debounce window in 20ms increments (instead of a fixed
+        // 0.4s sleep); a missed cancel would fire inside this window.
+        let cancelDeadline = Date().addingTimeInterval(0.35)
+        while Date() < cancelDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         XCTAssertEqual(counter.count, 0)
     }
 }

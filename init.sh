@@ -41,7 +41,8 @@ BUILD_TASKS=(
 )
 
 TEST_TASKS=(
-  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'"
+  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -only-testing:novelsTests"
+  "xcodebuild test -project apps/novels.xcodeproj -scheme novelsLogicTests -destination 'platform=macOS'"
 )
 
 if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
@@ -105,11 +106,20 @@ run_parallel "format" "${FORMAT_TASKS[@]}"
 echo "=== Lint ==="
 run_parallel "lint" "${LINT_TASKS[@]}"
 
-echo "=== Build and test ==="
+echo "=== Build ==="
 if [ "$QUICK" -eq 1 ]; then
-  echo "SKIP [build/test] --quick (build and test skipped)"
+  echo "SKIP [build] --quick (build skipped)"
 else
-  run_parallel "build/test" "${BUILD_TASKS[@]}" "${TEST_TASKS[@]}"
+  run_parallel "build" "${BUILD_TASKS[@]}"
+fi
+
+echo "=== Test ==="
+if [ "$QUICK" -eq 1 ]; then
+  echo "SKIP [test] --quick (test skipped)"
+else
+  for command in "${TEST_TASKS[@]}"; do
+    run_task "test" "$command" || STATUS=1
+  done
 fi
 
 echo "=== Drift ==="
@@ -131,6 +141,47 @@ else
   fi
   if grep -q "Khi.*skill.*moi" .agents/skills/using-skills/SKILL.md; then
     echo "FAIL [drift] duplicate section Khi.*skill.*moi still present" >&2
+    STATUS=1
+  fi
+  LOGIC_SWIFTS=$(awk '/\/\* novelsLogicTests \*\/ = \{/{cap=1} cap{print} cap && /sourceTree = "<group>";/{exit}' apps/novels.xcodeproj/project.pbxproj | grep -oE '[A-Za-z0-9_]+\.swift')
+  if [ -z "$LOGIC_SWIFTS" ]; then
+    echo "FAIL [drift] novelsLogicTests group not found in project.pbxproj" >&2
+    STATUS=1
+  else
+    for f in $LOGIC_SWIFTS; do
+      case "$f" in
+        *Tests.swift)
+          if [ ! -f "apps/novelsTests/$f" ]; then
+            echo "FAIL [drift] $f listed in novelsLogicTests target but missing in apps/novelsTests" >&2
+            STATUS=1
+          elif grep -q "@testable import novels" "apps/novelsTests/$f" && ! grep -q "canImport(novels)" "apps/novelsTests/$f"; then
+            echo "FAIL [drift] $f must not use unguarded @testable import (dual-membership files use #if canImport)" >&2
+            STATUS=1
+          fi
+          ;;
+        *)
+          src=$(find apps/novels -name "$f" -not -path "*/novelsTests/*" | head -1)
+          # Shared test helpers with dual membership (e.g. Fixtures/TolerantFixtures.swift) live under apps/novelsTests.
+          if [ -z "$src" ]; then
+            src=$(find apps/novelsTests -name "$f" | head -1)
+          fi
+          if [ -z "$src" ]; then
+            echo "FAIL [drift] $f listed in novelsLogicTests target but source not found in apps/novels" >&2
+            STATUS=1
+          elif grep -Eq "import (UIKit|AppKit|Combine)" "$src"; then
+            echo "FAIL [drift] $src must stay free of UIKit/AppKit/Combine (macOS hostless target)" >&2
+            STATUS=1
+          fi
+          ;;
+      esac
+    done
+  fi
+  if find apps -iname "*uitest*" | grep -q .; then
+    echo "FAIL [drift] UI test files/targets are not allowed (unit tests only, see AGENTS.md)" >&2
+    STATUS=1
+  fi
+  if grep -rEq "XCUIApplication|XCUITest" apps --include="*.swift"; then
+    echo "FAIL [drift] XCUITest references are not allowed (unit tests only, see AGENTS.md)" >&2
     STATUS=1
   fi
 fi

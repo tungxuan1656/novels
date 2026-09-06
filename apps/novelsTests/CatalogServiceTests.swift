@@ -1,4 +1,6 @@
+#if canImport(novels)
 @testable import novels
+#endif
 import XCTest
 
 final class MockState {

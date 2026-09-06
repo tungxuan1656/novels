@@ -91,6 +91,10 @@ A feature is done only when:
 - Help: `./init.sh --help`
 - Testing: unit tests only. Do not add UI test targets.
 - Suites: `novelsTests` on iOS Simulator + hostless `novelsLogicTests` on macOS (pure-logic sources only, drift-guarded).
+- New tests: prefer `novelsLogicTests` when the SUT needs only Foundation/Observation/CryptoKit/SQLite3. Keep simulator tests for UIKit/SwiftUI/app-host needs.
+- Keep macOS sources free of UIKit/AppKit/Combine. No unguarded `@testable import` in logic tests (`#if canImport` for dual files).
+- Async tests: poll with short interval plus timeout backstop. No fixed sleeps over 0.2s. Cancel background work at test end.
+- Scope assertions to the test's own entries. Resume continuations exactly once on every path including cancel.
 
 `init.sh` is the source of truth. Full runs format, lint, build, test, drift. Quick skips build/test to save time. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
 

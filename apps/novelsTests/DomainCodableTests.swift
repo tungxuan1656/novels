@@ -1,4 +1,3 @@
-@testable import novels
 import XCTest
 
 final class DomainCodableTests: XCTestCase {

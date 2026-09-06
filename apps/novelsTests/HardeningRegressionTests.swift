@@ -42,14 +42,22 @@ final class HardeningRegressionTests: XCTestCase {
         guard let pbx = try? String(contentsOfFile: pbxPath, encoding: .utf8) else {
             return
         }
-        // 3 targets (novels, novelsTests, novelsUITests) × 2 configs (Debug/Release) = 6 occurrences.
+        // Unit-tests-only (no novelsUITests target): 2 iOS targets (novels,
+        // novelsTests) x 2 configs = 4 family-1 occurrences; novelsLogicTests
+        // is macOS (SDKROOT macosx) so it has no TARGETED_DEVICE_FAMILY.
         let familyCount = pbx.components(separatedBy: "TARGETED_DEVICE_FAMILY = 1;").count - 1
-        XCTAssertEqual(familyCount, 6, "Expected 6 TARGETED_DEVICE_FAMILY = 1; got \(familyCount)")
+        XCTAssertEqual(familyCount, 4, "Expected 4 TARGETED_DEVICE_FAMILY = 1; got \(familyCount)")
+        XCTAssertFalse(pbx.contains("novelsUITests"), "novelsUITests target was removed")
+        XCTAssertTrue(pbx.contains("novelsLogicTests"), "novelsLogicTests macOS target expected")
+        XCTAssertTrue(pbx.contains("SDKROOT = macosx"), "novelsLogicTests must stay macOS")
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = \"1,2\""))
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = 1,2"))
         XCTAssertFalse(pbx.contains("TARGETED_DEVICE_FAMILY = \"1, 2\""))
+        // IPHONEOS 26.5 on project-level (2) + novelsTests (2); the novels app
+        // target pins 18.6 and novelsLogicTests uses MACOSX_DEPLOYMENT_TARGET.
         let deploymentCount = pbx.components(separatedBy: "IPHONEOS_DEPLOYMENT_TARGET = 26.5;").count - 1
-        XCTAssertEqual(deploymentCount, 6, "Expected 6 IPHONEOS_DEPLOYMENT_TARGET = 26.5; got \(deploymentCount)")
+        XCTAssertEqual(deploymentCount, 4, "Expected 4 IPHONEOS_DEPLOYMENT_TARGET = 26.5; got \(deploymentCount)")
+        XCTAssertTrue(pbx.contains("MACOSX_DEPLOYMENT_TARGET = 14.0;"))
         XCTAssertTrue(pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J;") || pbx.contains("DEVELOPMENT_TEAM = M5U4E4H84J"))
         // Vector 1: pbxproj build setting insertion (case-sensitive, underscore, not tilde)
         XCTAssertFalse(
@@ -430,9 +438,34 @@ final class HardeningEdgeTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try? await Task.sleep(nanoseconds: 400_000_000)
+        // Latch: wait until the batch is actually running instead of a fixed 0.4s sleep.
+        let runningDeadline = Date().addingTimeInterval(5)
+        while await mgr.currentStatus().isRunning == false, Date() < runningDeadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         await mgr.cancel()
-        try? await Task.sleep(nanoseconds: 400_000_000)
+        // Poll for the cancel marker + call-count quiescence instead of a fixed 0.4s sleep.
+        let cancelDeadline = Date().addingTimeInterval(5)
+        var sawCancel = false
+        var lastCount = -1
+        var stableRounds = 0
+        while Date() < cancelDeadline {
+            let entries = await DiagnosticsLog.shared.snapshot()
+            if entries.contains(where: { $0.event == "prefetch.cancel" }) {
+                sawCancel = true
+            }
+            let calls = tracking.calls.count
+            if sawCancel, calls == lastCount {
+                stableRounds += 1
+                if stableRounds >= 2 {
+                    break
+                }
+            } else {
+                stableRounds = 0
+                lastCount = calls
+            }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
         let status = await mgr.currentStatus()
         XCTAssertFalse(status.isRunning)
         let count = try cache.countAll()

@@ -1,7 +1,9 @@
 // swiftlint:disable:next blanket_disable_command
 // swiftlint:disable all
 // swiftformat:disable all
+#if canImport(novels)
 @testable import novels
+#endif
 import XCTest
 
 final class MockBookRepo: BookRepository {
@@ -182,6 +184,43 @@ final class PrefetchManagerTests: XCTestCase {
         AIMockURLProtocol.handler = nil
     }
 
+    // MARK: - Poll helpers (same pattern as waitForPrefetch in
+    // ReaderPrefetchIntegrationTests.swift:224-238 and waitFor/waitForParkedID
+    // in ReaderStaleGuardTests.swift:289-323): fixed sleeps are replaced by
+    // polls so fast runs settle in ms while slow CI still gets a generous
+    // timeout. All assertions below stay unchanged.
+
+    private func waitFor(
+        timeoutSeconds: Double = 8,
+        pollNanoseconds: UInt64 = 50_000_000,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        _ condition: @escaping () async -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(timeoutSeconds)
+        while true {
+            if await condition() {
+                return
+            }
+            if Date() > deadline {
+                XCTFail("waitFor timed out", file: file, line: line)
+                return
+            }
+            try? await Task.sleep(nanoseconds: pollNanoseconds)
+        }
+    }
+
+    private func waitForIdle(
+        _ manager: PrefetchManager,
+        timeoutSeconds: Double = 8,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        await waitFor(timeoutSeconds: timeoutSeconds, file: file, line: line) {
+            await !manager.currentStatus().isRunning
+        }
+    }
+
     @MainActor
     func makeManagerEnv(
         prefetchCount: Int = 3,
@@ -250,7 +289,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 800_000_000)
+        await waitFor(pollNanoseconds: 20_000_000) { client.calls.contains(4) }
+        await waitForIdle(manager)
         XCTAssertTrue(client.calls.contains(4), "expected 4 in \(client.calls)")
         XCTAssertFalse(client.calls.contains(2), "unexpected 2 in \(client.calls)")
         XCTAssertFalse(client.calls.contains(3), "unexpected 3 in \(client.calls) cache should skip")
@@ -272,7 +312,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_000_000_000)
+        await waitFor { client.calls.count >= 3 }
+        await waitForIdle(manager)
         XCTAssertEqual(client.calls, [2, 3, 4], "got \(client.calls)")
     }
 
@@ -290,9 +331,9 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 400_000_000)
+        await waitFor { !client.calls.isEmpty }
         await manager.cancel()
-        try await Task.sleep(nanoseconds: 400_000_000)
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning)
         XCTAssertTrue(client.calls.count < 5)
@@ -312,7 +353,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_200_000_000)
+        await waitFor { client.calls.contains(2) && client.calls.contains(4) }
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertEqual(status.errors.count, 1, "errors \(status.errors) calls \(client.calls)")
         XCTAssertTrue(client.calls.contains(2), "should contain 2, got \(client.calls)")
@@ -338,7 +380,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 800_000_000)
+        await waitFor(pollNanoseconds: 20_000_000) { client.calls.count >= 3 }
+        await waitForIdle(manager)
         XCTAssertEqual(client.calls.count, 3)
         XCTAssertEqual(client.calls, [2, 3, 4])
         let manager2 = PrefetchManager()
@@ -363,7 +406,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc2,
             repository: repo2
         )
-        try await Task.sleep(nanoseconds: 800_000_000)
+        await waitFor(pollNanoseconds: 20_000_000) { client2.calls.count >= 3 }
+        await waitForIdle(manager2)
         XCTAssertEqual(client2.calls.count, 3)
     }
 
@@ -409,7 +453,7 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_200_000_000)
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning)
         XCTAssertTrue(client.calls.count <= 2)
@@ -453,7 +497,12 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_200_000_000)
+        await waitFor(pollNanoseconds: 20_000_000) {
+            await DiagnosticsLog.shared.snapshot().contains {
+                $0.event == "prefetch.error-continue" && $0.chapterNumber == 3
+            }
+        }
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning)
         XCTAssertEqual(status.errors.count, 1)
@@ -506,7 +555,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitFor { client.calls.filter { $0 == 3 }.count >= 2 }
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
         XCTAssertTrue(status.errors.isEmpty, "errors \(status.errors)")
@@ -543,7 +593,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitFor { await manager.currentStatus().errors.count == 1 }
+        await waitForIdle(manager)
         let firstStatus = await manager.currentStatus()
         XCTAssertFalse(firstStatus.isRunning, "status \(firstStatus)")
         XCTAssertEqual(firstStatus.errors.count, 1, "errors \(firstStatus.errors)")
@@ -560,7 +611,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitFor { client.calls.count >= callsBeforeSecond + 3 }
+        await waitForIdle(manager)
         let newCalls = Array(client.calls.dropFirst(callsBeforeSecond))
         XCTAssertEqual(newCalls, [3, 4, 6], "restart issues plain miss order, got \(newCalls)")
         XCTAssertNotNil(
@@ -604,7 +656,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 3_000_000_000)
+        await waitFor(timeoutSeconds: 8) { client.calls.count >= 5 }
+        await waitForIdle(manager)
         XCTAssertEqual(client.calls, [2, 3, 4, 5, 6], "kept chapters exactly once + new tail, got \(client.calls)")
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
@@ -646,7 +699,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 2_500_000_000)
+        await waitFor(timeoutSeconds: 8) { client.calls.contains(10) }
+        await waitForIdle(manager)
         XCTAssertEqual(Array(client.calls.suffix(3)), [8, 9, 10], "new window fully processed, got \(client.calls)")
         XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 8, mode: .rewrite))
         XCTAssertNotNil(try cache.get(bookId: "book-slug", chapterNumber: 9, mode: .rewrite))
@@ -762,7 +816,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 5_000_000_000)
+        await waitFor(timeoutSeconds: 8) { client.calls.count >= 20 }
+        await waitForIdle(manager, timeoutSeconds: 8)
         XCTAssertEqual(client.calls, Array(2 ... 21), "N=20 honored, got \(client.calls)")
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
@@ -789,7 +844,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc2,
             repository: repo2
         )
-        try await Task.sleep(nanoseconds: 6_000_000_000)
+        await waitFor(timeoutSeconds: 8) { client2.calls.count >= 49 }
+        await waitForIdle(manager2, timeoutSeconds: 8)
         XCTAssertEqual(client2.calls, Array(2 ... 50), "N=1000 honored paced, got \(client2.calls)")
         let status2 = await manager2.currentStatus()
         XCTAssertFalse(status2.isRunning, "status \(status2)")
@@ -820,7 +876,7 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitForIdle(manager)
         let settled = await manager.currentStatus()
         XCTAssertFalse(settled.isRunning, "status \(settled)")
         let callsBefore = client.calls.count
@@ -834,7 +890,11 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 500_000_000)
+        await waitFor {
+            await DiagnosticsLog.shared.snapshot().contains {
+                $0.event == "prefetch.error-continue" && ($0.detail ?? "").contains("cacheQueryFailed")
+            }
+        }
         XCTAssertEqual(client.calls.count, callsBefore, "no refetch on query failure, got \(client.calls)")
         let kept = await manager.currentStatus()
         XCTAssertEqual(kept, settled, "prior state kept")
@@ -872,7 +932,10 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 2_500_000_000)
+        await waitFor(timeoutSeconds: 8) {
+            let s = await manager.currentStatus()
+            return !s.isRunning && s.message.contains("còn 2 chương cuối")
+        }
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
         XCTAssertTrue(
@@ -896,7 +959,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitFor { client.calls.count >= 2 }
+        await waitForIdle(manager)
         let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning, "status \(status)")
         XCTAssertEqual(client.calls, [99, 100], "got \(client.calls)")
@@ -916,7 +980,8 @@ final class PrefetchManagerTests: XCTestCase {
             aiService: svc,
             repository: repo
         )
-        try await Task.sleep(nanoseconds: 1_500_000_000)
+        await waitFor { client.calls.count >= 5 }
+        await waitForIdle(manager)
         let mid = await manager.currentStatus()
         XCTAssertFalse(mid.isRunning, "status \(mid)")
         XCTAssertEqual(mid.message, "Đã hoàn tất", "mid-book message stays generic, got \(mid.message)")

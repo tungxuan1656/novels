@@ -1,4 +1,3 @@
-@testable import novels
 import XCTest
 
 // swiftlint:disable:next type_body_length
