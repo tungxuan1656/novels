@@ -252,14 +252,7 @@ actor PrefetchManager {
                     continue
                 }
                 let parsed: [TextBlock] = HtmlParser.parse(html: html)
-                let joined = parsed.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
-                var normalized = joined.replacingOccurrences(
-                    of: "[ \\t]*\\n[ \\t]*",
-                    with: "\n",
-                    options: .regularExpression
-                )
-                normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-                let raw = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+                let raw = HtmlParser.joinedBodyText(from: parsed, excludingFirstHeading: true) ?? ""
                 guard !raw.isEmpty else {
                     await self.requeueOrRecord(
                         number: number,
