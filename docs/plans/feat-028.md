@@ -158,53 +158,138 @@ Expected: PASS
 
 ---
 
-### Task 3: Render raw heading above translated body
+### Task 3: Unify heading+body rendering and extract content view (amended per owner ruling 2026-09-07)
+
+Owner ruling: the AI branch must NOT build a parallel heading+body structure — raw mode already renders heading+body through one shared path, so both modes unify on a single extracted block renderer. And the `file_length` ceiling (ReaderView 495 lines vs 500) is fixed properly by moving code OUT of `ReaderView.swift`, never by raising the lint limit.
 
 **Files:**
-- Modify: `apps/novels/Features/Reading/ReaderView.swift` (the AI branch that calls `aiProcessedContent(_:)`; raw-mode `content` and `topChapterTitleText` stay untouched)
+- Create: `apps/novels/Features/Reading/ReaderContentView.swift` (single-block renderer shared by raw and AI modes)
+- Modify: `apps/novels/Features/Reading/ReaderView.swift` (use the shared view in `content` and in the AI branch; delete the moved `fontFor`; net line count must drop)
+- Modify: `apps/novels/Domain/HtmlParser.swift` (delete `firstHeadingText`, now unused after unification — the AI branch renders the heading *block*, not a string)
 
 **Interfaces:**
-- Consumes: `HtmlParser.firstHeadingText(from:)` from Task 1, heading font extracted below
-- Produces: AI reading shows `heading (raw) + body (translated)`; `viewModel.blocks` (raw parse) remains the single source for the heading
+- Consumes: `TextBlock`/`TextSpan` shapes; `ReaderFontMapper.font(name:size:)` and `ReaderFontMapper.font(name:size:weight:)` exactly as used today
+- Produces: `ReaderContentView(block:fontName:fontSize:lineHeight:textPrimary:)` used by raw `content` and the AI branch
 
-- [ ] **Step 1: Extract a heading-font helper and delegate `fontFor` to it**
+- [ ] **Step 1: Discard the superseded staged change**
 
-Add:
+Run: `git restore --source=HEAD --staged --worktree apps/novels/Features/Reading/ReaderView.swift`
+Expected: `git status --short` shows a clean tree (the +17/−3 heading-prepend change is gone; this amended design replaces it)
+
+- [ ] **Step 2: Create the shared block renderer moved verbatim from ReaderView**
+
+Create `apps/novels/Features/Reading/ReaderContentView.swift`:
 
 ```swift
-private func headingFont(level: Int?) -> Font {
-    let base = CGFloat(settingsStore.typography.fontSize)
-    let fontName = settingsStore.typography.font
-    let level = CGFloat(level ?? 3)
-    let size = base + CGFloat(7 - level) * 2
-    return ReaderFontMapper.font(name: fontName, size: size, weight: .bold)
+import SwiftUI
+
+/// Renders one TextBlock to Text. Shared by raw mode and AI mode so a
+/// heading looks identical in both. Pure view of its inputs: no store access.
+struct ReaderContentView: View {
+    let block: TextBlock
+    let fontName: String
+    let fontSize: CGFloat
+    let lineHeight: CGFloat
+    let textPrimary: Color
+
+    var body: some View {
+        combined
+            .lineSpacing(lineHeight)
+            .multilineTextAlignment(.leading)
+    }
+
+    private var combined: Text {
+        block.spans.reduce(Text("")) { accumulator, span in
+            if span.isLineBreak {
+                return accumulator + Text(span.text)
+            }
+            var piece = Text(span.text)
+                .font(fontFor(block: block, span: span))
+                .foregroundStyle(textPrimary)
+            if span.kind == .bold || span.kind == .boldItalic {
+                piece = piece.bold()
+            }
+            if span.kind == .italic || span.kind == .boldItalic {
+                piece = piece.italic()
+            }
+            return accumulator + piece
+        }
+    }
+
+    private func fontFor(block: TextBlock, span: TextSpan) -> Font {
+        if block.isHeading {
+            let level = CGFloat(block.headingLevel ?? 3)
+            let size = fontSize + CGFloat(7 - level) * 2
+            return ReaderFontMapper.font(name: fontName, size: size, weight: .bold)
+        }
+        return ReaderFontMapper.font(name: fontName, size: fontSize)
+    }
 }
 ```
 
-Change `fontFor(block:span:)` heading branch to `return headingFont(level: block.headingLevel)`. Raw rendering is pixel-identical; this only reuses the formula.
+The `combined`/`fontFor` bodies are moved verbatim from ReaderView's `content`/`fontFor`; only the `settingsStore`/`theme` reads become the four init params.
 
-- [ ] **Step 2: Prepend the raw heading in the AI branch**
+- [ ] **Step 3: Rewire ReaderView to the shared view and delete the moved code**
 
-In the branch that currently renders `aiProcessedContent(processed)`, render:
+In `content`, replace the inline reduce with:
 
 ```swift
-if let heading = HtmlParser.firstHeadingText(from: viewModel.blocks) {
-    Text(heading)
-        .font(headingFont(level: viewModel.blocks.first(where: { $0.isHeading })?.headingLevel))
-        .foregroundStyle(theme.textPrimary)
-        .multilineTextAlignment(.leading)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityIdentifier("aiHeading")
+ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
+    ReaderContentView(
+        block: block,
+        fontName: settingsStore.typography.font,
+        fontSize: CGFloat(settingsStore.typography.fontSize),
+        lineHeight: CGFloat(settingsStore.typography.lineHeight),
+        textPrimary: theme.textPrimary
+    )
+}
+```
+
+Delete ReaderView's private `fontFor(block:span:)` (it now lives in the new file).
+
+In the AI branch that currently renders `aiProcessedContent(processed)`, render:
+
+```swift
+if let heading = viewModel.blocks.first(where: { $0.isHeading }) {
+    ReaderContentView(
+        block: heading,
+        fontName: settingsStore.typography.font,
+        fontSize: CGFloat(settingsStore.typography.fontSize),
+        lineHeight: CGFloat(settingsStore.typography.lineHeight),
+        textPrimary: theme.textPrimary
+    )
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .accessibilityIdentifier("aiHeading")
 }
 aiProcessedContent(processed)
 ```
 
-When there is no heading, output is exactly one `Text` as before. Do not pass the heading into the translated string.
+When there is no heading, output is exactly one `Text` as before. The heading is never passed into the translated string.
 
-- [ ] **Step 3: Run quick verification**
+- [ ] **Step 4: Delete the now-unused `firstHeadingText` helper**
+
+Delete `HtmlParser.firstHeadingText(from:)` from the Task 1 extension, keeping `joinedBodyText` untouched.
+
+- [ ] **Step 5: Prove unification, size, and cleanliness**
+
+Run: `rg -n "firstHeadingText" apps/novels --glob '*.swift'`
+Expected: zero matches
+
+Run: `wc -l apps/novels/Features/Reading/ReaderView.swift`
+Expected: at most 500 lines (must drop from 495, not grow)
+
+Run: `rg -n "private func fontFor" apps/novels --glob '*.swift'`
+Expected: exactly one match, in `ReaderContentView.swift`
 
 Run: `./init.sh --quick`
 Expected: PASS
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/novels/Features/Reading/ReaderContentView.swift apps/novels/Features/Reading/ReaderView.swift apps/novels/Domain/HtmlParser.swift
+git commit -m "feat(feat-028): unify heading render via extracted content view"
+```
 
 ---
 

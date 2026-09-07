@@ -6,9 +6,9 @@ The first chapter heading renders as its own raw (untranslated) text, while the 
 
 ## Scope
 
-- `apps/novels/Domain/HtmlParser.swift`: shared `joinedBodyText` + `firstHeadingText` helpers (single source of join truth).
+- `apps/novels/Domain/HtmlParser.swift`: shared `joinedBodyText` helper (single source of join truth; `firstHeadingText` added in Task 1 then removed in Task 3 when render unification made it unused).
 - `apps/novels/Features/Reading/ReaderViewModel.swift` (`readRawTextForAI`) and `apps/novels/Services/PrefetchManager.swift` (prefetch join): use the shared helper with `excludingFirstHeading: true`.
-- `apps/novels/Features/Reading/ReaderView.swift`: AI branch renders raw heading `Text` + translated body `Text`; raw mode and sticky title untouched.
+- `apps/novels/Features/Reading/ReaderView.swift` + new `ReaderContentView.swift`: one shared block renderer for raw and AI modes (owner ruling: no parallel heading+body in AI branch; proper extract, no lint-limit change); AI branch renders heading block raw above translated body; sticky title untouched.
 - `apps/novels/Persistence/ProcessedChapterCache.swift`: `user_version` 1→2 with one-time `DELETE FROM processed_chapters` so stale header-included entries are never served.
 - Docs: `docs/contracts/ai-service.md`, `docs/product/functional-specs/ai-reading.md`.
 
