@@ -54,7 +54,7 @@ struct ReaderView: View {
                                     .frame(maxWidth: .infinity)
                             } else if viewModel.aiMode != .none {
                                 aiSection
-                            } else if viewModel.blocks.isEmpty {
+                            } else if viewModel.chapterBody.isEmpty {
                                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                                     .foregroundStyle(theme.textMuted)
                             } else {
@@ -135,22 +135,13 @@ struct ReaderView: View {
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
-                if let heading = viewModel.blocks.first(where: { $0.isHeading }) {
-                    ReaderContentView(
-                        block: heading,
-                        fontName: settingsStore.typography.font,
-                        fontSize: CGFloat(settingsStore.typography.fontSize),
-                        lineHeight: CGFloat(settingsStore.typography.lineHeight),
-                        textPrimary: theme.textPrimary
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("aiHeading")
-                }
-                aiProcessedContent(processed)
+                chapterTitleView
+                bodyText(processed)
+                    .accessibilityIdentifier("aiContent")
             } else if viewModel.isLoading || viewModel.isAIProcessing {
                 ProgressView()
                     .frame(maxWidth: .infinity)
-            } else if viewModel.blocks.isEmpty {
+            } else if viewModel.chapterBody.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(theme.textMuted)
             } else {
@@ -161,37 +152,44 @@ struct ReaderView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
-            ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
-                ReaderContentView(
-                    block: block,
-                    fontName: settingsStore.typography.font,
-                    fontSize: CGFloat(settingsStore.typography.fontSize),
-                    lineHeight: CGFloat(settingsStore.typography.lineHeight),
-                    textPrimary: theme.textPrimary
-                )
-            }
+            chapterTitleView
+            bodyText(viewModel.chapterBody)
         }
     }
 
-    private func aiProcessedContent(_ text: String) -> some View {
-        let base = CGFloat(settingsStore.typography.fontSize)
-        let fontName = settingsStore.typography.font
-        let font = ReaderFontMapper.font(name: fontName, size: base)
+    @ViewBuilder
+    private var chapterTitleView: some View {
+        if let title = viewModel.chapterTitle, !title.isEmpty {
+            Text(title)
+                .font(ReaderFontMapper.font(
+                    name: settingsStore.typography.font,
+                    size: CGFloat(settingsStore.typography.fontSize) + 8,
+                    weight: .bold
+                ))
+                .bold()
+                .foregroundStyle(theme.textPrimary)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 
+    private func bodyText(_ text: String) -> some View {
+        let font = ReaderFontMapper.font(
+            name: settingsStore.typography.font,
+            size: CGFloat(settingsStore.typography.fontSize)
+        )
         return Text(text)
             .font(font)
             .foregroundStyle(theme.textPrimary)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("aiContent")
     }
 
     private var topChapterTitleText: String {
         let num = viewModel.chapterNumber
-        let headingBlock = viewModel.blocks.first(where: { $0.isHeading })
-        if let headingText = headingBlock?.spans.first?.text, !headingText.isEmpty {
-            return "【\(num)】 \(headingText)"
+        if let title = viewModel.chapterTitle, !title.isEmpty {
+            return "【\(num)】 \(title)"
         }
         if let bookName = viewModel.book?.name, !bookName.isEmpty {
             return "【\(num)】 Chương \(num): \(bookName)"
@@ -467,7 +465,8 @@ struct ReaderView: View {
             await MainActor.run {
                 // Never apply a stale restore onto a chapter the user already left.
                 guard viewModel.chapterNumber == chapter else { return }
-                guard !viewModel.isLoading, !viewModel.blocks.isEmpty || viewModel.errorMessage != nil else { return }
+                let hasContent = !viewModel.chapterBody.isEmpty || viewModel.errorMessage != nil
+                guard !viewModel.isLoading, hasContent else { return }
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }
         }

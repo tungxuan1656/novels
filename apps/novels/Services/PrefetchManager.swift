@@ -251,8 +251,8 @@ actor PrefetchManager {
                     )
                     continue
                 }
-                let parsed: [TextBlock] = HtmlParser.parse(html: html)
-                let raw = HtmlParser.joinedBodyText(from: parsed, excludingFirstHeading: true) ?? ""
+                let chapter = HtmlParser.parseChapter(html: html)
+                let raw = chapter.body
                 guard !raw.isEmpty else {
                     await self.requeueOrRecord(
                         number: number,
