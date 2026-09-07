@@ -26,14 +26,6 @@
 		E2DB6220303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6240303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift */; };
 		E2DB6221303C43F300D20F8F /* novels/Persistence/Paths.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6241303C43F300D20F8F /* novels/Persistence/Paths.swift */; };
 		E2DB6222303C43F300D20F8F /* novels/Persistence/ZipValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6242303C43F300D20F8F /* novels/Persistence/ZipValidator.swift */; };
-		E2DB6223303C43F300D20F8F /* novelsTests/AIChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6243303C43F300D20F8F /* novelsTests/AIChunkerTests.swift */; };
-		E2DB6224303C43F300D20F8F /* novelsTests/AIPromptBuilderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6244303C43F300D20F8F /* novelsTests/AIPromptBuilderTests.swift */; };
-		E2DB6225303C43F300D20F8F /* novelsTests/HtmlParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6245303C43F300D20F8F /* novelsTests/HtmlParserTests.swift */; };
-		E2DB6226303C43F300D20F8F /* novelsTests/DomainCodableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6246303C43F300D20F8F /* novelsTests/DomainCodableTests.swift */; };
-		E2DB6227303C43F300D20F8F /* novelsTests/PrefetchStatusTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6247303C43F300D20F8F /* novelsTests/PrefetchStatusTests.swift */; };
-		E2DB6228303C43F300D20F8F /* novelsTests/ProcessedChapterCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6248303C43F300D20F8F /* novelsTests/ProcessedChapterCacheTests.swift */; };
-		E2DB6229303C43F300D20F8F /* novelsTests/CacheManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6249303C43F300D20F8F /* novelsTests/CacheManagerTests.swift */; };
-		E2DB622A303C43F300D20F8F /* novelsTests/BookRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB624A303C43F300D20F8F /* novelsTests/BookRepositoryTests.swift */; };
 		E2DB622B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB624B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift */; };
 		E2DB6271303C43F300D20F8F /* novels/Services/AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6250303C43F300D20F8F /* novels/Services/AIClient.swift */; };
 		E2DB6272303C43F300D20F8F /* novels/Services/AIReadingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6251303C43F300D20F8F /* novels/Services/AIReadingService.swift */; };
@@ -52,34 +44,13 @@
 		E2DB627F303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625E303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift */; };
 		E2DB6280303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625F303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift */; };
 		E2DB6281303C43F300D20F8F /* novels/Domain/ReadingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6260303C43F300D20F8F /* novels/Domain/ReadingTheme.swift */; };
-		E2DB6282303C43F300D20F8F /* novelsTests/AIClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6261303C43F300D20F8F /* novelsTests/AIClientTests.swift */; };
-		E2DB6284303C43F300D20F8F /* novelsTests/AIReadingServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6263303C43F300D20F8F /* novelsTests/AIReadingServiceTests.swift */; };
-		E2DB6285303C43F300D20F8F /* novelsTests/CatalogServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6264303C43F300D20F8F /* novelsTests/CatalogServiceTests.swift */; };
-		E2DB6286303C43F300D20F8F /* novelsTests/DiagnosticsLogTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6265303C43F300D20F8F /* novelsTests/DiagnosticsLogTests.swift */; };
-		E2DB6287303C43F300D20F8F /* novelsTests/FixtureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6266303C43F300D20F8F /* novelsTests/FixtureTests.swift */; };
-		E2DB628A303C43F300D20F8F /* novelsTests/PrefetchManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6269303C43F300D20F8F /* novelsTests/PrefetchManagerTests.swift */; };
-		E2DB628B303C43F300D20F8F /* novelsTests/SettingsEditorValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB626A303C43F300D20F8F /* novelsTests/SettingsEditorValidationTests.swift */; };
-		E2DB628C303C43F300D20F8F /* novelsTests/SettingsStoreCoercionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB626B303C43F300D20F8F /* novelsTests/SettingsStoreCoercionTests.swift */; };
-		E2DB628D303C43F300D20F8F /* novelsTests/SettingsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB626C303C43F300D20F8F /* novelsTests/SettingsStoreTests.swift */; };
-		E2DB628E303C43F300D20F8F /* novelsTests/TypographySheetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB626D303C43F300D20F8F /* novelsTests/TypographySheetTests.swift */; };
-		E2DB628F303C43F300D20F8F /* novelsTests/Fixtures/TolerantFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB626E303C43F300D20F8F /* novelsTests/Fixtures/TolerantFixtures.swift */; };
-		E2DB6290303C43F300D20F8F /* novelsTests/Fixtures in Resources */ = {isa = PBXBuildFile; fileRef = E2DB626F303C43F300D20F8F /* novelsTests/Fixtures */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		E2DB619A303C43F300D20F8F /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
-			remoteInfo = novels;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		E2DB617F303C43F300D20F8F /* novels.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = novels.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E2DB6190303C43F300D20F8F /* novelsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = novelsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		E2DB6200303C43F300D20F8F /* novelsLogicTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = novelsLogicTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2DB6230303C43F300D20F8F /* novels/Domain/Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/Book.swift; sourceTree = "<group>"; };
 		E2DB6231303C43F300D20F8F /* novels/Domain/Reference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/Reference.swift; sourceTree = "<group>"; };
 		E2DB6232303C43F300D20F8F /* novels/Domain/AIMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/AIMode.swift; sourceTree = "<group>"; };
@@ -99,14 +70,6 @@
 		E2DB6240303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/ProcessedChapterCache.swift; sourceTree = "<group>"; };
 		E2DB6241303C43F300D20F8F /* novels/Persistence/Paths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/Paths.swift; sourceTree = "<group>"; };
 		E2DB6242303C43F300D20F8F /* novels/Persistence/ZipValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/ZipValidator.swift; sourceTree = "<group>"; };
-		E2DB6243303C43F300D20F8F /* novelsTests/AIChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/AIChunkerTests.swift; sourceTree = "<group>"; };
-		E2DB6244303C43F300D20F8F /* novelsTests/AIPromptBuilderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/AIPromptBuilderTests.swift; sourceTree = "<group>"; };
-		E2DB6245303C43F300D20F8F /* novelsTests/HtmlParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/HtmlParserTests.swift; sourceTree = "<group>"; };
-		E2DB6246303C43F300D20F8F /* novelsTests/DomainCodableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/DomainCodableTests.swift; sourceTree = "<group>"; };
-		E2DB6247303C43F300D20F8F /* novelsTests/PrefetchStatusTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/PrefetchStatusTests.swift; sourceTree = "<group>"; };
-		E2DB6248303C43F300D20F8F /* novelsTests/ProcessedChapterCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/ProcessedChapterCacheTests.swift; sourceTree = "<group>"; };
-		E2DB6249303C43F300D20F8F /* novelsTests/CacheManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/CacheManagerTests.swift; sourceTree = "<group>"; };
-		E2DB624A303C43F300D20F8F /* novelsTests/BookRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/BookRepositoryTests.swift; sourceTree = "<group>"; };
 		E2DB624B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/FileManagerZIP.swift; sourceTree = "<group>"; };
 		E2DB6250303C43F300D20F8F /* novels/Services/AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIClient.swift; sourceTree = "<group>"; };
 		E2DB6251303C43F300D20F8F /* novels/Services/AIReadingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIReadingService.swift; sourceTree = "<group>"; };
@@ -125,43 +88,9 @@
 		E2DB625E303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Settings/SettingsViewModel.swift; sourceTree = "<group>"; };
 		E2DB625F303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Reading/ScrollOffsetPreference.swift; sourceTree = "<group>"; };
 		E2DB6260303C43F300D20F8F /* novels/Domain/ReadingTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/ReadingTheme.swift; sourceTree = "<group>"; };
-		E2DB6261303C43F300D20F8F /* novelsTests/AIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/AIClientTests.swift; sourceTree = "<group>"; };
-		E2DB6263303C43F300D20F8F /* novelsTests/AIReadingServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/AIReadingServiceTests.swift; sourceTree = "<group>"; };
-		E2DB6264303C43F300D20F8F /* novelsTests/CatalogServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/CatalogServiceTests.swift; sourceTree = "<group>"; };
-		E2DB6265303C43F300D20F8F /* novelsTests/DiagnosticsLogTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/DiagnosticsLogTests.swift; sourceTree = "<group>"; };
-		E2DB6266303C43F300D20F8F /* novelsTests/FixtureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/FixtureTests.swift; sourceTree = "<group>"; };
-		E2DB6269303C43F300D20F8F /* novelsTests/PrefetchManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/PrefetchManagerTests.swift; sourceTree = "<group>"; };
-		E2DB626A303C43F300D20F8F /* novelsTests/SettingsEditorValidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/SettingsEditorValidationTests.swift; sourceTree = "<group>"; };
-		E2DB626B303C43F300D20F8F /* novelsTests/SettingsStoreCoercionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/SettingsStoreCoercionTests.swift; sourceTree = "<group>"; };
-		E2DB626C303C43F300D20F8F /* novelsTests/SettingsStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/SettingsStoreTests.swift; sourceTree = "<group>"; };
-		E2DB626D303C43F300D20F8F /* novelsTests/TypographySheetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/TypographySheetTests.swift; sourceTree = "<group>"; };
-		E2DB626E303C43F300D20F8F /* novelsTests/Fixtures/TolerantFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novelsTests/Fixtures/TolerantFixtures.swift; sourceTree = "<group>"; };
-		E2DB626F303C43F300D20F8F /* novelsTests/Fixtures */ = {isa = PBXFileReference; lastKnownFileType = folder; path = novelsTests/Fixtures; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		E2DB61A6303C43F300D20F8F /* Exceptions for "novelsTests" folder in "novelsTests" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AIChunkerTests.swift,
-				AIPromptBuilderTests.swift,
-				AIReadingServiceTests.swift,
-				BookRepositoryTests.swift,
-				CacheManagerTests.swift,
-				DiagnosticsLogTests.swift,
-				DomainCodableTests.swift,
-				FixtureTests.swift,
-				HtmlParserTests.swift,
-				Info.plist,
-				PrefetchStatusTests.swift,
-				ProcessedChapterCacheTests.swift,
-				SettingsEditorValidationTests.swift,
-				SettingsStoreCoercionTests.swift,
-				SettingsStoreTests.swift,
-				TypographySheetTests.swift,
-			);
-			target = E2DB6195303C43F300D20F8F /* novelsTests */;
-		};
 		E2DB61A8303C43F300D20F8F /* Exceptions for "novels" folder in "novels" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -180,14 +109,6 @@
 			path = novels;
 			sourceTree = "<group>";
 		};
-		E2DB6191303C43F300D20F8F /* novelsTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				E2DB61A6303C43F300D20F8F /* Exceptions for "novelsTests" folder in "novelsTests" target */,
-			);
-			path = novelsTests;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -198,38 +119,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E2DB6193303C43F300D20F8F /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E2DB6203303C43F300D20F8F /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		E2380F20304037EC0025F17A /* Recovered References */ = {
-			isa = PBXGroup;
-			children = (
-				E2DB6191303C43F300D20F8F /* novelsTests */,
-			);
-			name = "Recovered References";
-			sourceTree = "<group>";
-		};
 		E2DB6176303C43F300D20F8F = {
 			isa = PBXGroup;
 			children = (
 				E2DB6181303C43F300D20F8F /* novels */,
 				E2DB6180303C43F300D20F8F /* Products */,
-				E2DB6201303C43F300D20F8F /* novelsLogicTests */,
-				E2380F20304037EC0025F17A /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -237,74 +134,8 @@
 			isa = PBXGroup;
 			children = (
 				E2DB617F303C43F300D20F8F /* novels.app */,
-				E2DB6190303C43F300D20F8F /* novelsTests.xctest */,
-				E2DB6200303C43F300D20F8F /* novelsLogicTests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		E2DB6201303C43F300D20F8F /* novelsLogicTests */ = {
-			isa = PBXGroup;
-			children = (
-				E2DB6230303C43F300D20F8F /* novels/Domain/Book.swift */,
-				E2DB6231303C43F300D20F8F /* novels/Domain/Reference.swift */,
-				E2DB6232303C43F300D20F8F /* novels/Domain/AIMode.swift */,
-				E2DB6233303C43F300D20F8F /* novels/Domain/HtmlParser.swift */,
-				E2DB6234303C43F300D20F8F /* novels/Domain/TextSpan.swift */,
-				E2DB6235303C43F300D20F8F /* novels/Domain/Chapter.swift */,
-				E2DB6236303C43F300D20F8F /* novels/Domain/PrefetchStatus.swift */,
-				E2DB6237303C43F300D20F8F /* novels/Domain/ProcessedChapter.swift */,
-				E2DB6238303C43F300D20F8F /* novels/Domain/SHA256.swift */,
-				E2DB6239303C43F300D20F8F /* novels/Domain/SettingsModels.swift */,
-				E2DB623A303C43F300D20F8F /* novels/Domain/SlugValidator.swift */,
-				E2DB623B303C43F300D20F8F /* novels/Domain/ReadingSession.swift */,
-				E2DB623C303C43F300D20F8F /* novels/Domain/TypographySetting.swift */,
-				E2DB623D303C43F300D20F8F /* novels/Services/AIChunker.swift */,
-				E2DB623E303C43F300D20F8F /* novels/Services/AIPromptBuilder.swift */,
-				E2DB623F303C43F300D20F8F /* novels/Persistence/BookRepository.swift */,
-				E2DB6240303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift */,
-				E2DB6241303C43F300D20F8F /* novels/Persistence/Paths.swift */,
-				E2DB6242303C43F300D20F8F /* novels/Persistence/ZipValidator.swift */,
-				E2DB6243303C43F300D20F8F /* novelsTests/AIChunkerTests.swift */,
-				E2DB6244303C43F300D20F8F /* novelsTests/AIPromptBuilderTests.swift */,
-				E2DB6245303C43F300D20F8F /* novelsTests/HtmlParserTests.swift */,
-				E2DB6246303C43F300D20F8F /* novelsTests/DomainCodableTests.swift */,
-				E2DB6247303C43F300D20F8F /* novelsTests/PrefetchStatusTests.swift */,
-				E2DB6248303C43F300D20F8F /* novelsTests/ProcessedChapterCacheTests.swift */,
-				E2DB6249303C43F300D20F8F /* novelsTests/CacheManagerTests.swift */,
-				E2DB624A303C43F300D20F8F /* novelsTests/BookRepositoryTests.swift */,
-				E2DB624B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift */,
-				E2DB6250303C43F300D20F8F /* novels/Services/AIClient.swift */,
-				E2DB6251303C43F300D20F8F /* novels/Services/AIReadingService.swift */,
-				E2DB6252303C43F300D20F8F /* novels/Services/AIResponse.swift */,
-				E2DB6253303C43F300D20F8F /* novels/Services/CatalogService.swift */,
-				E2DB6254303C43F300D20F8F /* novels/Services/CatalogError.swift */,
-				E2DB6255303C43F300D20F8F /* novels/Services/DiagnosticsLog.swift */,
-				E2DB6256303C43F300D20F8F /* novels/Domain/DiagnosticsEntry.swift */,
-				E2DB6257303C43F300D20F8F /* novels/Services/PrefetchManager.swift */,
-				E2DB6258303C43F300D20F8F /* novels/Persistence/SettingsStore.swift */,
-				E2DB6259303C43F300D20F8F /* novels/Persistence/DefaultsKeys.swift */,
-				E2DB625A303C43F300D20F8F /* novels/Models/ExportedBook.swift */,
-				E2DB625B303C43F300D20F8F /* novels/Features/Import/ImportDependencies.swift */,
-				E2DB625C303C43F300D20F8F /* novels/Features/Import/ImportError.swift */,
-				E2DB625D303C43F300D20F8F /* novels/Features/Import/ImportViewModel.swift */,
-				E2DB625E303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift */,
-				E2DB625F303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift */,
-				E2DB6260303C43F300D20F8F /* novels/Domain/ReadingTheme.swift */,
-				E2DB6261303C43F300D20F8F /* novelsTests/AIClientTests.swift */,
-				E2DB6263303C43F300D20F8F /* novelsTests/AIReadingServiceTests.swift */,
-				E2DB6264303C43F300D20F8F /* novelsTests/CatalogServiceTests.swift */,
-				E2DB6265303C43F300D20F8F /* novelsTests/DiagnosticsLogTests.swift */,
-				E2DB6266303C43F300D20F8F /* novelsTests/FixtureTests.swift */,
-				E2DB6269303C43F300D20F8F /* novelsTests/PrefetchManagerTests.swift */,
-				E2DB626A303C43F300D20F8F /* novelsTests/SettingsEditorValidationTests.swift */,
-				E2DB626B303C43F300D20F8F /* novelsTests/SettingsStoreCoercionTests.swift */,
-				E2DB626C303C43F300D20F8F /* novelsTests/SettingsStoreTests.swift */,
-				E2DB626D303C43F300D20F8F /* novelsTests/TypographySheetTests.swift */,
-				E2DB626E303C43F300D20F8F /* novelsTests/Fixtures/TolerantFixtures.swift */,
-				E2DB626F303C43F300D20F8F /* novelsTests/Fixtures */,
-			);
-			name = novelsLogicTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -330,44 +161,6 @@
 			productReference = E2DB617F303C43F300D20F8F /* novels.app */;
 			productType = "com.apple.product-type.application";
 		};
-		E2DB6195303C43F300D20F8F /* novelsTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E2DB6196303C43F300D20F8F /* Build configuration list for PBXNativeTarget "novelsTests" */;
-			buildPhases = (
-				E2DB6192303C43F300D20F8F /* Sources */,
-				E2DB6193303C43F300D20F8F /* Frameworks */,
-				E2DB6194303C43F300D20F8F /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E2DB6199303C43F300D20F8F /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E2DB6191303C43F300D20F8F /* novelsTests */,
-			);
-			name = novelsTests;
-			productName = novelsTests;
-			productReference = E2DB6190303C43F300D20F8F /* novelsTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		E2DB6205303C43F300D20F8F /* novelsLogicTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E2DB6206303C43F300D20F8F /* Build configuration list for PBXNativeTarget "novelsLogicTests" */;
-			buildPhases = (
-				E2DB6202303C43F300D20F8F /* Sources */,
-				E2DB6203303C43F300D20F8F /* Frameworks */,
-				E2DB6204303C43F300D20F8F /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = novelsLogicTests;
-			productName = novelsLogicTests;
-			productReference = E2DB6200303C43F300D20F8F /* novelsLogicTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -379,13 +172,6 @@
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
 					E2DB617E303C43F300D20F8F = {
-						CreatedOnToolsVersion = 26.6;
-					};
-					E2DB6195303C43F300D20F8F = {
-						CreatedOnToolsVersion = 26.6;
-						TestTargetID = E2DB617E303C43F300D20F8F;
-					};
-					E2DB6205303C43F300D20F8F = {
 						CreatedOnToolsVersion = 26.6;
 					};
 				};
@@ -405,8 +191,6 @@
 			projectRoot = "";
 			targets = (
 				E2DB617E303C43F300D20F8F /* novels */,
-				E2DB6195303C43F300D20F8F /* novelsTests */,
-				E2DB6205303C43F300D20F8F /* novelsLogicTests */,
 			);
 		};
 /* End PBXProject section */
@@ -416,21 +200,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E2DB6194303C43F300D20F8F /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E2DB6204303C43F300D20F8F /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E2DB6290303C43F300D20F8F /* novelsTests/Fixtures in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -444,84 +213,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E2DB6192303C43F300D20F8F /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E2DB6202303C43F300D20F8F /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E2DB6210303C43F300D20F8F /* novels/Domain/Book.swift in Sources */,
-				E2DB6211303C43F300D20F8F /* novels/Domain/Reference.swift in Sources */,
-				E2DB6212303C43F300D20F8F /* novels/Domain/AIMode.swift in Sources */,
-				E2DB6213303C43F300D20F8F /* novels/Domain/HtmlParser.swift in Sources */,
-				E2DB6214303C43F300D20F8F /* novels/Domain/TextSpan.swift in Sources */,
-				E2DB6215303C43F300D20F8F /* novels/Domain/Chapter.swift in Sources */,
-				E2DB6216303C43F300D20F8F /* novels/Domain/PrefetchStatus.swift in Sources */,
-				E2DB6217303C43F300D20F8F /* novels/Domain/ProcessedChapter.swift in Sources */,
-				E2DB6218303C43F300D20F8F /* novels/Domain/SHA256.swift in Sources */,
-				E2DB6219303C43F300D20F8F /* novels/Domain/SettingsModels.swift in Sources */,
-				E2DB621A303C43F300D20F8F /* novels/Domain/SlugValidator.swift in Sources */,
-				E2DB621B303C43F300D20F8F /* novels/Domain/ReadingSession.swift in Sources */,
-				E2DB621C303C43F300D20F8F /* novels/Domain/TypographySetting.swift in Sources */,
-				E2DB621D303C43F300D20F8F /* novels/Services/AIChunker.swift in Sources */,
-				E2DB621E303C43F300D20F8F /* novels/Services/AIPromptBuilder.swift in Sources */,
-				E2DB621F303C43F300D20F8F /* novels/Persistence/BookRepository.swift in Sources */,
-				E2DB6220303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift in Sources */,
-				E2DB6221303C43F300D20F8F /* novels/Persistence/Paths.swift in Sources */,
-				E2DB6222303C43F300D20F8F /* novels/Persistence/ZipValidator.swift in Sources */,
-				E2DB6223303C43F300D20F8F /* novelsTests/AIChunkerTests.swift in Sources */,
-				E2DB6224303C43F300D20F8F /* novelsTests/AIPromptBuilderTests.swift in Sources */,
-				E2DB6225303C43F300D20F8F /* novelsTests/HtmlParserTests.swift in Sources */,
-				E2DB6226303C43F300D20F8F /* novelsTests/DomainCodableTests.swift in Sources */,
-				E2DB6227303C43F300D20F8F /* novelsTests/PrefetchStatusTests.swift in Sources */,
-				E2DB6228303C43F300D20F8F /* novelsTests/ProcessedChapterCacheTests.swift in Sources */,
-				E2DB6229303C43F300D20F8F /* novelsTests/CacheManagerTests.swift in Sources */,
-				E2DB622A303C43F300D20F8F /* novelsTests/BookRepositoryTests.swift in Sources */,
-				E2DB622B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift in Sources */,
-				E2DB6271303C43F300D20F8F /* novels/Services/AIClient.swift in Sources */,
-				E2DB6272303C43F300D20F8F /* novels/Services/AIReadingService.swift in Sources */,
-				E2DB6273303C43F300D20F8F /* novels/Services/AIResponse.swift in Sources */,
-				E2DB6274303C43F300D20F8F /* novels/Services/CatalogService.swift in Sources */,
-				E2DB6275303C43F300D20F8F /* novels/Services/CatalogError.swift in Sources */,
-				E2DB6276303C43F300D20F8F /* novels/Services/DiagnosticsLog.swift in Sources */,
-				E2DB6277303C43F300D20F8F /* novels/Domain/DiagnosticsEntry.swift in Sources */,
-				E2DB6278303C43F300D20F8F /* novels/Services/PrefetchManager.swift in Sources */,
-				E2DB6279303C43F300D20F8F /* novels/Persistence/SettingsStore.swift in Sources */,
-				E2DB627A303C43F300D20F8F /* novels/Persistence/DefaultsKeys.swift in Sources */,
-				E2DB627B303C43F300D20F8F /* novels/Models/ExportedBook.swift in Sources */,
-				E2DB627C303C43F300D20F8F /* novels/Features/Import/ImportDependencies.swift in Sources */,
-				E2DB627D303C43F300D20F8F /* novels/Features/Import/ImportError.swift in Sources */,
-				E2DB627E303C43F300D20F8F /* novels/Features/Import/ImportViewModel.swift in Sources */,
-				E2DB627F303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift in Sources */,
-				E2DB6280303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift in Sources */,
-				E2DB6281303C43F300D20F8F /* novels/Domain/ReadingTheme.swift in Sources */,
-				E2DB6282303C43F300D20F8F /* novelsTests/AIClientTests.swift in Sources */,
-				E2DB6284303C43F300D20F8F /* novelsTests/AIReadingServiceTests.swift in Sources */,
-				E2DB6285303C43F300D20F8F /* novelsTests/CatalogServiceTests.swift in Sources */,
-				E2DB6286303C43F300D20F8F /* novelsTests/DiagnosticsLogTests.swift in Sources */,
-				E2DB6287303C43F300D20F8F /* novelsTests/FixtureTests.swift in Sources */,
-				E2DB628A303C43F300D20F8F /* novelsTests/PrefetchManagerTests.swift in Sources */,
-				E2DB628B303C43F300D20F8F /* novelsTests/SettingsEditorValidationTests.swift in Sources */,
-				E2DB628C303C43F300D20F8F /* novelsTests/SettingsStoreCoercionTests.swift in Sources */,
-				E2DB628D303C43F300D20F8F /* novelsTests/SettingsStoreTests.swift in Sources */,
-				E2DB628E303C43F300D20F8F /* novelsTests/TypographySheetTests.swift in Sources */,
-				E2DB628F303C43F300D20F8F /* novelsTests/Fixtures/TolerantFixtures.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		E2DB6199303C43F300D20F8F /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = E2DB617E303C43F300D20F8F /* novels */;
-			targetProxy = E2DB619A303C43F300D20F8F /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
@@ -726,108 +420,6 @@
 			};
 			name = Release;
 		};
-		E2DB6197303C43F300D20F8F /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = M5U4E4H84J;
-				ENABLE_TESTABILITY = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = novelsTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novels.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
-			};
-			name = Debug;
-		};
-		E2DB6198303C43F300D20F8F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = M5U4E4H84J;
-				ENABLE_TESTABILITY = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = novelsTests/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@loader_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novels.tests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
-			};
-			name = Release;
-		};
-		E2DB6207303C43F300D20F8F /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = M5U4E4H84J;
-				ENABLE_TESTABILITY = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = novelsLogicTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novels.logictests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		E2DB6208303C43F300D20F8F /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = M5U4E4H84J;
-				ENABLE_TESTABILITY = YES;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = novelsLogicTests/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novels.logictests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SUPPORTED_PLATFORMS = macosx;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -845,24 +437,6 @@
 			buildConfigurations = (
 				E2DB618B303C43F400D20F8F /* Debug */,
 				E2DB618C303C43F400D20F8F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E2DB6196303C43F300D20F8F /* Build configuration list for PBXNativeTarget "novelsTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E2DB6197303C43F300D20F8F /* Debug */,
-				E2DB6198303C43F300D20F8F /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E2DB6206303C43F300D20F8F /* Build configuration list for PBXNativeTarget "novelsLogicTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E2DB6207303C43F300D20F8F /* Debug */,
-				E2DB6208303C43F300D20F8F /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

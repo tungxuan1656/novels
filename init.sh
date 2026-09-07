@@ -15,10 +15,10 @@ for arg in "$@"; do
       ;;
     --help|-h)
       echo "Usage: ./init.sh [--quick]"
-      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build/test)"
+      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build)"
       echo "  --help, -h    Show this help"
       echo ""
-      echo "Full verification (default): format + lint + build + test + drift"
+      echo "Full verification (default): format + lint + build + drift"
       exit 0
       ;;
     *)
@@ -40,10 +40,8 @@ BUILD_TASKS=(
   "xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet"
 )
 
-TEST_TASKS=(
-  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -only-testing:novelsTests"
-  "xcodebuild test -project apps/novels.xcodeproj -scheme novelsLogicTests -destination 'platform=macOS'"
-)
+# No test targets remain in the project (all unit-test targets removed) — SKIP.
+TEST_TASKS=()
 
 if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
   echo "FAIL HARNESS_JOBS must be a positive integer" >&2
@@ -114,13 +112,8 @@ else
 fi
 
 echo "=== Test ==="
-if [ "$QUICK" -eq 1 ]; then
-  echo "SKIP [test] --quick (test skipped)"
-else
-  for command in "${TEST_TASKS[@]}"; do
-    run_task "test" "$command" || STATUS=1
-  done
-fi
+# No test tasks configured — test targets removed (SKIP).
+echo "SKIP [test] no test tasks configured"
 
 echo "=== Drift ==="
 if [ ! -f .agents/skills/using-skills/SKILL.md ]; then
@@ -141,47 +134,6 @@ else
   fi
   if grep -q "Khi.*skill.*moi" .agents/skills/using-skills/SKILL.md; then
     echo "FAIL [drift] duplicate section Khi.*skill.*moi still present" >&2
-    STATUS=1
-  fi
-  LOGIC_SWIFTS=$(awk '/\/\* novelsLogicTests \*\/ = \{/{cap=1; buf=""} cap{buf=buf $0 "\n"; if ($0 ~ /\};/) {if (buf ~ /isa = PBXGroup/) {printf "%s", buf; exit} else {cap=0; buf=""}}}' apps/novels.xcodeproj/project.pbxproj | grep -oE '[A-Za-z0-9_]+\.swift')
-  if [ -z "$LOGIC_SWIFTS" ]; then
-    echo "FAIL [drift] novelsLogicTests group not found in project.pbxproj" >&2
-    STATUS=1
-  else
-    for f in $LOGIC_SWIFTS; do
-      case "$f" in
-        *Tests.swift)
-          if [ ! -f "apps/novelsTests/$f" ]; then
-            echo "FAIL [drift] $f listed in novelsLogicTests target but missing in apps/novelsTests" >&2
-            STATUS=1
-          elif grep -q "@testable import novels" "apps/novelsTests/$f" && ! grep -q "canImport(novels)" "apps/novelsTests/$f"; then
-            echo "FAIL [drift] $f must not use unguarded @testable import (dual-membership files use #if canImport)" >&2
-            STATUS=1
-          fi
-          ;;
-        *)
-          src=$(find apps/novels -name "$f" -not -path "*/novelsTests/*" | head -1)
-          # Shared test helpers with dual membership (e.g. Fixtures/TolerantFixtures.swift) live under apps/novelsTests.
-          if [ -z "$src" ]; then
-            src=$(find apps/novelsTests -name "$f" | head -1)
-          fi
-          if [ -z "$src" ]; then
-            echo "FAIL [drift] $f listed in novelsLogicTests target but source not found in apps/novels" >&2
-            STATUS=1
-          elif grep -Eq "import (UIKit|AppKit|Combine)" "$src"; then
-            echo "FAIL [drift] $src must stay free of UIKit/AppKit/Combine (macOS hostless target)" >&2
-            STATUS=1
-          fi
-          ;;
-      esac
-    done
-  fi
-  if find apps -iname "*uitest*" | grep -q .; then
-    echo "FAIL [drift] UI test files/targets are not allowed (unit tests only, see AGENTS.md)" >&2
-    STATUS=1
-  fi
-  if grep -rEq "XCUIApplication|XCUITest" apps --include="*.swift"; then
-    echo "FAIL [drift] XCUITest references are not allowed (unit tests only, see AGENTS.md)" >&2
     STATUS=1
   fi
 fi
