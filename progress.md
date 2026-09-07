@@ -388,3 +388,11 @@
 **Evidence**: `features/feat-030.md` (acceptance 5/5), `feature_index.json` feat-030 done (zero active), commits `efacc29` (code) + `96e7ac5` (docs) trên `feat/030-opencode-session`, ledger `.agent-work/sdd/feat-030/`; full `./init.sh` PASS (format 0, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); task reviews ora-1 Approved ×2 + final whole-branch Clean
 **Blockers**: none (uncommitted: 2 commits trên nhánh + scaffolding `feature_index.json`/`features/feat-030.md`/`progress.md` — không commit/push vì chưa được yêu cầu)
 **Next**: merge PR `feat/030-opencode-session` → main khi user yêu cầu; user test rewrite 1 chapter rồi mở Log kiểm tra header đi kèm
+
+## 2026-09-07 — feat-030 PR
+
+**State**: done
+**Done**: Nhánh `feat/030-opencode-session` đã push (3 commits `efacc29` + `96e7ac5` + `493c7fa`), PR #34 mở vào `main` — body đã điền (summary + evidence `./init.sh` PASS + reviews Clean)
+**Evidence**: https://github.com/tungxuan1656/novels/pull/34 (OPEN), tree sạch trên nhánh
+**Blockers**: none
+**Next**: user review + merge PR #34
