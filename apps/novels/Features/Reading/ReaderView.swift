@@ -169,6 +169,7 @@ struct ReaderView: View {
                 .foregroundStyle(theme.textPrimary)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 32)
         }
     }
 

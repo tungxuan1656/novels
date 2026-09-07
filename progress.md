@@ -348,3 +348,19 @@
 **Evidence**: `docs/plans/feat-028.md` (Tasks 0–5: shared helper → callers → render → cache migration → docs/verify), `features/feat-028.md`, `feature_index.json` (feat-028 active, depends_on feat-004/006/007)
 **Blockers**: none
 **Next**: Task 0 baseline + subagent-driven execution of Tasks 1–5
+
+## 2026-09-07 — feat-028 implemented, manual QA pending
+
+**State**: active
+**Done**: SDD Tasks 0–5 implemented + all task reviews clean + final whole-branch review Clean (8 commits on `feat/028-exclude-heading-from-ai`); full `./init.sh` PASS first run, no flakes; Task 3 redesigned per owner ruling into unified `ReaderContentView` (ReaderView 495→483, no lint-limit change)
+**Evidence**: `.agent-work/sdd/feat-028/` ledger + per-task and whole-branch review packages; `340edf0` closes record with 4/5 acceptance boxes (Simulator-walk box honestly unchecked — impossible headless)
+**Blockers**: manual Simulator QA before done (heading chapter → raw heading + translated body; heading-free chapter → unchanged; prefetch runs clean)
+**Next**: owner runs the walk on Simulator and checks the last box, then merge/push on request
+
+## 2026-09-07 — feat-028 amended scope complete, walk pending
+
+**State**: active
+**Done**: Title + single body string landed (Task 6 + 1 fix round, Task 7 docs, Task 8 live-docs follow-up, final fix wave) — every task review, both re-reviews, and both final reviews clean; full `./init.sh` PASS (Task 7 ×2, fix wave ×1, zero flakes); branch `feat/028-exclude-heading-from-ai` 15 commits
+**Evidence**: `.agent-work/sdd/feat-028/` ledger + per-task/whole-branch packages; re-review F1–F4 addressed with no breakage; pipeline-remnant and live-docs spans greps zero (frozen history excepted)
+**Blockers**: manual Simulator walk before done (title raw body+8 bold above translated body; heading-free unchanged; heading-only shows title; prefetch clean)
+**Next**: owner walk → check box 5 → done → merge/push on request
