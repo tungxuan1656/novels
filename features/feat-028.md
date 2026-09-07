@@ -54,7 +54,7 @@ File ownership: single sequential writer; no parallel writers.
 
 ## Handoff
 
-- State: done (Task 7 docs + full verification complete 2026-09-07; acceptance boxes 1–4 checked on code-read + grep + build evidence, box 5 unchecked pending manual walk)
+- State: active (Task 8 spans-language follow-up in progress 2026-09-07; acceptance boxes 1–4 checked on code-read + grep + build evidence, box 5 unchecked pending manual walk)
 - Evidence: `docs/plans/feat-028.md` Tasks 6–7; recon 2026-09-07 (no doc requires emphasis; blast radius mapped); two consecutive full `./init.sh` PASS runs, zero pipeline-remnant grep matches, six docs rewritten to title + single body string
 - Blockers: none (Simulator walk needs a human with an interactive simulator/device)
 - Next: Manual Simulator walk per plan Task 7 Step 3 (heading + heading-free chapters, Rewrite + raw modes, prefetch over both, Log check), then check box 5.
