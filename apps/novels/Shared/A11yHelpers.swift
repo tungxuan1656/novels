@@ -11,7 +11,7 @@ enum A11yHelpers {
         var text = raw
         // Strip HTML tags
         text = text.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        // Decode common HTML entities (mirrors HtmlParser.decodeEntities)
+        // Decode common HTML entities (mirrors the decodeEntities step nested in HtmlParser.parseChapter)
         text = text.replacingOccurrences(of: "&amp;", with: "&")
         text = text.replacingOccurrences(of: "&lt;", with: "<")
         text = text.replacingOccurrences(of: "&gt;", with: ">")

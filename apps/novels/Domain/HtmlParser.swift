@@ -95,15 +95,19 @@ enum HtmlParser {
                 return
             }
             let blockText = nonEmpty.map { $0.text }.joined()
+            var capturedTitle = false
             if isHeadingBlock, title == nil {
                 let candidate = blockText
                     .replacingOccurrences(of: "\n", with: " ")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 if !candidate.isEmpty {
                     title = candidate
+                    capturedTitle = true
                 }
             }
-            blocks.append(blockText)
+            if !capturedTitle {
+                blocks.append(blockText)
+            }
             currentPieces = []
         }
 
