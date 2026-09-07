@@ -364,3 +364,11 @@
 **Evidence**: `.agent-work/sdd/feat-028/` ledger + per-task/whole-branch packages; re-review F1–F4 addressed with no breakage; pipeline-remnant and live-docs spans greps zero (frozen history excepted)
 **Blockers**: manual Simulator walk before done (title raw body+8 bold above translated body; heading-free unchanged; heading-only shows title; prefetch clean)
 **Next**: owner walk → check box 5 → done → merge/push on request
+
+## 2026-09-07 — feat-028 done
+
+**State**: done
+**Done**: Owner-verified Simulator walk passed; all 5 acceptance boxes checked; full `./init.sh` PASS on final HEAD (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS); `feature_index.json` feat-028 done (zero active)
+**Evidence**: `features/feat-028.md` (acceptance 5/5), owner commit `d950a72` (pbxproj cleanup + 32pt padding) covered by the same verify run; branch `feat/028-exclude-heading-from-ai` ready for PR
+**Blockers**: none
+**Next**: merge PR to main, then repo idle

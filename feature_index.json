@@ -169,8 +169,8 @@
     },
     {
       "id": "feat-028",
-      "title": "Exclude First Heading from AI Translation",
-      "status": "active",
+      "title": "Title + Single Body String Reader",
+      "status": "done",
       "depends_on": ["feat-004", "feat-006", "feat-007"]
     }
   ]

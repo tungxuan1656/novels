@@ -27,7 +27,7 @@ Each HTML chapter becomes one optional title + one plain body string. Both raw a
 - [x] Raw and AI modes render title (body + 8, bold, never translated) + single body `Text`; no emphasis anywhere.
 - [x] No `TextBlock`/`TextSpan`/`ReaderContentView`/`fontFor`/`joinedBodyText`/`firstHeadingText` remains in Swift sources.
 - [x] AI input is the body string by construction; pre-migration entries never served (v2 clear).
-- [ ] Docs describe title + string (no spans language); `./init.sh` full PASS; Simulator walk recorded.
+- [x] Docs describe title + string (no spans language); `./init.sh` full PASS; Simulator walk recorded (owner-verified on Simulator 2026-09-07).
 
 ## Relevant docs
 
@@ -54,9 +54,9 @@ File ownership: single sequential writer; no parallel writers.
 
 ## Handoff
 
-- State: active (Task 8 spans-language follow-up in progress 2026-09-07; acceptance boxes 1–4 checked on code-read + grep + build evidence, box 5 unchecked pending manual walk)
-- Evidence: `docs/plans/feat-028.md` Tasks 6–7; recon 2026-09-07 (no doc requires emphasis; blast radius mapped); two consecutive full `./init.sh` PASS runs, zero pipeline-remnant grep matches, six docs rewritten to title + single body string
-- Blockers: none (Simulator walk needs a human with an interactive simulator/device)
-- Next: Manual Simulator walk per plan Task 7 Step 3 (heading + heading-free chapters, Rewrite + raw modes, prefetch over both, Log check), then check box 5.
+- State: done (owner-verified Simulator walk 2026-09-07; all acceptance boxes checked)
+- Evidence: SDD Tasks 0–8 + final fix wave, all reviews clean; full `./init.sh` PASS on final HEAD (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS); owner commit `d950a72` (pbxproj ref cleanup + 32pt body bottom padding) covered by the same verify run; walk covered heading/heading-free/heading-only chapters, Rewrite + raw modes, prefetch clean
+- Blockers: none
+- Next: merge PR to main.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->
