@@ -40,7 +40,7 @@ File ownership: single sequential writer (helper → callers → render → migr
 
 ## Verify
 
-- Baseline `./init.sh --quick`: —
+- Baseline `./init.sh --quick`: PASS (2026-09-07; format PASS, lint PASS, drift PASS, build skipped)
 - Full `./init.sh`: —
 
 ## Handoff
