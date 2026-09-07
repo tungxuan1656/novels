@@ -353,3 +353,111 @@ On a chapter WITH a heading, in Rewrite mode: heading shows raw above the body, 
 - [ ] **Step 4: Close the feature record**
 
 Set all acceptance boxes, write evidence (init run, greps, walk), set handoff state to done with one next action. Do not touch `progress.md` here — the session-closing flow owns it.
+
+---
+
+### Task 6: Simplify to title + single body string (amended per owner ruling 2026-09-07)
+
+Owner ruling: drop the blocks/spans pipeline entirely. Each HTML chapter becomes one optional title + one plain body string; raw and AI modes both render title + single `Text`; no bold/italic anywhere. This supersedes the Task 3 block renderer (deleted here). Title size = body font size + 8, bold. Mid-chapter heading text merges into the body (no styling, no text loss per BR-04).
+
+**Files:**
+- Modify: `apps/novels/Domain/HtmlParser.swift` (replace block machinery with `parseChapter`)
+- Delete: `apps/novels/Domain/TextSpan.swift`, `apps/novels/Features/Reading/ReaderContentView.swift`
+- Modify: `apps/novels/Features/Reading/ReaderViewModel.swift` (`blocks` → `chapterTitle`/`chapterBody`)
+- Modify: `apps/novels/Features/Reading/ReaderView.swift` (title + single `Text` per mode)
+- Modify: `apps/novels/Services/PrefetchManager.swift` (body string direct to AI)
+
+**Interfaces:**
+- Consumes: `Chapter` HTML via existing `readChapterHTML` paths
+- Produces: `HtmlParser.parseChapter(html:) -> (title: String?, body: String)`; VM publishes `chapterTitle: String?`, `chapterBody: String`; AI input IS the body string (no join step remains)
+
+- [ ] **Step 1: Rewrite the parser to emit title + body**
+
+Replace `parse(html:)`, `joinedBodyText`, and all span/block accumulators with:
+
+```swift
+static func parseChapter(html: String) -> (title: String?, body: String) {
+    // Single pass over the existing char loop: first h1-h6 text run wins the
+    // title (trimmed, nil when empty); every text run — including mid-chapter
+    // headings and b/i content as plain text — appends to the body.
+    // Keep verbatim: collapseWhitespace, decodeEntities, script/style skip,
+    // br and p/div/h-close emitting "\n\n" with line-break dedup and no
+    // leading/trailing breaks, final "\n{3,}" -> "\n\n" normalize + trim.
+}
+```
+
+Reuse the two `replacingOccurrences` normalize lines verbatim from the deleted helper. For heading-free chapters the body is byte-identical to the old `joinedBodyText` output. Delete `apps/novels/Domain/TextSpan.swift` (whole file).
+
+- [ ] **Step 2: ViewModel holds strings, not blocks**
+
+Replace `blocks: [TextBlock]` storage and all three parse sites (`load()`, `setAIMode(.none)`, `readRawTextForAI()`) with `chapterTitle: String?` + `chapterBody: String` from `parseChapter`. `readRawTextForAI()` returns the body, nil when empty (same empty contract as before).
+
+- [ ] **Step 3: Render title + single Text per mode**
+
+Sticky header keeps the existing `【num】` + title-or-fallback chain, title font = `ReaderFontMapper` body font at `fontSize + 8`, bold. One shared modifier set for body text in both modes:
+
+```swift
+private func bodyText(_ text: String) -> some View {
+    Text(text)
+        .font(ReaderFontMapper.font(name: settingsStore.typography.font, size: CGFloat(settingsStore.typography.fontSize)))
+        .foregroundStyle(theme.textPrimary)
+        .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
+        .multilineTextAlignment(.leading)
+        .frame(maxWidth: .infinity, alignment: .leading)
+}
+```
+
+Raw body = `bodyText(viewModel.chapterBody)`; AI body = `bodyText(viewModel.processedContent ?? viewModel.chapterBody)` keeping `.accessibilityIdentifier("aiContent")` on the AI call site only. Delete the old `content` reduce, `aiProcessedContent`, and any remaining `fontFor`.
+
+- [ ] **Step 4: Prefetch uses the body directly**
+
+Replace the `HtmlParser.parse` + `joinedBodyText` block with `let chapter = HtmlParser.parseChapter(html: html)` and `let raw = chapter.body`, keeping the existing empty-content message flow and everything below it unchanged.
+
+- [ ] **Step 5: Prove the pipeline is gone and the tree is clean**
+
+Run: `rg -n "TextBlock|TextSpan|ReaderContentView|fontFor|firstHeadingText|joinedBodyText|aiHeading" apps/novels --glob '*.swift'`
+Expected: zero matches (unrelated `combined` in `AIResponse.swift`/`ToastView.swift` is out of scope and stays)
+
+Run: `wc -l apps/novels/Features/Reading/ReaderView.swift`
+Expected: at most 500 lines
+
+Run: `./init.sh --quick`
+Expected: PASS
+
+- [ ] **Step 6: Commit (explicit paths only — never `git add -A`)**
+
+```bash
+git add apps/novels/Domain/HtmlParser.swift apps/novels/Domain/TextSpan.swift apps/novels/Features/Reading/ReaderContentView.swift apps/novels/Features/Reading/ReaderView.swift apps/novels/Features/Reading/ReaderViewModel.swift apps/novels/Services/PrefetchManager.swift
+git commit -m "feat(feat-028): simplify reader to title plus single body string"
+```
+
+Verify with `git status` that `project.pbxproj` is NOT staged.
+
+---
+
+### Task 7: Docs delta, full verification, walk, close
+
+**Files:**
+- Modify: `docs/product/functional-specs/book-reader.md`, `docs/product/flows.md`, `docs/product/functional-specs/ai-reading.md`, `docs/contracts/ai-service.md`, `docs/decisions/local-persistence.md`, `docs/design/screens.md` (spans/blocks/helper language → title + single body string)
+- Modify: `features/feat-028.md` (new acceptance evidence, handoff done)
+
+**Interfaces:**
+- Consumes: finished behavior from Task 6
+- Produces: closed feature record with full evidence
+
+- [ ] **Step 1: Update the six docs**
+
+Rewrite the spans/blocks/join paragraphs to title + single body string (2–4 sentences each, beside existing paragraphs). Remove references to `joinedBodyText`/`firstHeadingText`/spans; state that AI input is the body string by construction and the title is never translated. English prose.
+
+- [ ] **Step 2: Run full verification**
+
+Run: `./init.sh`
+Expected: PASS (format + lint + build + drift). On known Simulator-load flakes, re-run once and record both runs.
+
+- [ ] **Step 3: Simulator walk**
+
+Chapter WITH heading in Rewrite mode: sticky shows `【num】` + raw title at body+8 bold, body is one translated text block with no heading text; heading-free chapter: single translated body as before; raw mode: title + one body text, no emphasis anywhere. Trigger prefetch over both chapters, Log shows no new errors. Record outcome in `features/feat-028.md`.
+
+- [ ] **Step 4: Close the feature record**
+
+Set all acceptance boxes per the amended scope, write evidence, set handoff state to done with one next action. Do not touch `progress.md` here.
