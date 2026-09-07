@@ -29,7 +29,7 @@ For each chunk of chapter text (see Chunking):
    - Chat: `{"temperature": 0.7}`.
    - Responses: `{"reasoning": {"effort": "medium", "summary": "auto"}}`, `{"max_output_tokens": 512}`, `{"text": {"verbosity": "medium"}}`.
    - Anthropic: `{"thinking": {"type": "adaptive"}}`, `{"output_config": {"effort": "high"}}`, `{"temperature": 0.7}`, `{"max_tokens": 512}` (override).
-3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). If the JSON is invalid, ignore it.
+3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). When merged headers lack `x-opencode-session` (case-insensitive), the app injects `x-opencode-session: novels-<bookId>-c<chapter>-<mode>` from chapter context. A user-supplied value wins verbatim. Empty context sends no header. If the JSON is invalid, ignore it.
 4. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
 
 ### Request and Response Shape
@@ -110,6 +110,7 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 - Merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` only when valid JSON object; otherwise ignore. Strip reserved keys per family; always send `"stream": false`.
 - Bounded retry: max 2 attempts per failed chunk only, then stop; user reprocesses manually.
 - Check cache before call; save on success.
+- Inject `x-opencode-session: novels-<bookId>-c<chapter>-<mode>` when merged headers lack it (case-insensitive); user value wins, empty context sends nothing.
 
 ## Avoid
 
@@ -119,7 +120,7 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Examples
 
-- Canonical chat: `POST` `http://localhost:8317/v1/chat/completions` with merged headers and body.
+- Canonical chat: `POST` `http://localhost:8317/v1/chat/completions` with merged headers including `x-opencode-session: novels-van-gioi-c12-rewrite` and body.
 - Responses: `POST` `https://api.openai.com/v1/responses` with `{"model":"...","instructions":"...","input":"...","stream":false}` plus extra `{"reasoning":{"effort":"medium","summary":"auto"}}`.
 - Anthropic: `POST` `https://api.anthropic.com/v1/messages` with `anthropic-version: 2023-06-01` header and `{"model":"...","system":"...","messages":[...],"stream":false,"max_tokens":1024}`.
 
