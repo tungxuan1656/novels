@@ -17,8 +17,8 @@
 **State**: done
 **Done**: Reading Themes Full 5 — `ReadingTheme` sach/xanhDiu/xanhLam/dem/amoled (default sach, legacy trio → sach), full palette AA (body 11–12.5 AAA, muted ≥4.5, accent #2563EB light / #7AB8FF dark), sheet picker 5-across 42pt live + haptic + a11y VI + force scheme, docs 5-row tables; version bump 1.0.3 → 1.0.4
 **Evidence**: `features/feat-026.md` (acceptance 6/6), `feature_index.json` feat-026 done (zero active), `Domain/ReadingTheme.swift` + `Resources/DesignTokens.swift` + `Persistence/SettingsStore.swift` + `Features/Reading/ReaderBottomSheet.swift` + `ReadingThemeTests` + 2 docs; `./init.sh` full PASS (format/lint/build/test incl. UITests/drift PASS)
-**Blockers**: none (tree uncommitted on `main` — branch/commit/PR tiếp theo)
-**Next**: checkout branch `feat/026-reading-themes-full-5`, commit, tạo PR
+**Blockers**: none (tree uncommitted on `main` — branch/commit/PR to follow)
+**Next**: checkout branch `feat/026-reading-themes-full-5`, commit, create PR
 
 ## 2026-09-06 — feat-025 done
 
@@ -251,7 +251,7 @@
 **Done**: Reading Themes Trio — `ReadingTheme` vangGiay (default) / trang / den persist `UserDefaults` key `readingTheme` (unknown → vangGiay), per-theme palette exact approved hex, `ReaderView` full theme tokens + `preferredColorScheme` Reader-only + disabled 0.35/0.42, `ReaderBottomSheet` section `Màu nền` 3 swatch 48pt VI + ring accent 2.5pt + live + haptic + a11y + theme border + force scheme, docs resolve `#FDFCF8`→`#F5F1E5`
 **Evidence**: `features/feat-021.md` (acceptance 7/7), `feature_index.json` feat-021 done (zero active), `apps/novels/Domain/ReadingTheme.swift`, `apps/novels/Persistence/DefaultsKeys.swift` + `SettingsStore.swift` (`loadReadingTheme` + `loadDiagnosticsTypographySession` refactor), `apps/novels/Resources/DesignTokens.swift` palette extension, `apps/novels/Features/Reading/ReaderView.swift` (no `backgroundPaper`/`systemGray5`), `apps/novels/Features/Reading/ReaderBottomSheet.swift` (`themePicker`/`theme-vangGiay`/`Màu nền`), `apps/novelsTests/ReadingThemeTests.swift` 6/6, `docs/contracts/settings-schema.md` + `docs/design/design-system.md`; `./init.sh` full PASS 2026-09-05 (format 0/96, lint 0/96, build PASS, test PASS incl. ReadingTheme 6/6 + UITests, drift PASS 21/22)
 **Blockers**: none (tree uncommitted incl. prior feats + feat-021 — not committed as not requested)
-**Next**: repo idle — user retests 3 themes live + relaunch persist + Đen + Light sheet on Simulator
+**Next**: repo idle — user retests 3 themes live + relaunch persist + Black + Light sheet on Simulator
 
 ## 2026-09-05 — feat-022
 
@@ -376,23 +376,23 @@
 ## 2026-09-07 — feat-029 done
 
 **State**: done
-**Done**: Chapter scroll reset on swipe — `ScrollView.id(viewModel.chapterNumber)` (1 dòng `ReaderView.swift`), vuốt nhanh cuối chapter sang chapter mới luôn ở top; prev/next giữ behavior cũ; return-from-log vẫn restore offset
+**Done**: Chapter scroll reset on swipe — `ScrollView.id(viewModel.chapterNumber)` (1 line in `ReaderView.swift`), fast swipe at end of chapter to a new chapter always lands at top; prev/next keep old behavior; return-from-log still restores offset
 **Evidence**: `features/feat-029.md` (acceptance 4/4), SDD Task 1 report + @oracle review Approved, full `./init.sh` PASS (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); `feature_index.json` feat-029 done (zero active)
 **Blockers**: none
-**Next**: commit + PR branch `fix/029-chapter-scroll-reset` khi user yêu cầu; user tự vuốt kiểm tra trên máy thật
+**Next**: commit + PR branch `fix/029-chapter-scroll-reset` when user requests; user to swipe-check on real device
 
 ## 2026-09-07 — feat-030 done
 
 **State**: done
-**Done**: Auto-inject `x-opencode-session` per chapter — `AIClient` tự điền `novels-<bookId>-c<N>-<mode>` khi `AI_CUSTOM_HEADERS` thiếu (case-insensitive, user-supplied wins, empty context gửi không header); cùng chapter share session qua parallel chunks + cả 2 retry attempts, khác chapter khác session; không key Settings mới; docs `ai-service.md` (construction + rules + example)
-**Evidence**: `features/feat-030.md` (acceptance 5/5), `feature_index.json` feat-030 done (zero active), commits `efacc29` (code) + `96e7ac5` (docs) trên `feat/030-opencode-session`, ledger `.agent-work/sdd/feat-030/`; full `./init.sh` PASS (format 0, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); task reviews ora-1 Approved ×2 + final whole-branch Clean
-**Blockers**: none (uncommitted: 2 commits trên nhánh + scaffolding `feature_index.json`/`features/feat-030.md`/`progress.md` — không commit/push vì chưa được yêu cầu)
-**Next**: merge PR `feat/030-opencode-session` → main khi user yêu cầu; user test rewrite 1 chapter rồi mở Log kiểm tra header đi kèm
+**Done**: Auto-inject `x-opencode-session` per chapter — `AIClient` auto-fills `novels-<bookId>-c<N>-<mode>` when `AI_CUSTOM_HEADERS` is missing (case-insensitive, user-supplied wins, empty context sends no header); same chapter shares session across parallel chunks + both retry attempts, different chapters use different sessions; no new Settings key; docs `ai-service.md` (construction + rules + example)
+**Evidence**: `features/feat-030.md` (acceptance 5/5), `feature_index.json` feat-030 done (zero active), commits `efacc29` (code) + `96e7ac5` (docs) on `feat/030-opencode-session`, ledger `.agent-work/sdd/feat-030/`; full `./init.sh` PASS (format 0, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); task reviews ora-1 Approved ×2 + final whole-branch Clean
+**Blockers**: none (uncommitted: 2 commits on branch + scaffolding `feature_index.json`/`features/feat-030.md`/`progress.md` — not committed/pushed as not requested)
+**Next**: merge PR `feat/030-opencode-session` → main when user requests; user tests rewrite of 1 chapter then opens Log to check the attached header
 
 ## 2026-09-07 — feat-030 PR
 
 **State**: done
-**Done**: Nhánh `feat/030-opencode-session` đã push (3 commits `efacc29` + `96e7ac5` + `493c7fa`), PR #34 mở vào `main` — body đã điền (summary + evidence `./init.sh` PASS + reviews Clean)
-**Evidence**: https://github.com/tungxuan1656/novels/pull/34 (OPEN), tree sạch trên nhánh
+**Done**: Branch `feat/030-opencode-session` pushed (3 commits `efacc29` + `96e7ac5` + `493c7fa`), PR #34 opened into `main` — body filled (summary + evidence `./init.sh` PASS + reviews Clean)
+**Evidence**: https://github.com/tungxuan1656/novels/pull/34 (OPEN), tree clean on branch
 **Blockers**: none
 **Next**: user review + merge PR #34
