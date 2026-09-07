@@ -50,7 +50,16 @@ actor AIClient {
         let urlString = trimmedURL.isEmpty ? "http://localhost:8317/v1/chat/completions" : trimmedURL
         let model = settingsSnapshot.modelRaw.isEmpty ? "gpt-4o" : settingsSnapshot.modelRaw
         let family = AIEndpointFamily.detect(urlString: urlString)
-        let headers = Self.effectiveRequestHeaders(settingsSnapshot.headers, family: family)
+        let openCodeSession = Self.openCodeSessionValue(
+            bookId: context.bookId,
+            chapterNumber: context.chapterNumber,
+            mode: context.mode
+        )
+        let headers = Self.effectiveRequestHeaders(
+            settingsSnapshot.headers,
+            family: family,
+            openCodeSession: openCodeSession
+        )
         let extra = settingsSnapshot.extra
         let verbose = settingsSnapshot.verbose
         guard let url = URL(string: urlString) else {
@@ -288,16 +297,31 @@ actor AIClient {
         // swiftlint:enable switch_case_alignment
     }
 
+    static func openCodeSessionValue(bookId: String, chapterNumber: Int, mode: String) -> String {
+        guard !bookId.isEmpty, chapterNumber > 0 else { return "" }
+        let safeBook = bookId.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+        guard !safeBook.isEmpty else { return "" }
+        let filteredMode = mode.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+        let safeMode = filteredMode.isEmpty ? "rewrite" : filteredMode
+        return "novels-\(safeBook)-c\(chapterNumber)-\(safeMode)"
+    }
+
     static func effectiveRequestHeaders(
         _ headers: [String: String],
-        family: AIEndpointFamily
+        family: AIEndpointFamily,
+        openCodeSession: String = ""
     ) -> [String: String] {
-        guard family == .anthropic else { return headers }
-        if headers.keys.contains(where: { $0.lowercased() == "anthropic-version" }) {
-            return headers
-        }
         var out = headers
-        out["anthropic-version"] = "2023-06-01"
+        if family == .anthropic {
+            if !out.keys.contains(where: { $0.lowercased() == "anthropic-version" }) {
+                out["anthropic-version"] = "2023-06-01"
+            }
+        }
+        if !openCodeSession.isEmpty {
+            if !out.keys.contains(where: { $0.lowercased() == "x-opencode-session" }) {
+                out["x-opencode-session"] = openCodeSession
+            }
+        }
         return out
     }
 
