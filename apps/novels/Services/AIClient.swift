@@ -299,9 +299,10 @@ actor AIClient {
 
     static func openCodeSessionValue(bookId: String, chapterNumber: Int, mode: String) -> String {
         guard !bookId.isEmpty, chapterNumber > 0 else { return "" }
-        let safeBook = bookId.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        let safeBook = bookId.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
         guard !safeBook.isEmpty else { return "" }
-        let safeMode = mode.isEmpty ? "rewrite" : mode.lowercased().filter { $0.isLetter || $0.isNumber || $0 == "-" }
+        let filteredMode = mode.lowercased().filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+        let safeMode = filteredMode.isEmpty ? "rewrite" : filteredMode
         return "novels-\(safeBook)-c\(chapterNumber)-\(safeMode)"
     }
 
