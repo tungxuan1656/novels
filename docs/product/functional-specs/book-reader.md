@@ -1,10 +1,10 @@
 # Book Reader
 
-> Parses chapter HTML from file storage to text spans, renders with SwiftUI.Text, handles navigation, and restores position and typography.
+> Parses chapter HTML from file storage to one optional title plus one plain body string, renders with SwiftUI.Text, handles navigation, and restores position and typography.
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, and reads `chapters/chapter-N.html` from file storage. System parses HTML to text spans and renders with `SwiftUI.Text` using typography from the persistent settings store. System restores offset for same book. If no offset exists, start at top. New chapters start at top. Pipeline → [local-data.md](../../contracts/local-data.md) and [ARCHITECTURE.md](../../../ARCHITECTURE.md) §1.
+1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, and reads `chapters/chapter-N.html` from file storage. System parses HTML to one optional title (the first heading, raw and never translated) plus one plain body string and renders the title at body size + 8 bold above a single body `Text` using typography from the persistent settings store. Mid-chapter heading text merges into the body as plain text with no styling. System restores offset for same book. If no offset exists, start at top. New chapters start at top. Pipeline → [local-data.md](../../contracts/local-data.md) and [ARCHITECTURE.md](../../../ARCHITECTURE.md) §1.
 2. Actor navigates. Next and Previous step one chapter within 1..total. Buttons are disabled at ends. Index jump moves directly to the selected chapter.
 3. System saves offset per book while scrolling.
 4. Actor closes reader. System marks not on-screen but keeps offset for resume.
@@ -36,7 +36,7 @@
 
 ## Acceptance
 
-- [ ] Reader parses HTML to text spans and renders with SwiftUI.Text using current typography.
+- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title (body + 8, bold) above a single body `Text` using current typography, with no emphasis anywhere.
 - [ ] Next and Previous move one chapter within bounds. Buttons are disabled at ends. Index jump works.
 - [ ] Offset is saved per book and restored for same book. New chapter starts at top.
 - [ ] Closing preserves position; opening another book does not reuse wrong offset.

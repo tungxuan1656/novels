@@ -4,9 +4,9 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a chapter. System checks AI mode. If mode is `none` ("Không"), show raw text parsed from HTML in file storage and render with SwiftUI.Text. If mode is `rewrite` ("Rewrite"), check processed chapter cache for `bookId + chapterNumber + "rewrite"`.
+1. Actor opens a chapter. System checks AI mode. If mode is `none` ("Không"), show the raw title plus one raw body `Text` parsed from HTML in file storage. If mode is `rewrite` ("Rewrite"), check processed chapter cache for `bookId + chapterNumber + "rewrite"`.
 2. Cache hit → render cached text with SwiftUI.Text, no service call.
-3. Cache miss → split raw text into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render with SwiftUI.Text. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once. The AI input excludes the chapter heading: the heading renders raw above the translated body, while heading-free chapters translate exactly as before.
+3. Cache miss → split the body string into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render the raw title plus the translated body as one `Text`. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once. The AI input is the body string by construction: the first heading sets the title and is skipped, so the title is never translated and renders raw above the body, while heading-free chapters translate exactly as before.
 4. Actor switches mode → reload same chapter via cache-first path.
 5. In Reading bottom sheet, "AI Rewrite" is shown with an inline picker ("Không", "Rewrite") and the Reprocess ("Xử lý lại") button placed right beside it in the same row.
 6. One chunk still failing after its retry aborts the chapter → toast once, render raw fallback, no cache write. Actor retries manually via "Xử lý lại". Concurrent same-key requests are de-duplicated.
@@ -26,7 +26,7 @@
 
 | Case | Result |
 |------|--------|
-| Mode `none` | Render raw text (parsed from HTML) with SwiftUI.Text, no cache |
+| Mode `none` | Render raw title plus one raw body `Text` (parsed from HTML), no cache |
 | Cache hit | Render instantly |
 | Cache miss, success | Parallel chunk calls, join in order, save to cache and render |
 | Empty response after retry | Toast once, render raw fallback, no cache |
@@ -37,7 +37,7 @@
 
 - [ ] Switching Không / Rewrite reloads same chapter with correct source.
 - [ ] Cached chapter renders without calling the service.
-- [ ] Uncached chapter calls one request per chunk in parallel with `AI_PROMPT`, retries only the failed chunk once, joins in order, saves text to cache, then renders with SwiftUI.Text.
+- [ ] Uncached chapter calls one request per chunk in parallel with `AI_PROMPT`, retries only the failed chunk once, joins in order, saves text to cache, then renders the raw title plus the translated body as one `Text`.
 - [ ] Sheet shows "AI Rewrite" inline picker with options "Không" and "Rewrite", with Reprocess button right beside it.
 - [ ] Failed response after retry toasts once, renders raw fallback, and creates no entry.
 

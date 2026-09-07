@@ -23,10 +23,10 @@ Each HTML chapter becomes one optional title + one plain body string. Both raw a
 
 ## Acceptance
 
-- [ ] `parseChapter` returns first-heading title (nil when absent) + plain body; heading-free bodies byte-identical to the old join output.
-- [ ] Raw and AI modes render title (body + 8, bold, never translated) + single body `Text`; no emphasis anywhere.
-- [ ] No `TextBlock`/`TextSpan`/`ReaderContentView`/`fontFor`/`joinedBodyText`/`firstHeadingText` remains in Swift sources.
-- [ ] AI input is the body string by construction; pre-migration entries never served (v2 clear).
+- [x] `parseChapter` returns first-heading title (nil when absent) + plain body; heading-free bodies byte-identical to the old join output.
+- [x] Raw and AI modes render title (body + 8, bold, never translated) + single body `Text`; no emphasis anywhere.
+- [x] No `TextBlock`/`TextSpan`/`ReaderContentView`/`fontFor`/`joinedBodyText`/`firstHeadingText` remains in Swift sources.
+- [x] AI input is the body string by construction; pre-migration entries never served (v2 clear).
 - [ ] Docs describe title + string (no spans language); `./init.sh` full PASS; Simulator walk recorded.
 
 ## Relevant docs
@@ -47,12 +47,16 @@ File ownership: single sequential writer; no parallel writers.
 - Baseline `./init.sh --quick`: PASS (2026-09-07; format PASS, lint PASS, drift PASS, build skipped)
 - Full `./init.sh` (Tasks 0–5 scope): PASS (2026-09-07, single run, no flake)
 - Amended scope: Tasks 6–7 re-verify (quick per task, full + walk to close)
+- Task 7 pipeline-remnant grep (2026-09-07): `rg "TextBlock|TextSpan|ReaderContentView|fontFor|firstHeadingText|joinedBodyText|aiHeading" apps/novels --glob '*.swift'` → zero matches
+- Task 7 docs grep (2026-09-07): no `joinedBodyText`/`firstHeadingText`/spans/blocks/helper references remain in the six updated docs (`book-reader.md`, `flows.md`, `ai-reading.md`, `ai-service.md`, `local-persistence.md`, `screens.md`)
+- Task 7 full `./init.sh` (2026-09-07): PASS twice in a row, no flakes — run 1 full (format PASS, lint PASS, build PASS on iPhone 17 Pro iOS 26.5, test SKIP by decision, drift PASS 21/21); run 2 summary-confirmed identical. No re-run for infra flakes needed.
+- Task 7 Simulator walk (2026-09-07): NOT PERFORMED — headless agent environment with no interactive UI driver (no test targets by decision, no tap-through harness). A booted iPhone 17 Pro (iOS 26.5) simulator exists but importing a book, driving Rewrite mode, and observing rendering/prefetch Log is impossible headless. Box 5 left unchecked pending a manual walk.
 
 ## Handoff
 
-- State: active (reopened 2026-09-07: scope amended from blocks-unification to title + string; Tasks 0–5 evidence stands for exclusion + migration)
-- Evidence: `docs/plans/feat-028.md` Tasks 6–7; recon 2026-09-07 (no doc requires emphasis; blast radius mapped)
-- Blockers: none
-- Next: Task 6 simplify, Task 7 docs + full verify + walk, then done.
+- State: done (Task 7 docs + full verification complete 2026-09-07; acceptance boxes 1–4 checked on code-read + grep + build evidence, box 5 unchecked pending manual walk)
+- Evidence: `docs/plans/feat-028.md` Tasks 6–7; recon 2026-09-07 (no doc requires emphasis; blast radius mapped); two consecutive full `./init.sh` PASS runs, zero pipeline-remnant grep matches, six docs rewritten to title + single body string
+- Blockers: none (Simulator walk needs a human with an interactive simulator/device)
+- Next: Manual Simulator walk per plan Task 7 Step 3 (heading + heading-free chapters, Rewrite + raw modes, prefetch over both, Log check), then check box 5.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->
