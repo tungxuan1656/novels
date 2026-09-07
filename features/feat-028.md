@@ -20,11 +20,11 @@ The first chapter heading renders as its own raw (untranslated) text, while the 
 
 ## Acceptance
 
-- [ ] AI input excludes the first heading block; body bytes are identical to current logic for heading-free chapters.
-- [ ] AI reading shows raw heading + translated body; sticky title unchanged.
-- [ ] Foreground rewrite and prefetch share one join implementation (no duplicated join code).
-- [ ] Pre-migration cache entries are never served after upgrade.
-- [ ] `./init.sh` full PASS.
+- [x] AI input excludes the first heading block; body bytes are identical to current logic for heading-free chapters.
+- [ ] AI reading shows raw heading + translated body; sticky title unchanged. (NOT verified — interactive Simulator walk impossible in this headless CLI environment; deferred to manual QA.)
+- [x] Foreground rewrite and prefetch share one join implementation (no duplicated join code).
+- [x] Pre-migration cache entries are never served after upgrade.
+- [x] `./init.sh` full PASS.
 
 ## Relevant docs
 
@@ -41,13 +41,15 @@ File ownership: single sequential writer (helper → callers → render → migr
 ## Verify
 
 - Baseline `./init.sh --quick`: PASS (2026-09-07; format PASS, lint PASS, drift PASS, build skipped)
-- Full `./init.sh`: —
+- Full `./init.sh`: PASS (2026-09-07, single run, no flake — format 0/59, lint 0 violations in 59 files, build OK for iPhone 17 Pro / iOS 26.5 Simulator with only pre-existing warnings, drift PASS, no test targets by decision)
+- Greps: `joinedBodyText(from:excludingFirstHeading:)` called with `true` in both `ReaderViewModel.readRawTextForAI` and `PrefetchManager`; only remaining `joined(separator: "\n\n")` outside the helper is the AI-output join in `AIReadingService` (chunk outputs, not raw body); `PRAGMA user_version=2` + one-time `DELETE FROM processed_chapters` on version 1 confirmed in `ProcessedChapterCache`
+- Simulator walk: NOT performed — headless CLI environment with no interactive Simulator session or AI backend; acceptance box for raw-heading render left unchecked for manual QA
 
 ## Handoff
 
-- State: active
-- Evidence: plan approved by owner; branch `feat/028-exclude-heading-from-ai` created for implementation
+- State: done
+- Evidence: Tasks 0–4 reviewed clean; Task 5 docs (`ai-service.md` heading-exclusion + version-2 invalidation, `ai-reading.md` same facts in product language), full `./init.sh` PASS 2026-09-07, grep evidence above; interactive Simulator walk deferred (see unchecked box)
 - Blockers: none
-- Next: Task 0 baseline, then Tasks 1–5 via subagent-driven execution.
+- Next: run the interactive Simulator walk (heading chapter in Rewrite mode + prefetch over heading/heading-free chapters) as manual QA before release.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->

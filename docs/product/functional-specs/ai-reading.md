@@ -6,14 +6,14 @@
 
 1. Actor opens a chapter. System checks AI mode. If mode is `none` ("Không"), show raw text parsed from HTML in file storage and render with SwiftUI.Text. If mode is `rewrite` ("Rewrite"), check processed chapter cache for `bookId + chapterNumber + "rewrite"`.
 2. Cache hit → render cached text with SwiftUI.Text, no service call.
-3. Cache miss → split raw text into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render with SwiftUI.Text. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once.
+3. Cache miss → split raw text into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render with SwiftUI.Text. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once. The AI input excludes the chapter heading: the heading renders raw above the translated body, while heading-free chapters translate exactly as before.
 4. Actor switches mode → reload same chapter via cache-first path.
 5. In Reading bottom sheet, "AI Rewrite" is shown with an inline picker ("Không", "Rewrite") and the Reprocess ("Xử lý lại") button placed right beside it in the same row.
 6. One chunk still failing after its retry aborts the chapter → toast once, render raw fallback, no cache write. Actor retries manually via "Xử lý lại". Concurrent same-key requests are de-duplicated.
 
 ## Rules (business rules, link to business-rules.md)
 
-- Cache is the only AI cache. Check cache before any call. Key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07).
+- Cache is the only AI cache. Check cache before any call. Key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07). Upgrading to cache version 2 clears older entries once, so translations made before the heading change are never reused.
 - AI Rewrite uses single `AI_PROMPT` system prompt configured in settings ([business-rules.md](../business-rules.md) BR-03, BR-04).
 - Mode `none` bypasses cache and service. Bounded retry: max 2 attempts per failed chunk only. No cache on final failure ([integrations.md](../integrations.md) §2).
 
