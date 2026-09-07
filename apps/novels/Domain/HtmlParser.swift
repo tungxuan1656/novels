@@ -254,3 +254,29 @@ enum HtmlParser {
         return blocks.filter { !$0.spans.isEmpty }
     }
 }
+
+extension HtmlParser {
+    /// Raw text of the first heading block, or nil when there is none.
+    /// Used to render the title separately; never sent to AI.
+    static func firstHeadingText(from blocks: [TextBlock]) -> String? {
+        guard let heading = blocks.first(where: { $0.isHeading }) else { return nil }
+        let text = heading.spans.map { $0.text }.joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? nil : text
+    }
+
+    /// Body text for AI input. Byte-identical to the previous inline join
+    /// when `excludingFirstHeading` is false or no heading exists.
+    /// Drops ONLY the first heading block when true; mid-chapter headings stay.
+    static func joinedBodyText(from blocks: [TextBlock], excludingFirstHeading: Bool = true) -> String? {
+        var source = blocks
+        if excludingFirstHeading, let index = source.firstIndex(where: { $0.isHeading }) {
+            source.remove(at: index)
+        }
+        let joined = source.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
+        var normalized = joined.replacingOccurrences(of: "[ \\t]*\\n[ \\t]*", with: "\n", options: .regularExpression)
+        normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
