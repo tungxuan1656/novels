@@ -340,3 +340,11 @@
 **Evidence**: `features/feat-027.md` (acceptance 6/6), `feature_index.json` feat-027 done (zero active), greps 0 (`letterSpacing`/`Giãn chữ`/`.kerning` in Swift; `letterSpacing` in docs contracts/design/product), `./init.sh --quick` PASS + `xcodebuild build` PASS + targeted tests PASS (TypographySheet/SettingsStore/DomainCodable/SettingsEditorValidation/SettingsStoreCoercion); full `./init.sh` timed out twice, no failure observed
 **Blockers**: none (tree carries unrelated prior dirty changes — not committed as not requested)
 **Next**: repo idle — user retests Reader sheet (no Giãn chữ) + Settings typography
+
+## 2026-09-07 — feat-028 plan
+
+**State**: active
+**Done**: Feature record `features/feat-028.md` + separate plan `docs/plans/feat-028.md` created on branch `feat/028-exclude-heading-from-ai`; feat-028 activated (zero other active)
+**Evidence**: `docs/plans/feat-028.md` (Tasks 0–5: shared helper → callers → render → cache migration → docs/verify), `features/feat-028.md`, `feature_index.json` (feat-028 active, depends_on feat-004/006/007)
+**Blockers**: none
+**Next**: Task 0 baseline + subagent-driven execution of Tasks 1–5
