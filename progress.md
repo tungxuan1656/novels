@@ -372,3 +372,11 @@
 **Evidence**: `features/feat-028.md` (acceptance 5/5), owner commit `d950a72` (pbxproj cleanup + 32pt padding) covered by the same verify run; branch `feat/028-exclude-heading-from-ai` ready for PR
 **Blockers**: none
 **Next**: merge PR to main, then repo idle
+
+## 2026-09-07 — feat-029 done
+
+**State**: done
+**Done**: Chapter scroll reset on swipe — `ScrollView.id(viewModel.chapterNumber)` (1 dòng `ReaderView.swift`), vuốt nhanh cuối chapter sang chapter mới luôn ở top; prev/next giữ behavior cũ; return-from-log vẫn restore offset
+**Evidence**: `features/feat-029.md` (acceptance 4/4), SDD Task 1 report + @oracle review Approved, full `./init.sh` PASS (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); `feature_index.json` feat-029 done (zero active)
+**Blockers**: none
+**Next**: commit + PR branch `fix/029-chapter-scroll-reset` khi user yêu cầu; user tự vuốt kiểm tra trên máy thật

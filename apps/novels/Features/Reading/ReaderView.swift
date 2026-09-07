@@ -69,6 +69,7 @@ struct ReaderView: View {
                     }
                     .scrollBounceBehavior(.always, axes: .vertical)
                     .scrollPosition($scrollPosition)
+                    .id(viewModel.chapterNumber)
                     .onChange(of: viewModel.chapterNumber) { _, _ in
                         scrollToTop()
                     }
