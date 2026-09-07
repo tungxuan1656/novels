@@ -380,3 +380,11 @@
 **Evidence**: `features/feat-029.md` (acceptance 4/4), SDD Task 1 report + @oracle review Approved, full `./init.sh` PASS (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); `feature_index.json` feat-029 done (zero active)
 **Blockers**: none
 **Next**: commit + PR branch `fix/029-chapter-scroll-reset` khi user yêu cầu; user tự vuốt kiểm tra trên máy thật
+
+## 2026-09-07 — feat-030 done
+
+**State**: done
+**Done**: Auto-inject `x-opencode-session` per chapter — `AIClient` tự điền `novels-<bookId>-c<N>-<mode>` khi `AI_CUSTOM_HEADERS` thiếu (case-insensitive, user-supplied wins, empty context gửi không header); cùng chapter share session qua parallel chunks + cả 2 retry attempts, khác chapter khác session; không key Settings mới; docs `ai-service.md` (construction + rules + example)
+**Evidence**: `features/feat-030.md` (acceptance 5/5), `feature_index.json` feat-030 done (zero active), commits `efacc29` (code) + `96e7ac5` (docs) trên `feat/030-opencode-session`, ledger `.agent-work/sdd/feat-030/`; full `./init.sh` PASS (format 0, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS 21/22); task reviews ora-1 Approved ×2 + final whole-branch Clean
+**Blockers**: none (uncommitted: 2 commits trên nhánh + scaffolding `feature_index.json`/`features/feat-030.md`/`progress.md` — không commit/push vì chưa được yêu cầu)
+**Next**: merge PR `feat/030-opencode-session` → main khi user yêu cầu; user test rewrite 1 chapter rồi mở Log kiểm tra header đi kèm

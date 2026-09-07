@@ -178,6 +178,12 @@
       "title": "Chapter scroll reset on swipe",
       "status": "done",
       "depends_on": ["feat-004", "feat-013"]
+    },
+    {
+      "id": "feat-030",
+      "title": "Auto-inject x-opencode-session per chapter",
+      "status": "done",
+      "depends_on": ["feat-006"]
     }
   ]
 }
