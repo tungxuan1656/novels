@@ -153,7 +153,9 @@ struct ReaderView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             chapterTitleView
-            bodyText(viewModel.chapterBody)
+            if !viewModel.chapterBody.isEmpty {
+                bodyText(viewModel.chapterBody)
+            }
         }
     }
 

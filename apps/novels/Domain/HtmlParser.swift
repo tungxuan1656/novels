@@ -99,7 +99,8 @@ enum HtmlParser {
             if isHeadingBlock, title == nil {
                 let candidate = blockText
                     .replacingOccurrences(of: "\n", with: " ")
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .split(whereSeparator: { $0.isWhitespace })
+                    .joined(separator: " ")
                 if !candidate.isEmpty {
                     title = candidate
                     capturedTitle = true
