@@ -16,7 +16,7 @@
 | **AI Prompt** | Configurable system prompt (`AI_PROMPT`) for AI Rewrite. Default: `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` Empty → default. |
 | **AI Mode** | Active reading mode: `none` (original, “Không”) or `rewrite` (“Rewrite”) via AI_PROMPT. |
 | **Reading Session** | Persisted position: `bookId`, `onScreen` flag, and `scrollOffset`. It drives launch routing. |
-| **Typography Setting** | Reader appearance: `font`, `fontSize`, `lineHeight`, and `letterSpacing`. |
+| **Typography Setting** | Reader appearance: `font`, `fontSize`, and `lineHeight`. |
 | **Prefetch Status** | Runtime progress of background prefetch: running flag, totals, processed count, and errors. |
 | **Persistent Settings Store** | The key-value store for settings, sessions, and typography. It restores state on launch. |
 | **Library** | The home view that lists all books from the local book repository. |

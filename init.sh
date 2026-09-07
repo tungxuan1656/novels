@@ -15,10 +15,10 @@ for arg in "$@"; do
       ;;
     --help|-h)
       echo "Usage: ./init.sh [--quick]"
-      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build/test)"
+      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build)"
       echo "  --help, -h    Show this help"
       echo ""
-      echo "Full verification (default): format + lint + build + test + drift"
+      echo "Full verification (default): format + lint + build + drift"
       exit 0
       ;;
     *)
@@ -40,9 +40,8 @@ BUILD_TASKS=(
   "xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet"
 )
 
-TEST_TASKS=(
-  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5'"
-)
+# No test targets remain in the project (all unit-test targets removed) — SKIP.
+TEST_TASKS=()
 
 if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
   echo "FAIL HARNESS_JOBS must be a positive integer" >&2
@@ -105,12 +104,16 @@ run_parallel "format" "${FORMAT_TASKS[@]}"
 echo "=== Lint ==="
 run_parallel "lint" "${LINT_TASKS[@]}"
 
-echo "=== Build and test ==="
+echo "=== Build ==="
 if [ "$QUICK" -eq 1 ]; then
-  echo "SKIP [build/test] --quick (build and test skipped)"
+  echo "SKIP [build] --quick (build skipped)"
 else
-  run_parallel "build/test" "${BUILD_TASKS[@]}" "${TEST_TASKS[@]}"
+  run_parallel "build" "${BUILD_TASKS[@]}"
 fi
+
+echo "=== Test ==="
+# No test tasks configured — test targets removed (SKIP).
+echo "SKIP [test] no test tasks configured"
 
 echo "=== Drift ==="
 if [ ! -f .agents/skills/using-skills/SKILL.md ]; then

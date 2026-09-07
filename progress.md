@@ -332,3 +332,11 @@
 **Evidence**: `init-commit.log` PASS format/lint/build/test/drift (`Verification passed`), retry `EXIT:0`
 **Blockers**: none
 **Next**: repo idle — push when user requests
+
+## 2026-09-07 — feat-027 done
+
+**State**: done
+**Done**: Remove Letter Spacing — deleted "Giãn chữ" UI + `letterSpacing` model/keys/store/validation/tests; removed `.kerning` from Reader; typography now font/size/lineHeight only; "Giãn dòng" intact
+**Evidence**: `features/feat-027.md` (acceptance 6/6), `feature_index.json` feat-027 done (zero active), greps 0 (`letterSpacing`/`Giãn chữ`/`.kerning` in Swift; `letterSpacing` in docs contracts/design/product), `./init.sh --quick` PASS + `xcodebuild build` PASS + targeted tests PASS (TypographySheet/SettingsStore/DomainCodable/SettingsEditorValidation/SettingsStoreCoercion); full `./init.sh` timed out twice, no failure observed
+**Blockers**: none (tree carries unrelated prior dirty changes — not committed as not requested)
+**Next**: repo idle — user retests Reader sheet (no Giãn chữ) + Settings typography

@@ -160,6 +160,12 @@
       "title": "Reading Themes Full 5 (Sach / Xanh diu / Xanh lam / Dem / AMOLED)",
       "status": "done",
       "depends_on": ["feat-004", "feat-021"]
+    },
+    {
+      "id": "feat-027",
+      "title": "Remove Letter Spacing (Gian chu)",
+      "status": "done",
+      "depends_on": ["feat-004", "feat-005"]
     }
   ]
 }

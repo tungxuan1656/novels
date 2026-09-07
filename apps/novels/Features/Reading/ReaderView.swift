@@ -127,8 +127,7 @@ struct ReaderView: View {
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
-                .presentationDetents([.height(600), .large])
-                .presentationBackground(.ultraThinMaterial)
+                .presentationDetents([.height(484), .large])
                 .preferredColorScheme(theme.preferredColorScheme)
         }
     }
@@ -169,7 +168,6 @@ struct ReaderView: View {
                 }
                 combined
                     .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-                    .kerning(CGFloat(settingsStore.typography.letterSpacing))
                     .multilineTextAlignment(.leading)
             }
         }
@@ -184,7 +182,6 @@ struct ReaderView: View {
             .font(font)
             .foregroundStyle(theme.textPrimary)
             .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-            .kerning(CGFloat(settingsStore.typography.letterSpacing))
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("aiContent")

@@ -90,17 +90,6 @@ struct ReaderBottomSheet: View {
                     step: 0.5,
                     format: "%.1f"
                 )
-
-                stepperRow(
-                    title: "Giãn chữ",
-                    value: Binding(
-                        get: { settingsStore.typography.letterSpacing },
-                        set: { clampAndSaveLetterSpacing($0) }
-                    ),
-                    range: 0 ... 3.0,
-                    step: 0.1,
-                    format: "%.1f"
-                )
             }
             .padding(.horizontal, DesignTokens.spacing12)
             .padding(.bottom, DesignTokens.spacing16)
@@ -296,11 +285,6 @@ struct ReaderBottomSheet: View {
 
     private func clampAndSaveLineHeight(_ value: Double) {
         settingsStore.typography.lineHeight = min(max(1.0, value), 50)
-        settingsStore.save()
-    }
-
-    private func clampAndSaveLetterSpacing(_ value: Double) {
-        settingsStore.typography.letterSpacing = min(max(0, value), 3.0)
         settingsStore.save()
     }
 }

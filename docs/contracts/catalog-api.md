@@ -80,7 +80,7 @@ Domain mapping: `ExportedBook 1—1 BookMeta` in `../../docs/product/domain-mode
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build). Test is SKIP (no test target yet).
+- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
 
 ## Maintenance
 

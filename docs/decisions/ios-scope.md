@@ -23,9 +23,9 @@ Product targets a single offline reader on iPhone. Vietnamese is the UI and AI t
 
 ## Implementation note (feat-008)
 
-- `TARGETED_DEVICE_FAMILY` aligned to `1` (iPhone-only) on all 6 configurations (novels / novelsTests / novelsUITests × Debug/Release); `IPHONEOS_DEPLOYMENT_TARGET 26.5` and `LSRequiresIPhoneOS=true` retained.
+- `TARGETED_DEVICE_FAMILY` aligned to `1` (iPhone-only) on the novels app configs (Debug/Release); `IPHONEOS_DEPLOYMENT_TARGET 26.5` and `LSRequiresIPhoneOS=true` retained.
 - `GENERATE_INFOPLIST_FILE=NO` per `ARCHITECTURE.md` — `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` / `_iPhone` build settings have no effect when generation is disabled. The authoritative gate is `apps/novels/Info.plist`: only `UISupportedInterfaceOrientations` (`Portrait`, `LandscapeLeft`, `LandscapeRight`) is kept; both `UISupportedInterfaceOrientations~iphone` (redundant when `TARGETED_DEVICE_FAMILY=1`) and `UISupportedInterfaceOrientations~ipad` are removed. This avoids divergence where one key is edited and the other is not.
-- `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` count is `0` in `project.pbxproj` — correct because Tests never had it; only 2 novels configs were pruned (Debug/Release).
+- `INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad` count is `0` in `project.pbxproj` — no test targets exist by decision; only the 2 novels app configs (Debug/Release) were pruned.
 
 ## Consequences
 

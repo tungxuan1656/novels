@@ -56,6 +56,7 @@ import Observation
         session = nil
         load()
         sanitize()
+        removeLegacyKeys()
     }
 
     func load() {
@@ -116,9 +117,7 @@ import Observation
         if let value = doubleValue(forKey: DefaultsKeys.lineHeight) {
             typography.lineHeight = value
         }
-        if let value = doubleValue(forKey: DefaultsKeys.letterSpacing) {
-            typography.letterSpacing = value
-        }
+        // Legacy letter-spacing default key (if present) is intentionally ignored as unknown.
         if let data = userDefaults.data(forKey: DefaultsKeys.readingSession) {
             session = try? JSONDecoder().decode(ReadingSession.self, from: data)
         } else {
@@ -183,9 +182,6 @@ import Observation
         if !(1.0 ... 50).contains(typography.lineHeight) {
             typography.lineHeight = TypographySetting.default.lineHeight
         }
-        if !(0 ... 3.0).contains(typography.letterSpacing) {
-            typography.letterSpacing = TypographySetting.default.letterSpacing
-        }
         if let session, !SlugValidator.isValid(session.bookId) {
             self.session = nil
         }
@@ -219,8 +215,6 @@ import Observation
             return String(format: "%g", typography.fontSize)
         case "lineHeight":
             return String(format: "%.1f", typography.lineHeight)
-        case "letterSpacing":
-            return String(format: "%.1f", typography.letterSpacing)
         default:
             return ""
         }
@@ -263,17 +257,20 @@ import Observation
             if let doubleValue = Double(value) {
                 typography.lineHeight = doubleValue
             } // keep prior valid value on parse failure
-        case "letterSpacing":
-            if let doubleValue = Double(value) {
-                typography.letterSpacing = doubleValue
-            } // keep prior valid value on parse failure
         default:
             break
         }
     }
 
+    /// feat-027 legacy cleanup: the "letterSpacing" default key was removed, so
+    /// drop the stale value for upgrading users who still carry it.
+    private func removeLegacyKeys() {
+        userDefaults.removeObject(forKey: "letterSpacing")
+    }
+
     func save() {
         sanitize()
+        removeLegacyKeys()
         userDefaults.set(booksAPIURL, forKey: DefaultsKeys.booksAPIURL)
         userDefaults.set(openaiAPIURL, forKey: DefaultsKeys.openaiAPIURL)
         userDefaults.set(openaiModel, forKey: DefaultsKeys.openaiModel)
@@ -289,7 +286,6 @@ import Observation
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
         userDefaults.set(typography.fontSize, forKey: DefaultsKeys.fontSize)
         userDefaults.set(typography.lineHeight, forKey: DefaultsKeys.lineHeight)
-        userDefaults.set(typography.letterSpacing, forKey: DefaultsKeys.letterSpacing)
         if let session {
             if let data = try? JSONEncoder().encode(session) {
                 userDefaults.set(data, forKey: DefaultsKeys.readingSession)

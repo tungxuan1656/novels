@@ -5,7 +5,7 @@
 ## 1. Topology
 
 - **App:** iPhone only, iOS 26+, Vietnamese UI. Single reader, offline-first. [Intended — product is iPhone-only/Vietnamese; project `apps/novels.xcodeproj` still lists family `1,2`]
-- **Stack:** SwiftUI / Xcode — `apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Module `apps/novels`. No SwiftPM/Node. No test target yet. Toolchain is SwiftLint 0.65.1 and SwiftFormat 0.62.1 via `.swiftlint.yml` / `.swiftformat` and `.githooks/pre-commit` (setup `scripts/setup.sh`). [Observed — `init.sh`]
+- **Stack:** SwiftUI / Xcode — `apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Module `apps/novels`. No SwiftPM/Node. No test targets by decision — single app target `novels`. Toolchain is SwiftLint 0.65.1 and SwiftFormat 0.62.1 via `.swiftlint.yml` / `.swiftformat` and `.githooks/pre-commit` (setup `scripts/setup.sh`). [Observed — `init.sh`]
 - **Integrations:** Remote Book Catalog (listing and ZIP) and one OpenAI-compatible AI service (rewrite via `AI_PROMPT`). Both need network. Library, Reader, and settings work offline. See `docs/contracts/catalog-api.md`, `docs/contracts/ai-service.md`, `docs/product/integrations.md`.
 - **Local stores (accepted native):** See `docs/decisions/local-persistence.md` and `docs/decisions/book-identity.md`.
   - Local Book Repository → `books/<slug>/` in `Application Support/novels/` via `Foundation.FileManager` and `Codable`. See `docs/contracts/local-data.md` and `docs/decisions/book-identity.md`.
@@ -32,7 +32,7 @@
 | Integrations | Catalog POST client, ZIP download, AI chunk and retry client (merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY`) | `docs/contracts/catalog-api.md`, `docs/contracts/ai-service.md` | `URLSession` `async/await` + `actor` de-dup + `Task` cancel |
 | Cross-cutting | Chunking (~1300), retry (3×, `1000/2000 ms`), prefetch status (runtime-only) | `docs/contracts/ai-service.md`, `docs/product/functional-specs/chapter-prefetch.md` | — |
 
-No test target exists yet. First feature will add tests. Do not change project or test config in docs tasks. [Observed/Open — test target shape only]
+No test targets; do not add test config in any task. Do not change project config in docs tasks. [Decided]
 
 ## 3. Boundaries
 
@@ -61,7 +61,7 @@ Settings → sanitize on launch (missing or invalid → defaults; unknown or leg
 
 ## 5. Verification and Routes
 
-- **Build and test:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, test, drift; `--quick` (`-q`) runs format + lint + drift only (skip build/test) for fast local loops. Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme `novels`, iOS 26.5), `xcodebuild -list` shows single target, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). Format and lint use SwiftLint and SwiftFormat. [Observed]
+- **Build only:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, drift; `--quick` (`-q`) runs format + lint + drift only (skip build) for fast local loops. Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme `novels`, iOS 26.5), `xcodebuild -list` shows single app target `novels`, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). Format and lint use SwiftLint and SwiftFormat. [Observed]
 - **Product truth:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/*`, business decisions `docs/product/decisions.md`.
 - **Design:** `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
 - **Contracts:** `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`.
@@ -71,5 +71,5 @@ Settings → sanitize on launch (missing or invalid → defaults; unknown or leg
 
 ## 6. Notes
 
-- Labels: **Observed** is in repo; **Intended** is accepted but not in code; **Open** is undecided detail (for example backup exclusion and test target shape).
+- Labels: **Observed** is in repo; **Intended** is accepted but not in code; **Open** is undecided detail (for example backup exclusion).
 - Do not edit Swift, Xcode project, `feature_index.json`, `features/`, `progress.md`, `init.sh`, or delete `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` in docs tasks. That ZIP is tracked. It has an outer folder and `__MACOSX` data. It is not a valid fixture. See `docs/contracts/book-package.md`.

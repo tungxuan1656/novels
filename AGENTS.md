@@ -29,6 +29,8 @@ Stack and toolchain live in `ARCHITECTURE.md` §1. Verification steps live in `i
 
 ## Assess the task
 
+Before any non-trivial task, use skill `using-skills` and follow its Decision Tree to pick and chain skills. Skip skills only for light, clear, low-risk work.
+
 Assess scale, complexity, and impact before you create or update a feature. Use no feature for lightweight work. Use an inline plan for bounded tracked work. Use a separate linked plan for substantial work.
 
 If the work does not need a feature, read only the relevant sources. Then run proportional verification without updating feature or progress state.
@@ -84,10 +86,11 @@ A feature is done only when:
 
 ## Verification
 
-- Full: `./init.sh` — format + lint + build + test + drift (source of truth, use for CI / pre-push / feature done)
-- Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build/test (for fast local loops)
+- Full: `./init.sh` — format + lint + build + drift (source of truth, use for CI / pre-push / feature done)
+- Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build (for fast local loops)
 - Help: `./init.sh --help`
+- Testing: repo has no test targets. Do not add test targets (no novelsTests/novelsLogicTests/novelsUITests, no XCTest/XCUITest).
 
-`init.sh` is the source of truth. Full runs format, lint, build, test, drift. Quick skips build/test to save time. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
+`init.sh` is the source of truth. Full runs format, lint, build, drift. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->

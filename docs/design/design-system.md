@@ -8,7 +8,7 @@ Abstract tokens, not code classes.
 
 ```
 Colors: background / surface / text / muted / accent / success / warning / error / border
-Type: family / size / weight / lineHeight / letterSpacing
+Type: family / size / weight / lineHeight
 Space: 4 / 8 / 12 / 16 / 24 / 32
 Radius: 8 / 12 / 16 / 24 pill
 Elevation: flat / raised / overlay
@@ -59,7 +59,6 @@ Reading content user set:
 - Family: curated serif/sans set
 - Size: 12-24 step 1
 - Line height: 1.2-2.0 step 0.1 (size × factor)
-- Letter spacing: 0-1.0 step 0.1
 
 Weights: regular body, medium for name, semi-bold for header, bold for count. Max three per screen.
 

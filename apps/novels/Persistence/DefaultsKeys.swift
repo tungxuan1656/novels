@@ -15,7 +15,6 @@ enum DefaultsKeys {
     static let font = "font"
     static let fontSize = "fontSize"
     static let lineHeight = "lineHeight"
-    static let letterSpacing = "letterSpacing"
     static let readingTheme = "readingTheme"
     static let readingSession = "ReadingSession"
     static let diagnosticsVerbose = "DIAGNOSTICS_VERBOSE"
@@ -34,7 +33,6 @@ enum DefaultsKeys {
         font,
         fontSize,
         lineHeight,
-        letterSpacing,
         readingTheme,
         readingSession,
         diagnosticsVerbose
