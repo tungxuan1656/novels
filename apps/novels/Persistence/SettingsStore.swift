@@ -56,6 +56,7 @@ import Observation
         session = nil
         load()
         sanitize()
+        removeLegacyKeys()
     }
 
     func load() {
@@ -261,8 +262,15 @@ import Observation
         }
     }
 
+    /// feat-027 legacy cleanup: the "letterSpacing" default key was removed, so
+    /// drop the stale value for upgrading users who still carry it.
+    private func removeLegacyKeys() {
+        userDefaults.removeObject(forKey: "letterSpacing")
+    }
+
     func save() {
         sanitize()
+        removeLegacyKeys()
         userDefaults.set(booksAPIURL, forKey: DefaultsKeys.booksAPIURL)
         userDefaults.set(openaiAPIURL, forKey: DefaultsKeys.openaiAPIURL)
         userDefaults.set(openaiModel, forKey: DefaultsKeys.openaiModel)

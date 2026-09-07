@@ -322,6 +322,19 @@ final class ReaderStaleGuardTests: XCTestCase {
         await waitFor(timeoutSeconds: timeoutSeconds, GatedAIURLProtocol.outcome(id: id) != nil)
     }
 
+    /// Deterministic settle (bug-manifest) window, not an ordering wait.
+    /// Ordering is gate-enforced (manual release + waitForOutcome above); this
+    /// window only yields to the MainActor pipeline so a regressed generation
+    /// guard publishing stale content 10-100ms late lands before the asserts
+    /// below and fails them. Total 150ms in 15x10ms steps: each sleep stays
+    /// under the 0.2s single-sleep limit while still yielding to MainActor.
+    private func settleForLatePublish() async {
+        for _ in 0 ..< 15 {
+            try? await Task.sleep(nanoseconds: 10_000_000)
+            await Task.yield()
+        }
+    }
+
     // MARK: - Phase 1 race tests
 
     /// Stale chapter-2 network task resolves AFTER we are back on chapter 1
@@ -349,8 +362,9 @@ final class ReaderStaleGuardTests: XCTestCase {
         // The stale write really landed here (delivered, not silently dropped)…
         XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("FRESH-TWO"))
         // …give the pipeline a deterministic settle point, then assert it did not.
-        // Ordering is gate-enforced; waitFor polls (50ms) instead of a fixed 0.3s sleep.
-        await waitFor(viewModel.chapterNumber == 1 && viewModel.processedContent == "CACHED-ONE")
+        // Ordering is gate-enforced; this is a settle (bug-manifest) window letting
+        // a regressed guard publish late and fail the assert below.
+        await settleForLatePublish()
         XCTAssertEqual(viewModel.chapterNumber, 1)
         XCTAssertEqual(viewModel.processedContent, "CACHED-ONE")
         XCTAssertTrue(viewModel.isProcessedContentCurrent())
@@ -372,8 +386,9 @@ final class ReaderStaleGuardTests: XCTestCase {
             GatedAIURLProtocol.release(id: staleID, content: "FRESH-TWO")
             await waitForOutcome(id: staleID)
             XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("FRESH-TWO"))
-            // Gate-enforced ordering: settle via waitFor instead of a fixed 0.3s sleep.
-            await waitFor(viewModel.chapterNumber == 1 && viewModel.processedContent == "CACHED-ONE")
+            // Ordering is gate-enforced; this is a settle (bug-manifest) window letting
+            // a regressed guard publish late and fail the assert below.
+            await settleForLatePublish()
         }
         XCTAssertEqual(viewModel.chapterNumber, 1)
         XCTAssertEqual(viewModel.processedContent, "CACHED-ONE")
@@ -399,8 +414,9 @@ final class ReaderStaleGuardTests: XCTestCase {
         await rewriteTask.value
         await waitForOutcome(id: staleID)
         XCTAssertEqual(GatedAIURLProtocol.outcome(id: staleID), .delivered("STALE-REWRITE"))
-        // Gate-enforced ordering: settle via waitFor instead of a fixed 0.3s sleep.
-        await waitFor(viewModel.aiMode == .none && viewModel.processedContent == nil)
+        // Ordering is gate-enforced; this is a settle (bug-manifest) window letting
+        // a regressed guard publish late and fail the assert below.
+        await settleForLatePublish()
         XCTAssertEqual(viewModel.aiMode, .none)
         XCTAssertNil(viewModel.processedContent)
         XCTAssertFalse(viewModel.isProcessedContentCurrent())

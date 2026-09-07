@@ -137,7 +137,7 @@ final class PrefetchFifoQueueTests: XCTestCase {
         let (manager, cache, settings, repo, client) = try await makeManagerEnv(prefetchCount: 20, totalChapters: 500)
         let svc = client.service(cache: cache, settings: settings)
         await manager.start(bookId: "book-slug", currentChapter: 450, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
-        try await Task.sleep(nanoseconds: 300_000_000)
+        await waitForCondition({ !client.calls.isEmpty })
         await manager.start(bookId: "book-slug", currentChapter: 451, totalChapters: 500, mode: .rewrite, settings: settings, cache: cache, aiService: svc, repository: repo)
         await waitForCondition({ client.calls == Array(451...471) })
         let calls = client.calls

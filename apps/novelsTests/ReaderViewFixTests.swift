@@ -225,7 +225,9 @@ final class ReaderViewFixTests: XCTestCase {
         func debouncedSave(_ offset: Double) {
             task?.cancel()
             task = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000)
+                // SUT-is-timing exception to the 0.2s rule: simulation must
+                // model prod ReaderView.swift:425 (300ms debounce window).
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
                 await MainActor.run { counter.save(offset) }
             }
@@ -258,15 +260,19 @@ final class ReaderViewFixTests: XCTestCase {
         func debouncedSave(_ offset: Double) {
             task?.cancel()
             task = Task {
-                try? await Task.sleep(nanoseconds: 200_000_000)
+                // SUT-is-timing exception to the 0.2s rule: simulation must
+                // model prod ReaderView.swift:425 (300ms debounce window).
+                try? await Task.sleep(nanoseconds: 300_000_000)
                 guard !Task.isCancelled else { return }
                 await MainActor.run { counter.save(offset) }
             }
         }
         debouncedSave(42)
         task?.cancel()
-        // Step past the debounce window in 20ms increments (instead of a fixed
-        // 0.4s sleep); a missed cancel would fire inside this window.
+        // Negative assertion requiring a full-window wait: a missed cancel
+        // would fire inside this window, so the chunked wait is intentional
+        // (not an ordering wait). Step past the debounce window in 20ms
+        // increments (instead of a fixed 0.4s sleep).
         let cancelDeadline = Date().addingTimeInterval(0.35)
         while Date() < cancelDeadline {
             try? await Task.sleep(nanoseconds: 20_000_000)

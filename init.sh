@@ -143,7 +143,7 @@ else
     echo "FAIL [drift] duplicate section Khi.*skill.*moi still present" >&2
     STATUS=1
   fi
-  LOGIC_SWIFTS=$(awk '/\/\* novelsLogicTests \*\/ = \{/{cap=1} cap{print} cap && /sourceTree = "<group>";/{exit}' apps/novels.xcodeproj/project.pbxproj | grep -oE '[A-Za-z0-9_]+\.swift')
+  LOGIC_SWIFTS=$(awk '/\/\* novelsLogicTests \*\/ = \{/{cap=1; buf=""} cap{buf=buf $0 "\n"; if ($0 ~ /\};/) {if (buf ~ /isa = PBXGroup/) {printf "%s", buf; exit} else {cap=0; buf=""}}}' apps/novels.xcodeproj/project.pbxproj | grep -oE '[A-Za-z0-9_]+\.swift')
   if [ -z "$LOGIC_SWIFTS" ]; then
     echo "FAIL [drift] novelsLogicTests group not found in project.pbxproj" >&2
     STATUS=1
