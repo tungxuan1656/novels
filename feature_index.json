@@ -166,6 +166,12 @@
       "title": "Remove Letter Spacing (Gian chu)",
       "status": "done",
       "depends_on": ["feat-004", "feat-005"]
+    },
+    {
+      "id": "feat-028",
+      "title": "Title + Single Body String Reader",
+      "status": "done",
+      "depends_on": ["feat-004", "feat-006", "feat-007"]
     }
   ]
 }

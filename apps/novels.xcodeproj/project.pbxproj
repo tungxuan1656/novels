@@ -6,88 +6,8 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		E2DB6210303C43F300D20F8F /* novels/Domain/Book.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6230303C43F300D20F8F /* novels/Domain/Book.swift */; };
-		E2DB6211303C43F300D20F8F /* novels/Domain/Reference.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6231303C43F300D20F8F /* novels/Domain/Reference.swift */; };
-		E2DB6212303C43F300D20F8F /* novels/Domain/AIMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6232303C43F300D20F8F /* novels/Domain/AIMode.swift */; };
-		E2DB6213303C43F300D20F8F /* novels/Domain/HtmlParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6233303C43F300D20F8F /* novels/Domain/HtmlParser.swift */; };
-		E2DB6214303C43F300D20F8F /* novels/Domain/TextSpan.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6234303C43F300D20F8F /* novels/Domain/TextSpan.swift */; };
-		E2DB6215303C43F300D20F8F /* novels/Domain/Chapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6235303C43F300D20F8F /* novels/Domain/Chapter.swift */; };
-		E2DB6216303C43F300D20F8F /* novels/Domain/PrefetchStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6236303C43F300D20F8F /* novels/Domain/PrefetchStatus.swift */; };
-		E2DB6217303C43F300D20F8F /* novels/Domain/ProcessedChapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6237303C43F300D20F8F /* novels/Domain/ProcessedChapter.swift */; };
-		E2DB6218303C43F300D20F8F /* novels/Domain/SHA256.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6238303C43F300D20F8F /* novels/Domain/SHA256.swift */; };
-		E2DB6219303C43F300D20F8F /* novels/Domain/SettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6239303C43F300D20F8F /* novels/Domain/SettingsModels.swift */; };
-		E2DB621A303C43F300D20F8F /* novels/Domain/SlugValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623A303C43F300D20F8F /* novels/Domain/SlugValidator.swift */; };
-		E2DB621B303C43F300D20F8F /* novels/Domain/ReadingSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623B303C43F300D20F8F /* novels/Domain/ReadingSession.swift */; };
-		E2DB621C303C43F300D20F8F /* novels/Domain/TypographySetting.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623C303C43F300D20F8F /* novels/Domain/TypographySetting.swift */; };
-		E2DB621D303C43F300D20F8F /* novels/Services/AIChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623D303C43F300D20F8F /* novels/Services/AIChunker.swift */; };
-		E2DB621E303C43F300D20F8F /* novels/Services/AIPromptBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623E303C43F300D20F8F /* novels/Services/AIPromptBuilder.swift */; };
-		E2DB621F303C43F300D20F8F /* novels/Persistence/BookRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB623F303C43F300D20F8F /* novels/Persistence/BookRepository.swift */; };
-		E2DB6220303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6240303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift */; };
-		E2DB6221303C43F300D20F8F /* novels/Persistence/Paths.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6241303C43F300D20F8F /* novels/Persistence/Paths.swift */; };
-		E2DB6222303C43F300D20F8F /* novels/Persistence/ZipValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6242303C43F300D20F8F /* novels/Persistence/ZipValidator.swift */; };
-		E2DB622B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB624B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift */; };
-		E2DB6271303C43F300D20F8F /* novels/Services/AIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6250303C43F300D20F8F /* novels/Services/AIClient.swift */; };
-		E2DB6272303C43F300D20F8F /* novels/Services/AIReadingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6251303C43F300D20F8F /* novels/Services/AIReadingService.swift */; };
-		E2DB6273303C43F300D20F8F /* novels/Services/AIResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6252303C43F300D20F8F /* novels/Services/AIResponse.swift */; };
-		E2DB6274303C43F300D20F8F /* novels/Services/CatalogService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6253303C43F300D20F8F /* novels/Services/CatalogService.swift */; };
-		E2DB6275303C43F300D20F8F /* novels/Services/CatalogError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6254303C43F300D20F8F /* novels/Services/CatalogError.swift */; };
-		E2DB6276303C43F300D20F8F /* novels/Services/DiagnosticsLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6255303C43F300D20F8F /* novels/Services/DiagnosticsLog.swift */; };
-		E2DB6277303C43F300D20F8F /* novels/Domain/DiagnosticsEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6256303C43F300D20F8F /* novels/Domain/DiagnosticsEntry.swift */; };
-		E2DB6278303C43F300D20F8F /* novels/Services/PrefetchManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6257303C43F300D20F8F /* novels/Services/PrefetchManager.swift */; };
-		E2DB6279303C43F300D20F8F /* novels/Persistence/SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6258303C43F300D20F8F /* novels/Persistence/SettingsStore.swift */; };
-		E2DB627A303C43F300D20F8F /* novels/Persistence/DefaultsKeys.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6259303C43F300D20F8F /* novels/Persistence/DefaultsKeys.swift */; };
-		E2DB627B303C43F300D20F8F /* novels/Models/ExportedBook.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625A303C43F300D20F8F /* novels/Models/ExportedBook.swift */; };
-		E2DB627C303C43F300D20F8F /* novels/Features/Import/ImportDependencies.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625B303C43F300D20F8F /* novels/Features/Import/ImportDependencies.swift */; };
-		E2DB627D303C43F300D20F8F /* novels/Features/Import/ImportError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625C303C43F300D20F8F /* novels/Features/Import/ImportError.swift */; };
-		E2DB627E303C43F300D20F8F /* novels/Features/Import/ImportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625D303C43F300D20F8F /* novels/Features/Import/ImportViewModel.swift */; };
-		E2DB627F303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625E303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift */; };
-		E2DB6280303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB625F303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift */; };
-		E2DB6281303C43F300D20F8F /* novels/Domain/ReadingTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DB6260303C43F300D20F8F /* novels/Domain/ReadingTheme.swift */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXContainerItemProxy section */
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
 		E2DB617F303C43F300D20F8F /* novels.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = novels.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E2DB6230303C43F300D20F8F /* novels/Domain/Book.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/Book.swift; sourceTree = "<group>"; };
-		E2DB6231303C43F300D20F8F /* novels/Domain/Reference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/Reference.swift; sourceTree = "<group>"; };
-		E2DB6232303C43F300D20F8F /* novels/Domain/AIMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/AIMode.swift; sourceTree = "<group>"; };
-		E2DB6233303C43F300D20F8F /* novels/Domain/HtmlParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/HtmlParser.swift; sourceTree = "<group>"; };
-		E2DB6234303C43F300D20F8F /* novels/Domain/TextSpan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/TextSpan.swift; sourceTree = "<group>"; };
-		E2DB6235303C43F300D20F8F /* novels/Domain/Chapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/Chapter.swift; sourceTree = "<group>"; };
-		E2DB6236303C43F300D20F8F /* novels/Domain/PrefetchStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/PrefetchStatus.swift; sourceTree = "<group>"; };
-		E2DB6237303C43F300D20F8F /* novels/Domain/ProcessedChapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/ProcessedChapter.swift; sourceTree = "<group>"; };
-		E2DB6238303C43F300D20F8F /* novels/Domain/SHA256.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/SHA256.swift; sourceTree = "<group>"; };
-		E2DB6239303C43F300D20F8F /* novels/Domain/SettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/SettingsModels.swift; sourceTree = "<group>"; };
-		E2DB623A303C43F300D20F8F /* novels/Domain/SlugValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/SlugValidator.swift; sourceTree = "<group>"; };
-		E2DB623B303C43F300D20F8F /* novels/Domain/ReadingSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/ReadingSession.swift; sourceTree = "<group>"; };
-		E2DB623C303C43F300D20F8F /* novels/Domain/TypographySetting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/TypographySetting.swift; sourceTree = "<group>"; };
-		E2DB623D303C43F300D20F8F /* novels/Services/AIChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIChunker.swift; sourceTree = "<group>"; };
-		E2DB623E303C43F300D20F8F /* novels/Services/AIPromptBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIPromptBuilder.swift; sourceTree = "<group>"; };
-		E2DB623F303C43F300D20F8F /* novels/Persistence/BookRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/BookRepository.swift; sourceTree = "<group>"; };
-		E2DB6240303C43F300D20F8F /* novels/Persistence/ProcessedChapterCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/ProcessedChapterCache.swift; sourceTree = "<group>"; };
-		E2DB6241303C43F300D20F8F /* novels/Persistence/Paths.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/Paths.swift; sourceTree = "<group>"; };
-		E2DB6242303C43F300D20F8F /* novels/Persistence/ZipValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/ZipValidator.swift; sourceTree = "<group>"; };
-		E2DB624B303C43F300D20F8F /* novels/Persistence/FileManagerZIP.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/FileManagerZIP.swift; sourceTree = "<group>"; };
-		E2DB6250303C43F300D20F8F /* novels/Services/AIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIClient.swift; sourceTree = "<group>"; };
-		E2DB6251303C43F300D20F8F /* novels/Services/AIReadingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIReadingService.swift; sourceTree = "<group>"; };
-		E2DB6252303C43F300D20F8F /* novels/Services/AIResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/AIResponse.swift; sourceTree = "<group>"; };
-		E2DB6253303C43F300D20F8F /* novels/Services/CatalogService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/CatalogService.swift; sourceTree = "<group>"; };
-		E2DB6254303C43F300D20F8F /* novels/Services/CatalogError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/CatalogError.swift; sourceTree = "<group>"; };
-		E2DB6255303C43F300D20F8F /* novels/Services/DiagnosticsLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/DiagnosticsLog.swift; sourceTree = "<group>"; };
-		E2DB6256303C43F300D20F8F /* novels/Domain/DiagnosticsEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/DiagnosticsEntry.swift; sourceTree = "<group>"; };
-		E2DB6257303C43F300D20F8F /* novels/Services/PrefetchManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Services/PrefetchManager.swift; sourceTree = "<group>"; };
-		E2DB6258303C43F300D20F8F /* novels/Persistence/SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/SettingsStore.swift; sourceTree = "<group>"; };
-		E2DB6259303C43F300D20F8F /* novels/Persistence/DefaultsKeys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Persistence/DefaultsKeys.swift; sourceTree = "<group>"; };
-		E2DB625A303C43F300D20F8F /* novels/Models/ExportedBook.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Models/ExportedBook.swift; sourceTree = "<group>"; };
-		E2DB625B303C43F300D20F8F /* novels/Features/Import/ImportDependencies.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Import/ImportDependencies.swift; sourceTree = "<group>"; };
-		E2DB625C303C43F300D20F8F /* novels/Features/Import/ImportError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Import/ImportError.swift; sourceTree = "<group>"; };
-		E2DB625D303C43F300D20F8F /* novels/Features/Import/ImportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Import/ImportViewModel.swift; sourceTree = "<group>"; };
-		E2DB625E303C43F300D20F8F /* novels/Features/Settings/SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Settings/SettingsViewModel.swift; sourceTree = "<group>"; };
-		E2DB625F303C43F300D20F8F /* novels/Features/Reading/ScrollOffsetPreference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Features/Reading/ScrollOffsetPreference.swift; sourceTree = "<group>"; };
-		E2DB6260303C43F300D20F8F /* novels/Domain/ReadingTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = novels/Domain/ReadingTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -214,9 +134,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
-
-/* Begin PBXTargetDependency section */
-/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		E2DB6188303C43F400D20F8F /* Debug */ = {

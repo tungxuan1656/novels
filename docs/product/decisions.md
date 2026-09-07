@@ -58,3 +58,4 @@
 - **Context:** D3 described join/convert to HTML/save; app renders with SwiftUI.Text from text spans per local-persistence.md.
 - **Decision:** Supersedes D3 rendering detail: join/clean/save as text → render SwiftUI.Text (no HTML). Cache content is text spans, not HTML.
 - **Consequence:** Reader parses HTML source to text spans and renders with SwiftUI.Text; processed cache stores text.
+- **Note (2026-09-07):** Superseded by feat-028: title + single body string, no spans/emphasis.

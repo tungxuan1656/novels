@@ -29,7 +29,7 @@ Request → User views Library → System lists books from local book repository
 
 ### 4 — Reading and Navigation
 
-Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to text spans per local-persistence.md → Renders with SwiftUI.Text → Restores offset or top.
+Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to one optional title plus one plain body string per local-persistence.md → Renders the raw title at body size + 8 bold above a single body `Text` → Restores offset or top. Mid-chapter heading text merges into the body as plain text.
 - Request → Next/Previous → Step within bounds. Button is disabled at ends.
 - Scroll → Saves offset per book. New chapter starts at top.
 - Request → Scroll to bottom or open index → Jump to chapter.
@@ -38,9 +38,9 @@ Request → User opens book → System marks `onScreen=true` → Loads current c
 ### 5 — AI Mode with Cache
 
 Request → User switches `none` ("Không") | `rewrite` ("Rewrite").
-- `none` → Raw text parsed from HTML in file storage → Render with SwiftUI.Text.
-- `rewrite` → Check processed chapter cache by `bookId + chapterNumber + "rewrite"` → Hit → Render cached text with SwiftUI.Text.
-- Miss → Read raw text → Split ~1300 chars (short = one) → Call AI processing service per chunk with system `AI_PROMPT`. Up to 2 attempts (1 retry) per ai-service.md. Then join, clean, and save to cache as text. Then render with SwiftUI.Text.
+- `none` → Raw title plus one raw body `Text` parsed from HTML in file storage, with no emphasis anywhere.
+- `rewrite` → Check processed chapter cache by `bookId + chapterNumber + "rewrite"` → Hit → Render the raw title plus the cached body as one `Text`.
+- Miss → Read the body string (the title is excluded by construction and never translated) → Split ~1300 chars (short = one) → Call AI processing service per chunk with system `AI_PROMPT`. Up to 2 attempts (1 retry) per ai-service.md. Then join, clean, and save to cache as text. Then render the raw title plus the translated body as one `Text`.
 - Failure or empty → Show error. Do not write cache.
 
 ### 6 — Prefetch Background
@@ -75,7 +75,7 @@ Request → User opens Settings → System shows groups: catalog, AI, download, 
 - [ ] Launch resumes Reader if `onScreen=true`, else Library.
 - [ ] Catalog loading, empty, and error are visible. Import creates folder and deletes ZIP.
 - [ ] Delete needs confirm and removes folder.
-- [ ] Reader parses HTML to text and renders with SwiftUI.Text. Navigation stays bounded and offset is per book.
+- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title above a single body `Text`. Navigation stays bounded and offset is per book.
 - [ ] AI uses cache on hit and service on miss, then saves result.
 - [ ] Prefetch skips cached, runs sequential, and cancels on change.
 - [ ] Settings persist. Invalid values fall back to defaults.

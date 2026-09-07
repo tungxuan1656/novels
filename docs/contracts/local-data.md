@@ -17,13 +17,13 @@ React Native findings are historical reference only — no RN package and no RN 
 
 - **Identity:** folder name is the string slug `book.json.id` (see `../decisions/book-identity.md`). Remote numeric `ExportedBook.id` / `bookId` are metadata only and never used as folder or cache key.
 - **Contents:** per book folder with `book.json` at root and `chapters/chapter-N.html` (1-based, `N=1..count`). See `book-package.md`.
-- **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to text spans for `SwiftUI.Text`; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
+- **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to one optional title + one plain body string; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
 - **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) → validate (flattened) root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
 - **Reference:** https://developer.apple.com/documentation/foundation/filemanager
 
 ## 2. ProcessedChapter Cache (Single AI Cache)
 
-SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`. Schema uses `WITHOUT ROWID` with `PRAGMA user_version=1` (see `ProcessedChapterCache.swift:75-82`).
+SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`. Schema uses `WITHOUT ROWID` with `PRAGMA user_version=2` (see `ProcessedChapterCache.swift:75-82`). Fresh installs create the database at `user_version=2`. Databases at `user_version=1` run a one-time `DELETE FROM processed_chapters` then bump to `user_version=2`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS processed_chapters (
@@ -56,7 +56,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 
 ```
 Library ──scan/Codable──► Local Book Repository (Application Support/books/<slug>)
-Reader  ──SwiftUI.Text (HTML→spans)──► Local Book Repository ──► Typography (UserDefaults @Observable)
+Reader  ──SwiftUI.Text (HTML→title+body string)──► Local Book Repository ──► Typography (UserDefaults @Observable)
 Reader/AI ──SQLite check/save──► ProcessedChapter Cache ──► AI Service (on miss, URLSession)
 Prefetch ──SQLite batch-check/save──► ProcessedChapter Cache
 Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography

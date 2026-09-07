@@ -1,35 +1,21 @@
 import Foundation
 
+/// Plain-text chapter parser: one optional title + one body string.
+/// The first h1-h6 block wins the title (trimmed, nil when empty);
+/// every text run — including mid-chapter headings and b/i content as
+/// plain text — appends to the body (no text loss per BR-04).
 enum HtmlParser {
     // swiftlint:disable:next cyclomatic_complexity function_body_length
-    static func parse(html: String) -> [TextBlock] {
-        var blocks: [TextBlock] = []
-        var currentSpans: [TextSpan] = []
+    static func parseChapter(html: String) -> (title: String?, body: String) {
+        var blocks: [String] = []
+        var currentPieces: [Piece] = []
         var isHeadingBlock = false
         // swiftlint:disable:next implicit_optional_initialization
-        var headingLevel: Int? = nil
-        var boldDepth = 0
-        var italicDepth = 0
+        var title: String? = nil
         var currentText = ""
         var insideBlock = false
         // swiftlint:disable:next implicit_optional_initialization
         var skipTag: String? = nil
-
-        func currentKind() -> TextSpan.Kind {
-            if let level = headingLevel {
-                return .heading(level: level)
-            }
-            if boldDepth > 0, italicDepth > 0 {
-                return .boldItalic
-            }
-            if boldDepth > 0 {
-                return .bold
-            }
-            if italicDepth > 0 {
-                return .italic
-            }
-            return .body
-        }
 
         func collapseWhitespace(_ input: String) -> String {
             var result = ""
@@ -70,7 +56,7 @@ enum HtmlParser {
                 return
             }
             var textToEmit = collapsed
-            if currentSpans.isEmpty, textToEmit.hasPrefix(" ") {
+            if currentPieces.isEmpty, textToEmit.hasPrefix(" ") {
                 textToEmit.removeFirst()
                 if textToEmit.isEmpty {
                     return
@@ -79,39 +65,51 @@ enum HtmlParser {
             if textToEmit.isEmpty {
                 return
             }
-            let span = TextSpan(text: textToEmit, kind: currentKind(), isLineBreak: false)
-            currentSpans.append(span)
+            currentPieces.append(Piece(text: textToEmit, isLineBreak: false))
         }
 
         func emitBlock() {
-            while let first = currentSpans.first, first.isLineBreak {
-                currentSpans.removeFirst()
+            while let first = currentPieces.first, first.isLineBreak {
+                currentPieces.removeFirst()
             }
-            while let last = currentSpans.last, last.isLineBreak {
-                currentSpans.removeLast()
+            while let last = currentPieces.last, last.isLineBreak {
+                currentPieces.removeLast()
             }
-            if currentSpans.isEmpty {
+            if currentPieces.isEmpty {
                 return
             }
-            if let last = currentSpans.last, last.text.hasSuffix(" ") {
+            if let last = currentPieces.last, last.text.hasSuffix(" ") {
                 var trimmed = last.text
                 while trimmed.hasSuffix(" ") {
                     trimmed.removeLast()
                 }
                 if trimmed.isEmpty {
-                    currentSpans.removeLast()
+                    currentPieces.removeLast()
                 } else {
-                    currentSpans[currentSpans.count - 1].text = trimmed
+                    currentPieces[currentPieces.count - 1].text = trimmed
                 }
             }
-            let nonEmpty = currentSpans.filter { !$0.text.isEmpty }
+            let nonEmpty = currentPieces.filter { !$0.text.isEmpty }
             if nonEmpty.isEmpty {
-                currentSpans = []
+                currentPieces = []
                 return
             }
-            let block = TextBlock(spans: nonEmpty, isHeading: isHeadingBlock, headingLevel: headingLevel)
-            blocks.append(block)
-            currentSpans = []
+            let blockText = nonEmpty.map { $0.text }.joined()
+            var capturedTitle = false
+            if isHeadingBlock, title == nil {
+                let candidate = blockText
+                    .replacingOccurrences(of: "\n", with: " ")
+                    .split(whereSeparator: { $0.isWhitespace })
+                    .joined(separator: " ")
+                if !candidate.isEmpty {
+                    title = candidate
+                    capturedTitle = true
+                }
+            }
+            if !capturedTitle {
+                blocks.append(blockText)
+            }
+            currentPieces = []
         }
 
         var index = html.startIndex
@@ -152,60 +150,43 @@ enum HtmlParser {
 
                 if tagName == "br" {
                     flush()
-                    if currentSpans.last?.isLineBreak != true {
-                        let span = TextSpan(text: "\n\n", kind: currentKind(), isLineBreak: true)
-                        currentSpans.append(span)
+                    if currentPieces.last?.isLineBreak != true {
+                        currentPieces.append(Piece(text: "\n\n", isLineBreak: true))
                     }
-                } else if tagName == "b" || tagName == "strong" {
+                } else if tagName == "b" || tagName == "strong" || tagName == "i" || tagName == "em" {
+                    // Inline styling is dropped: content stays as plain text.
                     flush()
-                    if isClosing {
-                        boldDepth = max(0, boldDepth - 1)
-                    } else {
-                        boldDepth += 1
-                    }
-                } else if tagName == "i" || tagName == "em" {
-                    flush()
-                    if isClosing {
-                        italicDepth = max(0, italicDepth - 1)
-                    } else {
-                        italicDepth += 1
-                    }
                 } else if tagName == "p" || tagName == "div" {
                     if isClosing {
                         flush()
                         emitBlock()
                         isHeadingBlock = false
-                        headingLevel = nil
                         insideBlock = false
                     } else {
-                        if insideBlock, !currentSpans.isEmpty {
+                        if insideBlock, !currentPieces.isEmpty {
                             flush()
                             emitBlock()
                             isHeadingBlock = false
-                            headingLevel = nil
                             insideBlock = false
                         }
                         insideBlock = true
                         isHeadingBlock = false
-                        headingLevel = nil
                     }
-                } else if tagName.count == 2, tagName.hasPrefix("h"), let levelChar = tagName.last,
-                          let level = Int(String(levelChar)), (1 ... 6).contains(level)
+                } else if tagName.count == 2, tagName.hasPrefix("h"),
+                          let digit = tagName.last?.wholeNumberValue, (1 ... 6).contains(digit)
                 { // swiftlint:disable:this opening_brace
                     if isClosing {
                         flush()
                         emitBlock()
                         isHeadingBlock = false
-                        headingLevel = nil
                         insideBlock = false
                     } else {
-                        if insideBlock, !currentSpans.isEmpty {
+                        if insideBlock, !currentPieces.isEmpty {
                             flush()
                             emitBlock()
                         }
                         insideBlock = true
                         isHeadingBlock = true
-                        headingLevel = level
                     }
                 } else if tagName == "span" {
                     // passthrough, no style change
@@ -225,32 +206,17 @@ enum HtmlParser {
         }
 
         flush()
-        while let first = currentSpans.first, first.isLineBreak {
-            currentSpans.removeFirst()
-        }
-        while let last = currentSpans.last, last.isLineBreak {
-            currentSpans.removeLast()
-        }
-        if !currentSpans.isEmpty {
-            if let last = currentSpans.last, last.text.hasSuffix(" ") {
-                var trimmed = last.text
-                while trimmed.hasSuffix(" ") {
-                    trimmed.removeLast()
-                }
-                if trimmed.isEmpty {
-                    currentSpans.removeLast()
-                } else {
-                    currentSpans[currentSpans.count - 1].text = trimmed
-                }
-            }
-            let nonEmpty = currentSpans.filter { !$0.text.isEmpty }
-            if !nonEmpty.isEmpty {
-                let block = TextBlock(spans: nonEmpty, isHeading: isHeadingBlock, headingLevel: headingLevel)
-                blocks.append(block)
-            }
-        }
+        emitBlock()
 
-        // Filter empty blocks
-        return blocks.filter { !$0.spans.isEmpty }
+        let joined = blocks.joined(separator: "\n\n")
+        var normalized = joined.replacingOccurrences(of: "[ \\t]*\\n[ \\t]*", with: "\n", options: .regularExpression)
+        normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
+        let body = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (title: title, body: body)
     }
+}
+
+private struct Piece: Equatable {
+    var text: String
+    var isLineBreak: Bool = false
 }

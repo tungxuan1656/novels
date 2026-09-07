@@ -16,7 +16,7 @@ Use the native Swift stack — Foundation + system frameworks only. No React Nat
 - **ProcessedChapter cache (single cache, `UNIQUE(bookId,chapterNumber,mode)`):** system `libsqlite3` (no Swift package) behind a protocol.
 - **Settings / Session / Typography:** `Foundation.UserDefaults` + `Observation.@Observable` (no `Keychain`).
 - **ZIP extraction:** `Foundation.FileManager.unzipItem(at:to:)` with strict archive-root validation.
-- **Chapter rendering:** `Foundation` parses `div`, `h*`, `p`, `br`, `b`, `strong`, `i`, `em`, `span` into spans for `SwiftUI.Text` (no WebKit).
+- **Chapter rendering:** `Foundation` parses `div`, `h*`, `p`, `br`, `b`, `strong`, `i`, `em`, `span` into one optional title (first heading, raw) plus one plain body string for `SwiftUI.Text` (no WebKit, no emphasis). Mid-chapter heading text merges into the body as plain text.
 - **Network:** `Foundation.URLSession` with `async/await`, `actor` de-duplication, and `Task` cancellation.
 - **Security:** `NSAppTransportSecurity` allows `http://localhost:8317` only.
 

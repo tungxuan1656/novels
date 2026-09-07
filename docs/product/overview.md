@@ -23,7 +23,7 @@ Novels lets one reader download books once and read offline. Optional AI — rew
 
 - **Import** — fetch catalog → ZIP → extract → delete ZIP. [book-import](./functional-specs/book-import.md)
 - **Library** — list local books, swipe Info/Delete. [book-library](./functional-specs/book-library.md)
-- **Reader** — parses HTML → text spans and renders with SwiftUI.Text, Previous/Next, offset per book. [book-reader](./functional-specs/book-reader.md)
+- **Reader** — parses HTML → one optional title + one plain body string, Previous/Next, offset per book. [book-reader](./functional-specs/book-reader.md)
 - **AI Reading** — `none` is original (Không); `rewrite` (Rewrite) check cache first via AI_PROMPT. [ai-reading](./functional-specs/ai-reading.md)
 - **Prefetch** — next N=3 sequential, cancellable. [chapter-prefetch](./functional-specs/chapter-prefetch.md)
 - **Settings** — catalog, AI, prefetch, typography; sanitize on launch. [settings-management](./functional-specs/settings-management.md)

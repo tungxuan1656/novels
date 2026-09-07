@@ -66,7 +66,7 @@ actor PrefetchManager {
         ))
     }
 
-    // swiftlint:disable:next function_parameter_count function_body_length
+    // swiftlint:disable:next function_parameter_count function_body_length cyclomatic_complexity
     func start(
         bookId: String,
         currentChapter: Int,
@@ -251,15 +251,13 @@ actor PrefetchManager {
                     )
                     continue
                 }
-                let parsed: [TextBlock] = HtmlParser.parse(html: html)
-                let joined = parsed.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
-                var normalized = joined.replacingOccurrences(
-                    of: "[ \\t]*\\n[ \\t]*",
-                    with: "\n",
-                    options: .regularExpression
-                )
-                normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-                let raw = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
+                let chapter = HtmlParser.parseChapter(html: html)
+                let raw = chapter.body
+                if raw.isEmpty, let parsedTitle = chapter.title, !parsedTitle.isEmpty {
+                    processed += 1
+                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    continue
+                }
                 guard !raw.isEmpty else {
                     await self.requeueOrRecord(
                         number: number,

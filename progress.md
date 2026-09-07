@@ -340,3 +340,35 @@
 **Evidence**: `features/feat-027.md` (acceptance 6/6), `feature_index.json` feat-027 done (zero active), greps 0 (`letterSpacing`/`Giãn chữ`/`.kerning` in Swift; `letterSpacing` in docs contracts/design/product), `./init.sh --quick` PASS + `xcodebuild build` PASS + targeted tests PASS (TypographySheet/SettingsStore/DomainCodable/SettingsEditorValidation/SettingsStoreCoercion); full `./init.sh` timed out twice, no failure observed
 **Blockers**: none (tree carries unrelated prior dirty changes — not committed as not requested)
 **Next**: repo idle — user retests Reader sheet (no Giãn chữ) + Settings typography
+
+## 2026-09-07 — feat-028 plan
+
+**State**: active
+**Done**: Feature record `features/feat-028.md` + separate plan `docs/plans/feat-028.md` created on branch `feat/028-exclude-heading-from-ai`; feat-028 activated (zero other active)
+**Evidence**: `docs/plans/feat-028.md` (Tasks 0–5: shared helper → callers → render → cache migration → docs/verify), `features/feat-028.md`, `feature_index.json` (feat-028 active, depends_on feat-004/006/007)
+**Blockers**: none
+**Next**: Task 0 baseline + subagent-driven execution of Tasks 1–5
+
+## 2026-09-07 — feat-028 implemented, manual QA pending
+
+**State**: active
+**Done**: SDD Tasks 0–5 implemented + all task reviews clean + final whole-branch review Clean (8 commits on `feat/028-exclude-heading-from-ai`); full `./init.sh` PASS first run, no flakes; Task 3 redesigned per owner ruling into unified `ReaderContentView` (ReaderView 495→483, no lint-limit change)
+**Evidence**: `.agent-work/sdd/feat-028/` ledger + per-task and whole-branch review packages; `340edf0` closes record with 4/5 acceptance boxes (Simulator-walk box honestly unchecked — impossible headless)
+**Blockers**: manual Simulator QA before done (heading chapter → raw heading + translated body; heading-free chapter → unchanged; prefetch runs clean)
+**Next**: owner runs the walk on Simulator and checks the last box, then merge/push on request
+
+## 2026-09-07 — feat-028 amended scope complete, walk pending
+
+**State**: active
+**Done**: Title + single body string landed (Task 6 + 1 fix round, Task 7 docs, Task 8 live-docs follow-up, final fix wave) — every task review, both re-reviews, and both final reviews clean; full `./init.sh` PASS (Task 7 ×2, fix wave ×1, zero flakes); branch `feat/028-exclude-heading-from-ai` 15 commits
+**Evidence**: `.agent-work/sdd/feat-028/` ledger + per-task/whole-branch packages; re-review F1–F4 addressed with no breakage; pipeline-remnant and live-docs spans greps zero (frozen history excepted)
+**Blockers**: manual Simulator walk before done (title raw body+8 bold above translated body; heading-free unchanged; heading-only shows title; prefetch clean)
+**Next**: owner walk → check box 5 → done → merge/push on request
+
+## 2026-09-07 — feat-028 done
+
+**State**: done
+**Done**: Owner-verified Simulator walk passed; all 5 acceptance boxes checked; full `./init.sh` PASS on final HEAD (format 0/57, lint 0, build PASS iPhone 17 Pro iOS 26.5, drift PASS); `feature_index.json` feat-028 done (zero active)
+**Evidence**: `features/feat-028.md` (acceptance 5/5), owner commit `d950a72` (pbxproj cleanup + 32pt padding) covered by the same verify run; branch `feat/028-exclude-heading-from-ai` ready for PR
+**Blockers**: none
+**Next**: merge PR to main, then repo idle

@@ -113,7 +113,10 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
         try exec("CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(book_id);")
         let version = try userVersion()
         if version == 0 {
-            try exec("PRAGMA user_version=1;")
+            try exec("PRAGMA user_version=2;")
+        } else if version == 1 {
+            try exec("DELETE FROM processed_chapters;")
+            try exec("PRAGMA user_version=2;")
         }
     }
 

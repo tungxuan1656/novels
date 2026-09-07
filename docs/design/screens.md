@@ -12,7 +12,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 |---|---|---|---|---|
 | **Home Library** | Browse books | Header with add and settings; row with name, author, count | Empty (add prompt), Content, Refreshing | Tap → Reading; swipe Info/Delete; add → Add Book |
 | **Add Book** | Import book | Header back; remote list; download overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → back |
-| **Reading** | Read and navigate | Header index+title+status; native Text body (parsed from HTML); back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
+| **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above one native body `Text` (parsed from HTML), no emphasis; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
 | **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |

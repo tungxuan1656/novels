@@ -19,7 +19,8 @@ final class ReaderViewModel {
     private let toastCenter: ToastCenter?
     var book: Book?
     var chapterNumber: Int = 1
-    var blocks: [TextBlock] = []
+    var chapterTitle: String?
+    var chapterBody: String = ""
     // Start as loading so the first frame shows an indicator instead of
     // flashing "Không tìm thấy chương" before load() runs.
     var isLoading = true
@@ -117,11 +118,14 @@ final class ReaderViewModel {
         }
         let html = readChapterHTML(number: chapterNumber)
         if let html {
-            blocks = HtmlParser.parse(html: html)
+            let chapter = HtmlParser.parseChapter(html: html)
+            chapterTitle = chapter.title
+            chapterBody = chapter.body
         } else {
             errorMessage = "Không tìm thấy chương"
             toastCenter?.show("Không tìm thấy chương", type: .error)
-            blocks = []
+            chapterTitle = nil
+            chapterBody = ""
         }
         isLoading = false
         if source == .returnFromLog {
@@ -262,7 +266,9 @@ final class ReaderViewModel {
             processedChapterNumber = nil
             processedAIMode = nil
             if let html = readChapterHTML(number: chapterNumber) {
-                blocks = HtmlParser.parse(html: html)
+                let chapter = HtmlParser.parseChapter(html: html)
+                chapterTitle = chapter.title
+                chapterBody = chapter.body
             }
             return
         }
@@ -357,12 +363,8 @@ final class ReaderViewModel {
 
     private func readRawTextForAI() -> String? {
         guard let html = readChapterHTML(number: chapterNumber) else { return nil }
-        let parsed = HtmlParser.parse(html: html)
-        let joined = parsed.map { $0.spans.map { $0.text }.joined() }.joined(separator: "\n\n")
-        var normalized = joined.replacingOccurrences(of: "[ \\t]*\\n[ \\t]*", with: "\n", options: .regularExpression)
-        normalized = normalized.replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-        let trimmed = normalized.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        let chapter = HtmlParser.parseChapter(html: html)
+        return chapter.body.isEmpty ? nil : chapter.body
     }
 
     private func persistChapter() {
