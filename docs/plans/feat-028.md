@@ -461,3 +461,40 @@ Chapter WITH heading in Rewrite mode: sticky shows `【num】` + raw title at bo
 - [ ] **Step 4: Close the feature record**
 
 Set all acceptance boxes per the amended scope, write evidence, set handoff state to done with one next action. Do not touch `progress.md` here.
+
+---
+
+### Task 8: Spans-language follow-up in live docs (per Task 7 review)
+
+The Task 7 reviewer found 3 live files outside Task 7's scope still describing spans; `book-reader.md` links its pipeline to `local-data.md`, so the canonical contract contradicts the six updated docs. History stays frozen.
+
+**Files:**
+- Modify: `docs/product/overview.md:26`, `docs/contracts/local-data.md:20,59`, `docs/product/decisions.md:58-60`
+- Modify: `features/feat-028.md` (handoff State back to `active` — box 5 walk pending; honest state per AGENTS.md)
+
+**Interfaces:**
+- Consumes: finished title+string behavior from Task 6
+- Produces: no live doc contradicts the new model
+
+- [ ] **Step 1: Fix the three live references**
+
+`overview.md:26` → "parses HTML → one optional title + one plain body string" (keep the book-reader link). `local-data.md:20` → same title+body wording; `:59` diagram `HTML→spans` → `HTML→title+body string`. `decisions.md:58-60` → append a superseding note ("Superseded by feat-028: title + single body string, no spans/emphasis") WITHOUT rewriting the log entry.
+
+- [ ] **Step 2: Correct the feature handoff state**
+
+Set `## Handoff` State to `active` with Next = manual Simulator walk; keep all evidence. Explicitly leave frozen history alone: `docs/plans/feat-006/007/008.md`, done `features/feat-004.md`, `progress.md` history.
+
+- [ ] **Step 3: Verify and commit (explicit paths only)**
+
+Run: `rg -n -i "text ?spans?" docs/product/overview.md docs/contracts/local-data.md docs/product/decisions.md`
+Expected: zero matches except the new superseding note wording
+
+Run: `./init.sh --quick`
+Expected: PASS (docs-only change; drift check matters here)
+
+```bash
+git add docs/product/overview.md docs/contracts/local-data.md docs/product/decisions.md features/feat-028.md
+git commit -m "docs(feat-028): clear spans language from live docs"
+```
+
+Verify with `git status` that `project.pbxproj` and `progress.md` are NOT staged.
