@@ -24,7 +24,7 @@ Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but pr
 ## Consequences
 
 - Import accepts only the exact archive-root layout (`book.json` + `chapters/` at root) and rejects the current sample shape. The producer must fix the ZIP.
-- No test targets by decision; verification is build-only. The app does not flatten or ignore outer wrappers.
+- No test targets by decision; verification is build-only. The app flattens only a single outer-folder per the Amendment below.
 - Keep the sample ZIP untouched in docs-only tasks.
 
 ## Amendment 2026-08-26 — Tolerant ingest

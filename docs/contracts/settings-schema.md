@@ -63,7 +63,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build).
+- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
 
 ## Links
 

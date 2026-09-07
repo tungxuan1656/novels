@@ -80,7 +80,7 @@ Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build).
+- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
 
 ## Links
 

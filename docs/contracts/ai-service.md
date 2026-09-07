@@ -123,7 +123,7 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build).
+- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
 
 ## Notes
 

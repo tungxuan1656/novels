@@ -30,4 +30,4 @@ Each file is the canonical source for its wire/storage shape. Do not duplicate p
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build).
+- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
