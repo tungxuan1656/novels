@@ -23,7 +23,7 @@ React Native findings are historical reference only — no RN package and no RN 
 
 ## 2. ProcessedChapter Cache (Single AI Cache)
 
-SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`. Schema uses `WITHOUT ROWID` with `PRAGMA user_version=1` (see `ProcessedChapterCache.swift:75-82`).
+SQLite table `processed_chapters` in `processed_chapters.sqlite` under `Application Support/novels/cache/`. Schema uses `WITHOUT ROWID` with `PRAGMA user_version=2` (see `ProcessedChapterCache.swift:75-82`). Fresh installs create the database at `user_version=2`. Databases at `user_version=1` run a one-time `DELETE FROM processed_chapters` then bump to `user_version=2`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS processed_chapters (

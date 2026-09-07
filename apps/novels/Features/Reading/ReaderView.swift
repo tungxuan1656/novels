@@ -54,7 +54,7 @@ struct ReaderView: View {
                                     .frame(maxWidth: .infinity)
                             } else if viewModel.aiMode != .none {
                                 aiSection
-                            } else if viewModel.chapterBody.isEmpty {
+                            } else if (viewModel.chapterTitle?.isEmpty ?? true) && viewModel.chapterBody.isEmpty {
                                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                                     .foregroundStyle(theme.textMuted)
                             } else {
@@ -141,7 +141,7 @@ struct ReaderView: View {
             } else if viewModel.isLoading || viewModel.isAIProcessing {
                 ProgressView()
                     .frame(maxWidth: .infinity)
-            } else if viewModel.chapterBody.isEmpty {
+            } else if (viewModel.chapterTitle?.isEmpty ?? true) && viewModel.chapterBody.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(theme.textMuted)
             } else {
@@ -166,7 +166,6 @@ struct ReaderView: View {
                     size: CGFloat(settingsStore.typography.fontSize) + 8,
                     weight: .bold
                 ))
-                .bold()
                 .foregroundStyle(theme.textPrimary)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -465,7 +464,8 @@ struct ReaderView: View {
             await MainActor.run {
                 // Never apply a stale restore onto a chapter the user already left.
                 guard viewModel.chapterNumber == chapter else { return }
-                let hasContent = !viewModel.chapterBody.isEmpty || viewModel.errorMessage != nil
+                let hasTitle = !(viewModel.chapterTitle?.isEmpty ?? true)
+                let hasContent = hasTitle || !viewModel.chapterBody.isEmpty || viewModel.errorMessage != nil
                 guard !viewModel.isLoading, hasContent else { return }
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }

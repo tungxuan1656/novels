@@ -98,7 +98,7 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 ## Cache
 
 - Single ProcessedChapter cache keyed by `bookId + chapterNumber + mode` (mode = `none`/`rewrite`). Mode `none` bypasses cache and service. The app checks the cache before calling. The app saves on success (upsert). No second cache exists. See `local-data.md` and `../../docs/product/business-rules.md` BR-07. Prefetch batch-checks then skips cached entries.
-- Entries written before the version-2 migration are never served. On upgrade from `user_version` 1 the app runs a one-time `DELETE FROM processed_chapters` and bumps `user_version` to 2, so stale header-included entries cannot be read.
+- Entries written before the version-2 migration are never served. On upgrade from `user_version` 1 the app runs a one-time `DELETE FROM processed_chapters` and bumps `user_version` to 2, so stale heading-included entries cannot be read.
 
 ## Defaults and Sanitization
 
