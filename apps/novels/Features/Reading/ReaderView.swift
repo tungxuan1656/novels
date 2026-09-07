@@ -135,6 +135,17 @@ struct ReaderView: View {
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
+                if let heading = viewModel.blocks.first(where: { $0.isHeading }) {
+                    ReaderContentView(
+                        block: heading,
+                        fontName: settingsStore.typography.font,
+                        fontSize: CGFloat(settingsStore.typography.fontSize),
+                        lineHeight: CGFloat(settingsStore.typography.lineHeight),
+                        textPrimary: theme.textPrimary
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("aiHeading")
+                }
                 aiProcessedContent(processed)
             } else if viewModel.isLoading || viewModel.isAIProcessing {
                 ProgressView()
@@ -151,24 +162,13 @@ struct ReaderView: View {
     private var content: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
             ForEach(Array(viewModel.blocks.enumerated()), id: \.offset) { _, block in
-                let combined = block.spans.reduce(Text("")) { accumulator, span in
-                    if span.isLineBreak {
-                        return accumulator + Text(span.text)
-                    }
-                    var piece = Text(span.text)
-                        .font(fontFor(block: block, span: span))
-                        .foregroundStyle(theme.textPrimary)
-                    if span.kind == .bold || span.kind == .boldItalic {
-                        piece = piece.bold()
-                    }
-                    if span.kind == .italic || span.kind == .boldItalic {
-                        piece = piece.italic()
-                    }
-                    return accumulator + piece
-                }
-                combined
-                    .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-                    .multilineTextAlignment(.leading)
+                ReaderContentView(
+                    block: block,
+                    fontName: settingsStore.typography.font,
+                    fontSize: CGFloat(settingsStore.typography.fontSize),
+                    lineHeight: CGFloat(settingsStore.typography.lineHeight),
+                    textPrimary: theme.textPrimary
+                )
             }
         }
     }
@@ -185,18 +185,6 @@ struct ReaderView: View {
             .multilineTextAlignment(.leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("aiContent")
-    }
-
-    private func fontFor(block: TextBlock, span: TextSpan) -> Font {
-        let base = CGFloat(settingsStore.typography.fontSize)
-        let fontName = settingsStore.typography.font
-
-        if block.isHeading {
-            let level = CGFloat(block.headingLevel ?? 3)
-            let size = base + CGFloat(7 - level) * 2
-            return ReaderFontMapper.font(name: fontName, size: size, weight: .bold)
-        }
-        return ReaderFontMapper.font(name: fontName, size: base)
     }
 
     private var topChapterTitleText: String {

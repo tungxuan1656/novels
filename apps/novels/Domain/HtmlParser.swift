@@ -256,15 +256,6 @@ enum HtmlParser {
 }
 
 extension HtmlParser {
-    /// Raw text of the first heading block, or nil when there is none.
-    /// Used to render the title separately; never sent to AI.
-    static func firstHeadingText(from blocks: [TextBlock]) -> String? {
-        guard let heading = blocks.first(where: { $0.isHeading }) else { return nil }
-        let text = heading.spans.map { $0.text }.joined()
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.isEmpty ? nil : text
-    }
-
     /// Body text for AI input. Byte-identical to the previous inline join
     /// when `excludingFirstHeading` is false or no heading exists.
     /// Drops ONLY the first heading block when true; mid-chapter headings stay.
