@@ -71,7 +71,7 @@ Anthropic messages:
 ```
 
 Read the result tolerantly (all optional, never throw on missing; decode failure or empty resolves to no-response with shape log):
-- Chat: `choices[0].message.content` (tolerant). `content` may be `null`/missing/empty; fallback to `choices[0].message.reasoning_content` trim non-empty → dùng; else it is an AI processing error. `tool_calls` decodes tolerantly (miss → nil) and never counts as content. Envelope `{data:...}` is not unwrapped — it fails as no-response with shape log.
+- Chat: `choices[0].message.content` (tolerant). `content` may be `null`/missing/empty; fallback to `choices[0].message.reasoning_content` trim non-empty → use; else it is an AI processing error. `tool_calls` decodes tolerantly (miss → nil) and never counts as content. Envelope `{data:...}` is not unwrapped — it fails as no-response with shape log.
 - Responses: prefer `output_text` trim non-empty; else join `output[]` where `type == "message"` → `content[]` where `type == "output_text"` → `text`, concatenated with `""` then trimmed. Refusal-only or empty → no-response.
 - Anthropic: join `content[]` where `type == "text"` → `text` (concatenated with `""` then trimmed). `thinking`/`redacted_thinking`/`tool_use` blocks are ignored. Empty → no-response.
 
