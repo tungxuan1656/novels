@@ -65,6 +65,20 @@ struct SettingsView: View {
         .background(DesignTokens.backgroundWhite)
         .navigationTitle("Cài đặt")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            Text("Phiên bản \(appVersion)")
+                .font(.footnote)
+                .foregroundStyle(DesignTokens.muted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(DesignTokens.backgroundWhite)
+        }
+    }
+
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
+        return build.isEmpty ? version : "\(version) (\(build))"
     }
 
     private func row(key: String, label: String, value: String) -> some View {
