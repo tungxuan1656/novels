@@ -169,3 +169,71 @@ enum ReaderOffsetRestore {
         return sessionOffset
     }
 }
+
+/// Splits a full chapter body into small chunks for rendering.
+///
+/// A whole chapter in one SwiftUI `Text` creates a single huge CoreText layout
+/// + backing layer. Past the raster height limit the ScrollView still reports
+/// contentSize (scrollable) but tiles rasterize blank — custom fonts hit this
+/// first because their vertical metrics are taller than SF at the same pt size.
+/// One `Text` per chunk keeps every layer small so long chapters stay visible
+/// at any size, for any font. Paragraph breaks from the source (`\n\n`) are
+/// preserved via `endsParagraph`, so the reader restores the trailing blank
+/// line itself instead of approximating it with stack spacing.
+enum ReaderBodySplitter {
+    static let maxChunkLength = 1200
+
+    struct Chunk {
+        let text: String
+        let endsParagraph: Bool
+    }
+
+    static func split(_ text: String, maxLength: Int = maxChunkLength) -> [Chunk] {
+        let paragraphs = text
+            .components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        let source = paragraphs.isEmpty && !text.isEmpty ? [text] : paragraphs
+        var chunks: [Chunk] = []
+        for (paragraphIndex, paragraph) in source.enumerated() {
+            let pieces = splitLong(paragraph, maxLength: maxLength)
+            for (pieceIndex, piece) in pieces.enumerated() {
+                let isLastPiece = pieceIndex == pieces.count - 1
+                let isLastParagraph = paragraphIndex == source.count - 1
+                chunks.append(Chunk(text: piece, endsParagraph: isLastPiece && !isLastParagraph))
+            }
+        }
+        return chunks
+    }
+
+    private static func splitLong(_ paragraph: String, maxLength: Int) -> [String] {
+        guard paragraph.count > maxLength else { return [paragraph] }
+        let lines = paragraph
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let source = lines.isEmpty ? [paragraph] : lines
+        return source.flatMap { hardSplit($0, maxLength: maxLength) }
+    }
+
+    private static func hardSplit(_ line: String, maxLength: Int) -> [String] {
+        guard line.count > maxLength else { return [line] }
+        var chunks: [String] = []
+        var rest = line
+        while rest.count > maxLength {
+            let cutIndex = rest.index(rest.startIndex, offsetBy: maxLength)
+            let window = rest[..<cutIndex]
+            if let spaceIndex = window.lastIndex(of: " ") {
+                chunks.append(String(rest[..<spaceIndex]))
+                rest = String(rest[rest.index(after: spaceIndex)...])
+            } else {
+                chunks.append(String(window))
+                rest = String(rest[cutIndex...])
+            }
+        }
+        if !rest.isEmpty {
+            chunks.append(rest)
+        }
+        return chunks
+    }
+}

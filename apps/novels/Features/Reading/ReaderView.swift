@@ -181,12 +181,18 @@ struct ReaderView: View {
             name: settingsStore.typography.font,
             size: CGFloat(settingsStore.typography.fontSize)
         )
-        return Text(text)
-            .font(font)
-            .foregroundStyle(theme.textPrimary)
-            .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        let chunks = ReaderBodySplitter.split(text)
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(chunks.enumerated()), id: \.offset) { entry in
+                Text(entry.element.endsParagraph ? entry.element.text + "\n" : entry.element.text)
+                    .font(font)
+                    .foregroundStyle(theme.textPrimary)
+                    .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var topChapterTitleText: String {
