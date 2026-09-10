@@ -8,17 +8,12 @@ import Foundation
 /// first because their vertical metrics are taller than SF at the same pt size.
 /// One `Text` per chunk keeps every layer small so long chapters stay visible
 /// at any size, for any font. Paragraph breaks from the source (`\n\n`) are
-/// reported via `isParagraphEnd`, so the reader renders the paragraph gap
-/// itself with explicit bottom padding instead of embedding newline characters.
+/// reported via separate chunks, so the reader renders the paragraph gap
+/// itself with uniform bottom padding instead of embedding newline characters.
 enum ReaderBodySplitter {
     static let maxParagraphLength = 5000
 
-    struct Chunk {
-        let text: String
-        let isParagraphEnd: Bool
-    }
-
-    static func split(_ text: String, maxLength: Int = maxParagraphLength) -> [Chunk] {
+    static func split(_ text: String, maxLength: Int = maxParagraphLength) -> [String] {
         // Split on blank lines only. Trimming is used solely to detect
         // whitespace-only paragraphs; the original string (including any
         // leading indent) is kept intact for rendering.
@@ -26,22 +21,14 @@ enum ReaderBodySplitter {
             .components(separatedBy: "\n\n")
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard !paragraphs.isEmpty else { return [] }
-        var chunks: [Chunk] = []
-        for (paragraphIndex, paragraph) in paragraphs.enumerated() {
-            let isLastParagraph = paragraphIndex == paragraphs.count - 1
+        var chunks: [String] = []
+        for paragraph in paragraphs {
             // Short paragraphs stay whole, preserving inner single `\n`.
             guard paragraph.count > maxLength else {
-                chunks.append(Chunk(text: paragraph, isParagraphEnd: !isLastParagraph))
+                chunks.append(paragraph)
                 continue
             }
-            let pieces = splitLong(paragraph, maxLength: maxLength)
-            for (pieceIndex, piece) in pieces.enumerated() {
-                let isLastPiece = pieceIndex == pieces.count - 1
-                chunks.append(Chunk(
-                    text: piece,
-                    isParagraphEnd: isLastPiece && !isLastParagraph
-                ))
-            }
+            chunks.append(contentsOf: splitLong(paragraph, maxLength: maxLength))
         }
         return chunks
     }

@@ -185,13 +185,13 @@ struct ReaderView: View {
         let chunks = ReaderBodySplitter.split(text)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(chunks.enumerated()), id: \.offset) { entry in
-                Text(entry.element.text)
+                Text(entry.element)
                     .font(font)
                     .foregroundStyle(theme.textPrimary)
                     .lineSpacing(lineHeight)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, entry.element.isParagraphEnd && entry.offset != chunks.count - 1 ? lineHeight : 0)
+                    .padding(.bottom, lineHeight)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
