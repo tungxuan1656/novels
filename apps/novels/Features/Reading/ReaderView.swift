@@ -182,6 +182,7 @@ struct ReaderView: View {
             size: CGFloat(settingsStore.typography.fontSize)
         )
         let lineHeight = CGFloat(settingsStore.typography.lineHeight)
+        let paragraphGap = CGFloat(settingsStore.typography.fontSize) + lineHeight
         let chunks = ReaderBodySplitter.split(text)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(chunks.enumerated()), id: \.offset) { entry in
@@ -191,7 +192,7 @@ struct ReaderView: View {
                     .lineSpacing(lineHeight)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, lineHeight)
+                    .padding(.bottom, paragraphGap)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
