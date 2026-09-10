@@ -181,15 +181,17 @@ struct ReaderView: View {
             name: settingsStore.typography.font,
             size: CGFloat(settingsStore.typography.fontSize)
         )
+        let lineHeight = CGFloat(settingsStore.typography.lineHeight)
         let chunks = ReaderBodySplitter.split(text)
         return VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(chunks.enumerated()), id: \.offset) { entry in
-                Text(entry.element.endsParagraph ? entry.element.text + "\n" : entry.element.text)
+                Text(entry.element.text)
                     .font(font)
                     .foregroundStyle(theme.textPrimary)
-                    .lineSpacing(CGFloat(settingsStore.typography.lineHeight))
+                    .lineSpacing(lineHeight)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, entry.element.isParagraphEnd && entry.offset != chunks.count - 1 ? lineHeight : 0)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
