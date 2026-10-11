@@ -34,8 +34,8 @@
 
 - [x] Run full `./init.sh`; check missing-tool failure, shell syntax, document routes, feature dependencies, and absence of UI-test targets.
 - [x] Obtain independent read-only review; address concrete scope-related findings.
-- [ ] Record evidence and done state only after acceptance passes.
-- [ ] Commit with hooks, push a new branch, and open a PR to main. Record its URL in handoff.
+- [x] Record evidence and done state only after acceptance passes.
+- [x] Commit with hooks, push a new branch, and open a PR to main. Record its URL in handoff.
 
 ## Verification Limits
 

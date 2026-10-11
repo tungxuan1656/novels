@@ -20,7 +20,7 @@ No UI tests, CI, state validator, broad test restoration, or unrelated app refac
 - [x] Debug and Release resolve to iOS 18.6 and device family `1`; API compatibility is reviewed.
 - [x] Current documents and skill guidance describe implemented code and the unit-only policy.
 - [x] feat-030 stays done; its handoff records merged PR #34 without rewriting historical evidence.
-- [ ] Full `./init.sh` passes and a new PR is opened.
+- [x] Full `./init.sh` passes and a new PR is opened.
 
 ## Plan
 
@@ -39,6 +39,7 @@ No UI tests, CI, state validator, broad test restoration, or unrelated app refac
 
 ## Handoff
 
-- State: active
+- State: done
+- Delivery: [PR #37](https://github.com/tungxuan1656/novels/pull/37), branch `fix/031-verification-docs-alignment`; implementation commit `f9f2154`.
 - Blockers: none
-- Next: commit the verified change and open the requested PR.
+- Next: user review and merge PR #37 when approved. iOS 18.6 runtime QA remains a separate follow-up.

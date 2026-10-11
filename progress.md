@@ -404,3 +404,11 @@
 **Evidence**: Full `./init.sh` PASS (format/lint 0 violations, build, 13/13 unit tests, drift); six missing-tool negative checks exit 1; Debug/Release effective settings 18.6/family 1; shell/project/link/state checks pass; static API review finds no unguarded API above 18.6; independent diff review Approved after host-isolation and ATS corrections. See `features/feat-031.md`.
 **Blockers**: none. iOS 18.6 runtime QA is not available locally; existing Swift 6 isolation warnings remain out of scope.
 **Next**: commit and push `fix/031-verification-docs-alignment`, open the requested PR, then record delivery.
+
+## 2026-10-12 — feat-031 delivered
+
+**State**: done
+**Done**: Implementation committed as `f9f2154` with format/lint hooks passing, pushed to `fix/031-verification-docs-alignment`, and PR #37 opened against main. feat-030 and feat-031 are done; no feature remains active.
+**Evidence**: https://github.com/tungxuan1656/novels/pull/37 — full verification and focused-test evidence are recorded in `features/feat-031.md`.
+**Blockers**: none. iOS 18.6 runtime QA remains unverified, not a merge claim.
+**Next**: user review and merge PR #37 when approved.
