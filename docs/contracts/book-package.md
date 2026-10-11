@@ -78,7 +78,7 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
+- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Open
 

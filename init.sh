@@ -2,7 +2,7 @@
 set -o pipefail
 
 # Evidence-based verification for Novels (iOS).
-# Repo root: apps/novels.xcodeproj (scheme novels, iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
+# Repo root: apps/novels.xcodeproj (scheme novels, minimum iOS 18.6; verification simulator iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
 # Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
 MAX_JOBS="${HARNESS_JOBS:-4}"
 STATUS=0
@@ -15,10 +15,10 @@ for arg in "$@"; do
       ;;
     --help|-h)
       echo "Usage: ./init.sh [--quick]"
-      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build)"
+      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build and unit tests)"
       echo "  --help, -h    Show this help"
       echo ""
-      echo "Full verification (default): format + lint + build + drift"
+      echo "Full verification (default): format + lint + build + unit tests + drift"
       exit 0
       ;;
     *)
@@ -29,19 +29,21 @@ for arg in "$@"; do
 done
 
 FORMAT_TASKS=(
-  "if command -v swiftformat >/dev/null; then swiftformat --lint apps --verbose; else echo 'SKIP [format] swiftformat not installed — run bash scripts/setup.sh'; fi"
+  "if command -v swiftformat >/dev/null; then swiftformat --lint apps --verbose; else echo 'FAIL [format] swiftformat not installed — run bash scripts/setup.sh' >&2; exit 1; fi"
 )
 
 LINT_TASKS=(
-  "if command -v swiftlint >/dev/null; then swiftlint lint --strict; else echo 'SKIP [lint] swiftlint not installed — run bash scripts/setup.sh'; fi"
+  "if command -v swiftlint >/dev/null; then swiftlint lint --strict; else echo 'FAIL [lint] swiftlint not installed — run bash scripts/setup.sh' >&2; exit 1; fi"
 )
 
 BUILD_TASKS=(
   "xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet"
 )
 
-# No test targets remain in the project (all unit-test targets removed) — SKIP.
-TEST_TASKS=()
+# Unit tests only; no UI-test target. Keep build and test sequential for this shared project.
+TEST_TASKS=(
+  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -only-testing:novelsTests -parallel-testing-enabled NO -quiet"
+)
 
 if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
   echo "FAIL HARNESS_JOBS must be a positive integer" >&2
@@ -112,8 +114,11 @@ else
 fi
 
 echo "=== Test ==="
-# No test tasks configured — test targets removed (SKIP).
-echo "SKIP [test] no test tasks configured"
+if [ "$QUICK" -eq 1 ]; then
+  echo "SKIP [test] --quick (unit tests skipped)"
+else
+  run_parallel "test" "${TEST_TASKS[@]}"
+fi
 
 echo "=== Drift ==="
 if [ ! -f .agents/skills/using-skills/SKILL.md ]; then

@@ -4,6 +4,10 @@
 - **Status:** Accepted
 - **Supersedes:** open physical-technology items in `../contracts/local-data.md`, `SECURITY.md`, and `../../ARCHITECTURE.md` §1/§6; no longer open
 
+## Current Scope Note — feat-031
+
+The original context below used iOS 26+. The accepted deployment floor is now iOS 18.6+; see [ios-scope.md](./ios-scope.md). Persistence choices remain unchanged. The ATS statement below is imprecise: the current exception covers localhost and its subdomains on any port, not only port 8317.
+
 ## Context
 
 Physical persistence was open (`SwiftData` / `UserDefaults` / `FileManager` / `Core Data` / `SQLite` etc.). Product needs an offline-first native iOS 26+ stack without React Native packages, data/settings/cache migration, extra Swift packages, or platform schedulers. Settings already include `AI_CUSTOM_HEADERS` as user-entered JSON that must remain usable without a special credential store.

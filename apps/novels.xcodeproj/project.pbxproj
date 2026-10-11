@@ -6,7 +6,18 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		E03100000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = E2DB6177303C43F300D20F8F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E2DB617E303C43F300D20F8F;
+			remoteInfo = novels;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		E03100000000000000000002 /* novelsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = novelsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E2DB617F303C43F300D20F8F /* novels.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = novels.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -21,6 +32,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		E03100000000000000000003 /* novelsTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = novelsTests;
+			sourceTree = "<group>";
+		};
 		E2DB6181303C43F300D20F8F /* novels */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -32,6 +48,12 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		E03100000000000000000004 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2DB617C303C43F300D20F8F /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +68,7 @@
 			isa = PBXGroup;
 			children = (
 				E2DB6181303C43F300D20F8F /* novels */,
+				E03100000000000000000003 /* novelsTests */,
 				E2DB6180303C43F300D20F8F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -54,6 +77,7 @@
 			isa = PBXGroup;
 			children = (
 				E2DB617F303C43F300D20F8F /* novels.app */,
+				E03100000000000000000002 /* novelsTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -61,6 +85,22 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		E03100000000000000000005 /* novelsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E03100000000000000000006 /* Build configuration list for PBXNativeTarget "novelsTests" */;
+			buildPhases = (
+				E03100000000000000000007 /* Sources */,
+				E03100000000000000000004 /* Frameworks */,
+				E03100000000000000000008 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (E03100000000000000000009 /* PBXTargetDependency */,);
+			fileSystemSynchronizedGroups = (E03100000000000000000003 /* novelsTests */,);
+			name = novelsTests;
+			productName = novelsTests;
+			productReference = E03100000000000000000002 /* novelsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		E2DB617E303C43F300D20F8F /* novels */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E2DB618A303C43F400D20F8F /* Build configuration list for PBXNativeTarget "novels" */;
@@ -91,6 +131,10 @@
 				LastSwiftUpdateCheck = 2660;
 				LastUpgradeCheck = 2660;
 				TargetAttributes = {
+					E03100000000000000000005 = {
+						CreatedOnToolsVersion = 26.6;
+						TestTargetID = E2DB617E303C43F300D20F8F;
+					};
 					E2DB617E303C43F300D20F8F = {
 						CreatedOnToolsVersion = 26.6;
 					};
@@ -111,11 +155,18 @@
 			projectRoot = "";
 			targets = (
 				E2DB617E303C43F300D20F8F /* novels */,
+				E03100000000000000000005 /* novelsTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		E03100000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2DB617D303C43F300D20F8F /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -126,6 +177,12 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		E03100000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E2DB617B303C43F300D20F8F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -135,7 +192,49 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		E03100000000000000000009 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E2DB617E303C43F300D20F8F /* novels */;
+			targetProxy = E03100000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		E0310000000000000000000A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
+				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novelsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
+			};
+			name = Debug;
+		};
+		E0310000000000000000000B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
+				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
+				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novelsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/novels.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/novels";
+			};
+			name = Release;
+		};
 		E2DB6188303C43F400D20F8F /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -189,7 +288,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -247,7 +346,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.5;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -340,6 +439,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		E03100000000000000000006 /* Build configuration list for PBXNativeTarget "novelsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E0310000000000000000000A /* Debug */,
+				E0310000000000000000000B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		E2DB617A303C43F300D20F8F /* Build configuration list for PBXProject "novels" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

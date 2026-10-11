@@ -2,7 +2,7 @@
 
 Novels is an offline-first reader for iPhone. It downloads one ZIP book package and reads offline.
 
-Product scope is iPhone only, iOS 26+, Vietnamese UI. Intended scope is iPhone-only. Observed project still lists family `1,2`. See `docs/decisions/ios-scope.md`.
+Product scope is iPhone only, iOS 18.6+, Vietnamese UI. App Debug and Release use device family `1`. See `docs/decisions/ios-scope.md`.
 
 ## Start here
 
@@ -19,8 +19,9 @@ Product scope is iPhone only, iOS 26+, Vietnamese UI. Intended scope is iPhone-o
 ## Repository map
 
 ```
-apps/novels.xcodeproj  → Xcode project (scheme novels, iOS 26.5 — see ARCHITECTURE.md §1)
-apps/novels/           → SwiftUI module (single, stub)
+apps/novels.xcodeproj  → Xcode project (scheme novels, minimum iOS 18.6 — see ARCHITECTURE.md §1)
+apps/novels/           → SwiftUI app module
+apps/novelsTests/      → focused unit tests; no UI tests
 docs/                  → product, contracts, design, decisions
 init.sh                → verification source of truth
 ```
@@ -55,6 +56,7 @@ If baseline verification fails, record the failure. Fix the failure only when th
 - Complete every dependency before you activate its dependent feature.
 - Record scope, acceptance, evidence, and handoff in the feature file.
 - Record a result in `progress.md` only when the result, blocker, handoff, or next action materially changes. Do not copy feature scope there.
+- Current state lives in `feature_index.json` and feature handoffs. Progress and completed plans are historical; feature done does not require PR merge.
 - Update `init.sh` when verification commands or workspace modules change.
 
 ## Plans
@@ -86,11 +88,12 @@ A feature is done only when:
 
 ## Verification
 
-- Full: `./init.sh` — format + lint + build + drift (source of truth, use for CI / pre-push / feature done)
-- Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build (for fast local loops)
+- Full: `./init.sh` — format + lint + build + unit tests + drift (source of truth, use for pre-push / feature done)
+- Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build and unit tests (for fast local loops)
 - Help: `./init.sh --help`
-- Testing: repo has no test targets. Do not add test targets (no novelsTests/novelsLogicTests/novelsUITests, no XCTest/XCUITest).
+- Testing: unit tests only in `apps/novelsTests/`, with separate files for difficult or high-risk logic. Do not add UI tests, XCUITest, or blanket coverage. See `docs/decisions/verification.md`.
+- SwiftFormat and SwiftLint are required; missing tools fail verification. The Swift pre-commit hook is a fast gate, not a substitute for full verification.
 
-`init.sh` is the source of truth. Full runs format, lint, build, drift. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
+`init.sh` is the source of truth. Full runs format, lint, build, unit tests, drift. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->

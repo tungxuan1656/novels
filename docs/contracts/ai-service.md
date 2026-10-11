@@ -126,8 +126,8 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
+- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Notes
 
-- `AI_CUSTOM_HEADERS` persists with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS exception is `localhost`-only for `http://localhost:8317`.
+- `AI_CUSTOM_HEADERS` persists with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS permits insecure HTTP for the `localhost` domain and its subdomains, without a port restriction. Port `8317` belongs to the default endpoint.

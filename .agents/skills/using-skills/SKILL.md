@@ -9,6 +9,10 @@ description: Guide to using and combining skills in the Novels repo. Use when yo
 skill({ name: "brainstorming" }) // + writing-plans, swiftui-expert-skill, ...
 ```
 One session can call multiple skills in sequence. Do not call a skill for light, clear, low-risk work (No feature / 1 file, <200 lines per AGENTS.md Plans).
+
+Repository constraints: iPhone-only, minimum iOS 18.6, Swift 5 language mode on a Swift 6.2-capable compiler. Newer APIs need availability gates.
+Tests are focused unit tests only, with separate files for difficult/high-risk logic; no UI tests or blanket coverage. Full `./init.sh` includes unit tests.
+Completed feature examples below are historical, not current implementation specifications. Use current contracts for defaults and retry behavior.
 ## 2. Quick Map — 21 Skills
 
 <!-- drift: 21 skills excluding this router; verify via init.sh -->
@@ -98,7 +102,7 @@ Do not fix before Phase 1 is done; after 3 failures -> stop and ask about archit
 
 `brainstorming (iPhone offline, Vietnamese, minimal) -> frontend-design (tokens + 2-pass plan->critique->build) -> swiftui-expert-skill (@Observable, extraction, ForEach identity) -> swiftui-pro (deprecated API, a11y VoiceOver/Dynamic Type) -> verification-before-completion`
 
-*iOS 26+, Swift 5.0, no WebKit/CoreData/Keychain, SwiftUI.Text renders spans, respect Reduce Motion.*
+*iOS 18.6+, Swift 5 language mode, no WebKit/CoreData/Keychain, SwiftUI.Text renders plain paragraph chunks, respect Reduce Motion.*
 
 ### Pattern 4: Docs & Decisions
 
@@ -157,4 +161,4 @@ Pick skills by task (see 3 & 4), not by fixed role. Example: creative work -> `b
 
 ---
 
-*This skill is a router for other skills. It does not replace any skill — it helps you pick and chain them correctly for Novels (iPhone, iOS 26+, offline-first, SwiftUI, ZIP book package).*
+*This skill is a router for other skills. It does not replace any skill — it helps you pick and chain them correctly for Novels (iPhone, iOS 18.6+, offline-first, SwiftUI, ZIP book package).*

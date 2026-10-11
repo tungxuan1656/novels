@@ -396,3 +396,11 @@
 **Evidence**: https://github.com/tungxuan1656/novels/pull/34 (OPEN), tree clean on branch
 **Blockers**: none
 **Next**: user review + merge PR #34
+
+## 2026-10-12 — feat-031 verified for PR
+
+**State**: active
+**Done**: Required-tool gates fail closed; focused hosted unit target added with production-startup bypass; current docs/skills aligned with implemented code, unit-only verification, and approved iPhone/iOS 18.6+ scope. feat-030 remains done; its current handoff now records merged PR #34. Earlier progress remains historical.
+**Evidence**: Full `./init.sh` PASS (format/lint 0 violations, build, 13/13 unit tests, drift); six missing-tool negative checks exit 1; Debug/Release effective settings 18.6/family 1; shell/project/link/state checks pass; static API review finds no unguarded API above 18.6; independent diff review Approved after host-isolation and ATS corrections. See `features/feat-031.md`.
+**Blockers**: none. iOS 18.6 runtime QA is not available locally; existing Swift 6 isolation warnings remain out of scope.
+**Next**: commit and push `fix/031-verification-docs-alignment`, open the requested PR, then record delivery.
