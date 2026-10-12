@@ -24,11 +24,11 @@
 
 ## 2. AI Processing Service (OpenAI-Compatible)
 
-**Purpose:** Transform raw chapter text via single Prompt (`AI_PROMPT`, modes `none`/`rewrite` — the prompt text determines the transformation) using a configurable prompt, one chunk per request.
+**Purpose:** Independently rewrite Vietnamese (`AI_PROMPT`, `rewrite`) or generate aligned Vietnamese/English pairs (`AI_BILINGUAL_PROMPT`, `bilingual`), one chunk per request. `none` never calls AI.
 
 **Business request:** App sends the active prompt and one chunk of chapter text. Long chapters are split into chunks; each chunk is one request.
 
-**Business response:** Service returns processed text for that chunk. App joins chunks, cleans output, and saves as text for SwiftUI.Text to the processed chapter cache.
+**Business response:** Rewrite returns plain text. Bilingual returns JSON pairs for app-assigned IDs. The app validates exact IDs and nonempty languages, restores source order, and saves one complete versioned payload in the same cache. Shape validation does not prove translation fidelity.
 
 **Auth:** Configured in the persistent settings store. Extra headers/body merge into the request when present. No secret is hard-coded in business rules.
 
@@ -41,6 +41,12 @@
 **Details:** See [ai-reading](./functional-specs/ai-reading.md).
 
 ---
+
+## 3. English Learning
+
+Sentence pronunciation uses `AVSpeechSynthesizer` and an installed English voice; unavailable voices show a download hint. No API MP3 service or dictionary integration.
+
+Explicit sentence lookup opens `https://www.google.com/search` in `SFSafariViewController`, using URL-encoded selected text plus a Vietnamese explanation request. The sheet warns that Google receives that sentence. Network, results and AI Overviews are not guaranteed; the app does not scrape or store responses. Local reading remains independent. See [bilingual-learning](functional-specs/bilingual-learning.md).
 
 ## Contract Separation
 

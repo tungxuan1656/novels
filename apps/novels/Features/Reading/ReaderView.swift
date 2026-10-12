@@ -14,6 +14,8 @@ struct ReaderView: View {
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
     @State private var hapticTrigger = 0
+    @State private var learningParagraph: BilingualParagraph?
+    @State private var speech = ReaderSpeech()
 
     init(
         bookId: String,
@@ -71,6 +73,7 @@ struct ReaderView: View {
                     .scrollPosition($scrollPosition)
                     .id(viewModel.chapterNumber)
                     .onChange(of: viewModel.chapterNumber) { _, _ in
+                        dismissLearning()
                         scrollToTop()
                     }
                     .onScrollGeometryChange(for: Double.self) { geometry in
@@ -109,10 +112,14 @@ struct ReaderView: View {
                     }
                 }
                 .onDisappear {
+                    dismissLearning()
                     flushPendingOffset()
                     viewModel.onDisappear()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase != .active {
+                        dismissLearning()
+                    }
                     // Kill within the 300ms debounce window must not lose position:
                     // persist the latest offset synchronously on backgrounding.
                     if newPhase == .background {
@@ -128,14 +135,35 @@ struct ReaderView: View {
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
-                .presentationDetents([.height(484), .large])
+                .presentationDetents([.height(560), .large])
                 .preferredColorScheme(theme.preferredColorScheme)
         }
+        .sheet(item: $learningParagraph, onDismiss: { speech.stop() }, content: { paragraph in
+            EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech)
+                .presentationDetents([.medium, .large])
+        })
+        .onChange(of: viewModel.aiMode) { _, _ in dismissLearning() }
+        .onChange(of: viewModel.isAIProcessing) { _, processing in
+            if processing {
+                dismissLearning()
+            }
+        }
+    }
+
+    private func dismissLearning() {
+        speech.stop()
+        learningParagraph = nil
     }
 
     private var aiSection: some View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing12) {
-            if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
+            if let paragraphs = viewModel.currentBilingualParagraphs {
+                chapterTitleView
+                BilingualReaderBody(
+                    paragraphs: paragraphs, typography: settingsStore.typography, theme: theme,
+                    onSelect: { learningParagraph = $0 }
+                )
+            } else if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
                 chapterTitleView
                 bodyText(processed)
                     .accessibilityIdentifier("aiContent")
@@ -177,25 +205,7 @@ struct ReaderView: View {
     }
 
     private func bodyText(_ text: String) -> some View {
-        let font = ReaderFontMapper.font(
-            name: settingsStore.typography.font,
-            size: CGFloat(settingsStore.typography.fontSize)
-        )
-        let lineHeight = CGFloat(settingsStore.typography.lineHeight)
-        let paragraphGap = CGFloat(settingsStore.typography.fontSize) + lineHeight
-        let chunks = ReaderBodySplitter.split(text)
-        return VStack(alignment: .leading, spacing: 0) {
-            ForEach(Array(chunks.enumerated()), id: \.offset) { entry in
-                Text(entry.element)
-                    .font(font)
-                    .foregroundStyle(theme.textPrimary)
-                    .lineSpacing(lineHeight)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.bottom, paragraphGap)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ReaderTextBody(text: text, typography: settingsStore.typography, theme: theme)
     }
 
     private var topChapterTitleText: String {
@@ -483,13 +493,5 @@ struct ReaderView: View {
                 scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
             }
         }
-    }
-}
-
-/// Pure helper for scroll-restore decision — testable without UI.
-enum ReaderRestoreDecision {
-    /// Top-of-chapter (or missing) offsets need no scroll work.
-    static func needsScrollRestore(offset: Double?) -> Bool {
-        (offset ?? 0) > 0
     }
 }

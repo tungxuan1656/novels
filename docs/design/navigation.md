@@ -14,6 +14,8 @@ Home Library --> Settings
 Reading --> References
 Reading --> Log (diagnostic timeline, in-session only)
 Reading --> Settings (via sheet shortcut)
+Reading --English paragraph--> English Learning sheet
+English Learning --explicit lookup--> Google browser sheet
 Settings --> Cache Manager
 Settings --> Setting Editor (settingKey)
 Add Book --back--> Home Library
@@ -37,6 +39,7 @@ Abstract stack:
 - Pop: header back or system back goes one level up. Reading back clears `onScreen`.
 - Reading disables swipe-back to avoid loss of position. Others allow it.
 - Bottom sheet is not a route. It is an overlay that expands over Home or Reading.
+- English learning is an item-driven Reader sheet, not a stack route. Google is a nested system browser sheet. Reader exit, backgrounding and content/mode/chapter changes dismiss learning and stop speech.
 
 ## 4. Route Params
 

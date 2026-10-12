@@ -13,8 +13,10 @@
 | **Local Book Repository** | The on-device folder that stores imported books. Each book lives in its own subfolder. |
 | **Processed Chapter** | A cached AI result for one chapter and one mode. Key is `bookId + chapterNumber + mode`. |
 | **Processed Chapter Cache** | The persistent cache for AI results. Check it before calling the AI provider. |
-| **AI Prompt** | Configurable system prompt (`AI_PROMPT`) for AI Rewrite. Default: `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` Empty → default. |
-| **AI Mode** | Active reading mode: `none` (original, “Không”) or `rewrite` (“Rewrite”) via AI_PROMPT. |
+| **AI Prompt** | Independent configurable system prompts: `AI_PROMPT` for Vietnamese translation and `AI_BILINGUAL_PROMPT` for bilingual pairs. Empty → that mode’s default. Bilingual pairing protocol is app-owned. |
+| **AI Mode** | Active reading mode: Bản gốc (`none`), Dịch (`rewrite`) or Song ngữ (`bilingual`). Results are independent. |
+| **Bilingual Paragraph** | One app-assigned source ID with Vietnamese `vi` and English `en`; rendered VI then EN. |
+| **English Learning** | On-demand sentence sheet with local system speech and explicit Google lookup, not a dictionary or automatic web request. |
 | **Reading Session** | Persisted position: `bookId`, `onScreen` flag, and `scrollOffset`. It drives launch routing. |
 | **Typography Setting** | Reader appearance: `font`, `fontSize`, and `lineHeight`. |
 | **Prefetch Status** | Runtime progress of background prefetch: running flag, totals, processed count, and errors. |

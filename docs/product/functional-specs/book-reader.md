@@ -4,7 +4,7 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, and reads `chapters/chapter-N.html` from file storage. System parses HTML to one optional title (the first heading, raw and never translated) plus one plain body string and renders the title at body size + 8 bold above a single body `Text` using typography from the persistent settings store. Mid-chapter heading text merges into the body as plain text with no styling. System restores offset for same book. If no offset exists, start at top. New chapters start at top. Pipeline → [local-data.md](../../contracts/local-data.md) and [ARCHITECTURE.md](../../../ARCHITECTURE.md) §1.
+1. Actor opens a book. System marks session on-screen, loads saved chapter or 1, and reads `chapters/chapter-N.html` from file storage. System parses HTML to one optional title (the first heading, raw and never translated) plus one plain body string and renders the title at body size + 8 bold above native paragraph `Text` chunks using typography from the persistent settings store. Mid-chapter heading text merges into the body as plain text with no styling. System restores offset for same book. If no offset exists, start at top. New chapters start at top. Pipeline → [local-data.md](../../contracts/local-data.md) and [ARCHITECTURE.md](../../../ARCHITECTURE.md) §1.
 2. Actor navigates. Next and Previous step one chapter within 1..total. Buttons are disabled at ends. Index jump moves directly to the selected chapter.
 3. System saves offset per book while scrolling.
 4. Actor closes reader. System marks not on-screen but keeps offset for resume.
@@ -12,9 +12,10 @@
 
 ## Rules (business rules, link to business-rules.md)
 
-- Reading is offline after import. No network is needed ([business-rules.md](../business-rules.md) BR-01).
+- Raw and cached reading is offline after import. Uncached AI and explicit Google sentence lookup need network ([business-rules.md](../business-rules.md) BR-01).
 - Chapters are 1-based and clamped to 1..total ([domain-model.md](../domain-model.md) Invariants).
 - Offset is saved per book and restored only for the same book ([business-rules.md](../business-rules.md) BR-09).
+- Song ngữ renders typed VI/EN pairs with derived English styling; an English paragraph opens sentence learning. Speech and Google lookup follow [bilingual-learning](bilingual-learning.md).
 - Typography persists and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 
 ## States
@@ -36,7 +37,7 @@
 
 ## Acceptance
 
-- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title (body + 8, bold) above a single body `Text` using current typography, with no emphasis anywhere.
+- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title (body + 8, bold) above native paragraph `Text` chunks using current typography, with no emphasis anywhere.
 - [ ] Next and Previous move one chapter within bounds. Buttons are disabled at ends. Index jump works.
 - [ ] Offset is saved per book and restored for same book. New chapter starts at top.
 - [ ] Closing preserves position; opening another book does not reuse wrong offset.

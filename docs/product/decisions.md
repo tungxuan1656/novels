@@ -59,3 +59,11 @@
 - **Decision:** Supersedes D3 rendering detail: join/clean/save as text → render SwiftUI.Text (no HTML). Cache content is text spans, not HTML.
 - **Consequence:** Reader parses HTML source to text spans and renders with SwiftUI.Text; processed cache stores text.
 - **Note (2026-09-07):** Superseded by feat-028: title + single body string, no spans/emphasis.
+
+### D7 — Independent Bilingual Reading and Sentence Learning
+
+- **Date:** 2026-10-12
+- **Status:** Accepted by user before implementation
+- **Context:** Plain interleaved model output can omit, repeat or reorder translations; English should not disrupt Vietnamese-only reading.
+- **Decision:** Keep Bản gốc / Dịch / Song ngữ independent. Bilingual uses app-assigned IDs, validated VI/EN JSON pairs and a mode-specific prompt in the existing cache. English appearance derives from Vietnamese settings. A paragraph opens on-demand sentence speech and explicit Google lookup in a system browser sheet. See [bilingual-learning](functional-specs/bilingual-learning.md).
+- **Consequence:** No old rewrite-cache deletion or borrowed translations; manual reprocess is the recovery path. Shape checks cannot guarantee semantic fidelity. Installed speech stays local; Google receives the chosen sentence only after a user action and requires network. No per-word dictionary, language-detection migration, separate English styling group or API MP3 pipeline.
