@@ -97,6 +97,94 @@ final class BilingualPipelineTests: XCTestCase {
         }
     }
 
+    func testCancelledMissDoesNotSaveCache() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        BilingualURLProtocol.configure(invalid: false)
+        let consumer = Task {
+            try await fixture.service.processedContent(
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source"
+            )
+        }
+        try await waitForRequest()
+        consumer.cancel()
+        do {
+            _ = try await consumer.value
+            XCTFail("Cancelled consumer must throw")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertEqual(try fixture.cache.countAll(), 0)
+    }
+
+    func testCancelledRefreshPreservesOldCache() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        BilingualURLProtocol.configure(invalid: false)
+        let old = try await fixture.service.processedContent(
+            bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "old source"
+        )
+        BilingualURLProtocol.configure(invalid: false)
+        let consumer = Task {
+            try await fixture.service.reprocess(
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "replacement source"
+            )
+        }
+        try await waitForRequest()
+        consumer.cancel()
+        do {
+            _ = try await consumer.value
+            XCTFail("Cancelled refresh must throw")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertEqual(try fixture.cache.get(bookId: "sample", chapterNumber: 1, mode: .bilingual)?.content, old)
+    }
+
+    func testCancelledSharedConsumerDoesNotCancelLiveConsumer() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        BilingualURLProtocol.configure(invalid: false)
+        let runId = UUID()
+        let first = Task {
+            try await fixture.service.processedContent(
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source"
+            )
+        }
+        try await waitForRequest()
+        let second = Task {
+            try await fixture.service.processedContent(
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source", runId: runId
+            )
+        }
+        let deadline = Date().addingTimeInterval(3)
+        while !(await DiagnosticsLog.shared.snapshot()).contains(where: {
+            $0.runId == runId && $0.event == "dedup.shared"
+        }), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        let entries = await DiagnosticsLog.shared.snapshot()
+        XCTAssertTrue(entries.contains { $0.runId == runId && $0.event == "dedup.shared" })
+        first.cancel()
+        let result = try await second.value
+        do {
+            _ = try await first.value
+            XCTFail("Cancelled shared consumer must throw")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertEqual(BilingualURLProtocol.requests().count, 1)
+        XCTAssertEqual(try fixture.cache.get(bookId: "sample", chapterNumber: 1, mode: .bilingual)?.content, result)
+    }
+
+    private func waitForRequest() async throws {
+        let deadline = Date().addingTimeInterval(3)
+        while BilingualURLProtocol.requests().isEmpty, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertFalse(BilingualURLProtocol.requests().isEmpty)
+    }
+
     private func body(_ request: URLRequest) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }

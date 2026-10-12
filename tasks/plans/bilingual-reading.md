@@ -31,14 +31,14 @@ Parent owns integration, pipeline, reader and canonical docs. A worker may own s
 - Separate bilingual source packing from rewrite behavior. Reuse existing sentence/word-safe chunking for oversized units; assign IDs after splitting and before packing. Normalize source line endings and preserve order. Chunk size is a source-character hint; JSON overhead and paired output increase tokens.
 - Send JSON units plus strict object schema requiring paragraphs and id/vi/en for every item. Existing provider routing selects strict schema, JSON-only or prompt-only support.
 - Extend AIReadingService without duplicating cache/dedup/logging pipeline: structured request for bilingual only; validate each chunk against requested IDs, reorder, flatten by chunk order and serialize ONE versioned chapter. Rewrite still joins plain text with double newlines.
-- Validate before chunk.success/cache.save. Retain existing bounded transport/JSON retry; no second retry loop or paid repair requests. Semantic ID failure may require manual reprocess. Cancellation prevents write. Failed reprocess retains old cache.
+- Validate before chunk.success/cache.save. Retain existing bounded transport/JSON retry; no second retry loop or paid repair requests. Semantic ID failure may require manual reprocess. Cancellation of the last live consumer cancels the inner pipeline and prevents its write; one cancelled consumer must not cancel another live shared consumer. Failed/cancelled reprocess retains old cache.
 - Validate version/fields/IDs on bilingual cache read; reject corrupt content rather than expose JSON. Cache-status/prefetch stays mode-keyed.
 
 ### Focused Tests and Checks
 
 - Payload round trip; unknown version; empty/missing languages; duplicate/missing/extra IDs; wrong types; reordered items and exact source order across chunks.
 - Source normalization; short/long paragraphs; sentence/word boundaries; globally unique IDs; whitespace-only input.
-- URLProtocol fake AI: schema used for bilingual only; reverse completion order; no partial write; cache-first zero network; raw bypass; cache coexistence; failed reprocess retains old entry. Isolated UserDefaults and in-memory SQLite.
+- URLProtocol fake AI: schema used for bilingual only; reverse completion order; no partial write; cache-first zero network; raw bypass; cache coexistence; failed/cancelled reprocess retains old entry; delayed cancelled miss writes nothing and cancellation preserves live-consumer deduplication. Isolated UserDefaults and in-memory SQLite.
 - Settings persistence/fallback, legacy rewrite unchanged and mode restoration.
 - Update ai-service/local-data/settings-schema, rules/domain/AI-reading routes, without unrelated cleanup. Run full verification; inspect/stage owned files only; commit.
 

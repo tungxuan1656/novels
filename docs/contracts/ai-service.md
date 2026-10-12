@@ -138,12 +138,12 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 - Input: `{"paragraphs":[{"id":"p001","text":"<source>"}]}`. Output: `{"paragraphs":[{"id":"p001","vi":"<Vietnamese>","en":"<English>"}]}`. Both languages required and nonempty after trimming. Exactly the requested ID set; duplicate/missing/unknown IDs reject. Returned order may differ; restore source order.
 - Validate before `chunk.success`. Flatten successful chunks by input order into ONE version-1 chapter JSON for cache; never join JSON strings. Semantic pairing errors abort without a new paid repair/retry loop. Transport/final-JSON retry remains bounded below.
 - Validate version, unique IDs and language fields on bilingual cache read. Corrupt/unknown-version cache fails explicitly; manual reprocess can replace it. Never render JSON or silently borrow rewrite.
-- Cancellation is checked before cache upsert. Failed reprocess retains an existing entry. Structural checks do not prove translation accuracy or detect repeated content assigned to distinct valid IDs.
+- Caller cancellation releases that consumer from the shared flight. The inner pipeline is cancelled only when no live consumer remains; cancellation is checked before cache upsert. A live reader/prefetch consumer may still finish and save the shared result. Generation tokens keep old-flight cleanup from removing replacement work. Failed or cancelled reprocess retains an existing entry. Structural checks do not prove translation accuracy or detect repeated content assigned to distinct valid IDs.
 
 ## Retry and Failure
 
 - **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2.
-- **Success:** join chunk outputs in source order, clean, save to ProcessedChapter cache as text, render with `SwiftUI.Text`.
+- **Success:** assemble in source order and save atomically to the existing TEXT column: joined plain text for rewrite, one versioned JSON object for bilingual. The reader renders text or decoded pairs, never raw JSON.
 - **Failure mapping:**
   - One chunk still failing after its 2nd attempt aborts the whole chapter: no partial cache write, toast once, render raw fallback. Manual "Xử lý lại" retries the chapter on demand.
   - No content → "no response from AI service."

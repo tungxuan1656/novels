@@ -9,7 +9,7 @@ Independent chapter modes: Bản gốc (`none`), Dịch (`rewrite`) and Song ng�
 3. On miss, process body only (first heading remains raw title). Use independent `AI_PROMPT` or `AI_BILINGUAL_PROMPT`. Chunk calls run in parallel; collect in source order. Rewrite joins text; bilingual validates exact app-assigned IDs and nonempty vi/en, then serializes one chapter JSON.
 4. Save only after every chunk succeeds and cancellation check passes. Transport/envelope/final-JSON failures retry the failed chunk once; semantic pairing failures do not trigger another paid retry loop. No partial cache.
 5. Reading sheet offers Chế độ đọc with the three labels and Xử lý lại for the selected non-original mode. Switching reloads cache first. Prefetch processes only the selected mode.
-6. Failure toasts once and displays raw fallback, never another mode. Failed refresh leaves previous cache intact. Concurrent same-key work shares a single flight. Cancellation is silent; generation guards prevent stale publication.
+6. Failure toasts once and displays raw fallback, never another mode. Failed refresh leaves previous cache intact. Concurrent same-key work shares a single flight. Cancellation is silent and releases only that consumer; cancel the pipeline when no live consumer remains. A live shared consumer may still complete/cache. Generation guards prevent stale publication and old-flight cleanup.
 
 ## Rules
 
