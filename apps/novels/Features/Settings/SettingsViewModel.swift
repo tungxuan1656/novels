@@ -18,8 +18,11 @@ struct SettingDescriptor {
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 return trimmed.isEmpty ? "Mô hình không được để trống" : nil
             case "AI_PROVIDER":
-                let lowered = value.lowercased()
-                return (lowered.isEmpty || lowered == "openai") ? nil : "Chỉ hỗ trợ openai"
+                return AIProvider.normalized(value) == nil ? "Nhà cung cấp không hợp lệ" : nil
+            case "AI_THINKING_EFFORT":
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.isEmpty || AIThinkingEffort.normalized(value) != nil
+                    ? nil : "Chọn none, low, medium hoặc high"
             case "AI_CUSTOM_HEADERS", "AI_EXTRA_BODY":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 if trimmed.isEmpty {
@@ -109,9 +112,9 @@ enum SettingsViewModel {
         ),
         "OPENAI_API_URL": SettingDescriptor(
             key: "OPENAI_API_URL",
-            label: "URL OpenAI",
+            label: "URL AI",
             placeholder: "http://localhost:8317/v1/chat/completions",
-            description: "Endpoint chat/completions (ATS cho phép localhost)",
+            description: "URL đầy đủ: chat/completions, responses hoặc messages (ATS cho phép localhost)",
             defaultValue: "http://localhost:8317/v1/chat/completions",
             allowsVerbatimSave: false
         ),
@@ -126,9 +129,26 @@ enum SettingsViewModel {
         "AI_PROVIDER": SettingDescriptor(
             key: "AI_PROVIDER",
             label: "Nhà cung cấp",
-            placeholder: "openai",
-            description: "Chỉ openai, không phân biệt hoa thường",
-            defaultValue: "openai",
+            placeholder: "auto",
+            description: "Tự động nhận diện từ model rồi host; chọn thủ công cho proxy. URL quyết định định dạng API.",
+            defaultValue: "auto",
+            allowsVerbatimSave: false
+        ),
+        "AI_API_KEY": SettingDescriptor(
+            key: "AI_API_KEY",
+            label: "API key (Bearer)",
+            placeholder: "API key",
+            description: "Gửi Authorization: Bearer. Headers tùy chỉnh được ưu tiên; Anthropic dùng x-api-key riêng.",
+            defaultValue: "",
+            allowsVerbatimSave: false
+        ),
+        "AI_THINKING_EFFORT": SettingDescriptor(
+            key: "AI_THINKING_EFFORT",
+            label: "Thinking",
+            placeholder: "",
+            description: "Mặc định không gửi điều khiển; none yêu cầu tắt. Model/proxy có thể từ chối. "
+                + "MiMo chỉ bật/tắt: dùng mặc định hoặc body tùy chỉnh để bật, none để tắt; không hỗ trợ độ sâu.",
+            defaultValue: "",
             allowsVerbatimSave: false
         ),
         "AI_CUSTOM_HEADERS": SettingDescriptor(
@@ -207,6 +227,18 @@ enum SettingsViewModel {
             defaultValue: "",
             allowsVerbatimSave: false
         )
+    }
+
+    @MainActor
+    static func apiKeyRowValue(_ store: SettingsStore) -> String {
+        store.aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Chưa thiết lập" : "Đã thiết lập"
+    }
+
+    @MainActor
+    static func providerRowValue(_ store: SettingsStore) -> String {
+        let provider = AIProvider.normalized(store.aiProvider) ?? .auto
+        let resolved = provider.resolved(model: store.openaiModel, urlString: store.openaiAPIURL)
+        return provider == .auto ? "Tự động: \(resolved.label)" : provider.label
     }
 
     /// Row string for the PREFETCH_COUNT settings row: the effective N the

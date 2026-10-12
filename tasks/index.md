@@ -3,6 +3,10 @@
 This index owns navigation and roadmap scope only. Each linked task owns status, ownership, dependencies, evidence and handoff.
 Use descriptive task slugs for new approved work; do not continue the legacy numeric counter.
 
+## AI Configuration
+
+- [AI provider settings](task-ai-provider-settings.md).
+
 ## Harness Maintenance
 
 - [Harness v2 migration](task-harness-v2-migration.md).

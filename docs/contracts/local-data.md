@@ -8,7 +8,7 @@
 |---|---|---|---|
 | Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<resolved Book.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) |
 | ProcessedChapter cache (single) | SQLite via system `libsqlite3` (no Swift package) | `Application Support/novels/cache/processed_chapters.sqlite` | `SQLite3` behind internal protocol; rendering is native `SwiftUI.Text` (no WebKit) |
-| Settings / Session / Typography | `UserDefaults` wrapped by `@Observable` | Current keys only; `AI_CUSTOM_HEADERS` stored as normal JSON string (no Keychain) | `Foundation.UserDefaults` + `Observation.@Observable` |
+| Settings / Session / Typography | `UserDefaults` wrapped by `@Observable` | Current keys only; `AI_API_KEY` and custom JSON stored as normal settings (no Keychain) | `Foundation.UserDefaults` + `Observation.@Observable` |
 | Runtime-only | In-memory | `PrefetchStatus` `{ isRunning, currentBookId, totalChapters, processedChapters, message, errors[]}` | — |
 
 React Native findings are historical reference only — no RN package and no RN data/settings/cache migration.
@@ -51,7 +51,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 ## 3. Persistent Settings Store (plus Session & Typography)
 
 - **Store:** `UserDefaults` via `@Observable` wrapper (see `../decisions/local-persistence.md`). No `Keychain`, no `SwiftData`/`Core Data`.
-- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_PROMPT`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
+- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_API_KEY`, `AI_THINKING_EFFORT`, `AI_PROMPT`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
 - **Sanitize:** on launch offline — missing/invalid → defaults; unknown/legacy keys → ignored (no migration); `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON → treated as empty, stored verbatim otherwise. See `../../docs/product/business-rules.md` BR-12.
 
 ## Dependencies

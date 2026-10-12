@@ -25,12 +25,60 @@
 For each chunk of chapter text (see Chunking):
 
 1. Base body depends on the endpoint family (see table above) and always includes `"stream": false` explicitly. Chat: `model` + `messages` (`system` = `AI_PROMPT`, `user` = chunk). Responses: `model` + `instructions` (`AI_PROMPT`) + `input` (chunk string). Anthropic: `model` + `system` (`AI_PROMPT`) + `messages` (`user` = chunk) + `max_tokens` (default `1024` when `AI_EXTRA_BODY` lacks it).
-2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body. Reserved keys are stripped per family and never overridden from extra: chat `{model, messages, stream}`; responses `{model, input, instructions, stream}`; anthropic `{model, messages, system, stream}` (`max_tokens` IS overridable via extra). `JSONSerialization` failure (invalid value types) fails fast with no retry. If the JSON is invalid, ignore it and continue. The request does not fail. Per-family passthrough examples:
+2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body (nested `output_config` preserves generated effort before custom entries override it). Reserved keys are stripped per family and never overridden from extra: chat `{model, messages, stream}`; responses `{model, input, instructions, stream}`; anthropic `{model, messages, system, stream}` (`max_tokens` IS overridable via extra). `JSONSerialization` failure (invalid value types) fails fast with no retry. If the JSON is invalid, ignore it and continue. The request does not fail. Per-family passthrough examples:
    - Chat: `{"temperature": 0.7}`.
    - Responses: `{"reasoning": {"effort": "medium", "summary": "auto"}}`, `{"max_output_tokens": 512}`, `{"text": {"verbosity": "medium"}}`.
    - Anthropic: `{"thinking": {"type": "adaptive"}}`, `{"output_config": {"effort": "high"}}`, `{"temperature": 0.7}`, `{"max_tokens": 512}` (override).
-3. If `AI_CUSTOM_HEADERS` is valid JSON object, add its entries as HTTP headers. The API key is not a separate setting. When auth is needed, the user puts it inside `AI_CUSTOM_HEADERS` JSON (for example `{"Authorization":"Bearer ..."}`). Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). When merged headers lack `x-opencode-session` (case-insensitive), the app injects `x-opencode-session: novels-<bookId>-c<chapter>-<mode>` from chapter context. A user-supplied value wins verbatim. Empty context sends no header. If the JSON is invalid, ignore it.
-4. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
+3. Generate `Authorization: Bearer <trimmed AI_API_KEY>` for a non-empty key unless custom headers already contain Authorization (case-insensitive). Add valid `AI_CUSTOM_HEADERS` string entries; custom authentication wins. Native Anthropic still needs custom `x-api-key`. Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). When merged headers lack `x-opencode-session` (case-insensitive), the app injects `x-opencode-session: novels-<bookId>-c<chapter>-<mode>` from chapter context. A user-supplied value wins verbatim. Empty context sends no header. If the JSON is invalid, ignore it.
+4. `AI_API_KEY` is a masked credential setting. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
+
+### Provider Identity and Thinking
+
+- `AI_PROVIDER` selects Auto or a manual family, independently of endpoint transport.
+- Auto checks recognized model names first: `gpt`/`o` reasoning prefixes, `claude`, `muse`, `deepseek`, `mimo`, `glm`, `minimax`, `kimi`/`moonshot`, `gemini`.
+- If model identity is unknown, Auto checks provider-owned hosts. Exact host or subdomain matching prevents lookalike domains.
+- Host routes: `openai.com`, `anthropic.com`, `meta.ai`, `deepseek.com`, `xiaomimimo.com`, `z.ai`/`bigmodel.cn`, `minimax.io`/`minimaxi.com`, `moonshot.ai`/`moonshot.cn`/`kimi.ai`, `googleapis.com`.
+- Otherwise use the OpenAI-compatible baseline. Proxy/localhost hosts do not identify their upstream provider.
+- This is provider-only mapping, not a capability promise. Never inspect model versions or downgrade after rejection.
+- Unset thinking adds no fields. Explicit none requests disabled thinking and is never replaced with low.
+
+| Provider | Chat Completions generated control |
+|---|---|
+| OpenAI, Muse, Gemini | `reasoning_effort: <none/low/medium/high>` |
+| Anthropic | Unsupported; use Messages or custom body |
+| DeepSeek, GLM | none: `thinking.type=disabled`; depth: `thinking.type=enabled` plus `reasoning_effort` |
+| Kimi | none: `thinking.type=disabled`; depth: `reasoning_effort` |
+| MiniMax | none: `thinking.type=disabled`; depth: `thinking.type=adaptive` plus `reasoning_effort` |
+| MiMo | none: `thinking.type=disabled`; depth: explicit configuration error; use provider default or custom binary thinking |
+
+Responses uses `reasoning.effort` for all families except MiMo (unsupported generated thinking transport).
+Messages supports Anthropic and MiniMax: none sends `thinking.type=disabled`; depth sends adaptive thinking plus `output_config.effort`.
+Other Messages/provider combinations fail locally when thinking is selected. Unset controls preserve legacy passthrough.
+
+Custom `thinking`, `reasoning_effort`, `reasoning`, `thinking_config`/`thinking_budget`/`thinking_level`, or `output_config.effort` suppress the whole generated thinking group. Gemini `google.thinking_config`/`thinkingConfig`, including inside `extra_body.google`, also suppress it.
+An `output_config.format` alone does not suppress thinking. Custom body remains authoritative and is not capability-validated.
+For an active schema, nested text/output_config merge retains unrelated verbosity/effort fields.
+
+Model restrictions remain server-owned: Muse none, newer Claude/Gemini disable requests, GLM/Kimi medium, and older model fields can fail.
+MiMo documents binary thinking, not depth. No prompt or invented token budget simulates effort.
+Sources checked 2026-10-12: [OpenAI](https://developers.openai.com/api/docs/guides/reasoning), [Claude](https://platform.claude.com/docs/en/build-with-claude/thinking), [Muse](https://dev.meta.ai/docs/reasoning), [DeepSeek](https://api-docs.deepseek.com/guides/thinking_mode), [MiMo](https://mimo.mi.com/static/docs/quick-start/usage-guide/text-generation/deep-thinking.md), [GLM](https://docs.z.ai/api-reference/llm/chat-completion), [MiniMax](https://platform.minimax.io/docs/api-reference/text-openai-api.md), [Kimi](https://platform.kimi.ai/docs/api/chat), [Gemini](https://ai.google.dev/gemini-api/docs/openai).
+OpenCode Go routes by transport; these mappings are not authenticated gateway verification.
+
+### Optional Internal Output Schema
+
+- `AIClient.complete` accepts `outputSchema: AIOutputSchema? = nil`; chapter rewrite passes nil and stays plain text.
+- Schema is a named JSON Schema object with top-level `type=object`. Invalid name, JSON, or root type fails before network.
+- Append JSON-only instructions and the schema to the system prompt only when provided. No schema setting exists.
+- Chat OpenAI/Muse/Gemini/Kimi uses `response_format.type=json_schema`, named schema, and strict=true.
+- Chat DeepSeek/GLM/MiMo uses `response_format.type=json_object`; this does not enforce the supplied schema.
+- Chat MiniMax uses prompt instructions only because its documented compatible request has no structured format field.
+- Responses uses `text.format` with type=json_schema, name, schema, and strict=true.
+- Anthropic Messages uses `output_config.format` with type=json_schema and schema. MiniMax Messages uses prompt instructions only.
+- Other Messages/provider schema combinations fail explicitly; no fallback transport is selected.
+- Reject a conflicting custom response format or malformed nested text/output_config container instead of silently dropping the schema.
+- Structured responses require final answer text and a valid JSON object. Do not substitute reasoning_content, accept refusals, or accept truncated/incomplete envelopes.
+- Return the JSON string; future feature callers own typed decoding and schema/semantic validation. This seam is not a general JSON Schema validator.
+- Server/gateway/model restrictions remain errors; retries keep the same body and never weaken format controls.
 
 ### Request and Response Shape
 
@@ -115,7 +163,7 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 ## Avoid
 
 - Do not redefine defaults here; see `settings-schema.md`.
-- Do not store secrets; use `AI_CUSTOM_HEADERS` JSON.
+- Do not hard-code or log credentials; use masked `AI_API_KEY` or custom authentication headers.
 - Do not add a second AI cache.
 
 ## Examples
@@ -130,4 +178,4 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Notes
 
-- `AI_CUSTOM_HEADERS` persists with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS permits insecure HTTP for the `localhost` domain and its subdomains, without a port restriction. Port `8317` belongs to the default endpoint.
+- `AI_API_KEY` and `AI_CUSTOM_HEADERS` persist with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS permits insecure HTTP for the `localhost` domain and its subdomains, without a port restriction. Port `8317` belongs to the default endpoint.

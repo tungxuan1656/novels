@@ -9,7 +9,7 @@ import Observation
         static let booksAPIURL = "https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books"
         static let openaiAPIURL = "http://localhost:8317/v1/chat/completions"
         static let openaiModel = "gpt-4o"
-        static let aiProvider = "openai"
+        static let aiProvider = "auto"
         static let aiCustomHeadersJSON = ""
         static let aiExtraBodyJSON = ""
         static let prefetchCount = 3
@@ -27,6 +27,8 @@ import Observation
     var aiCustomHeadersJSON: String
     var aiExtraBodyJSON: String
     var aiProvider: String
+    var aiAPIKey: String
+    var aiThinkingEffort: String
     var aiPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
@@ -46,6 +48,8 @@ import Observation
         aiCustomHeadersJSON = Defaults.aiCustomHeadersJSON
         aiExtraBodyJSON = Defaults.aiExtraBodyJSON
         aiProvider = Defaults.aiProvider
+        aiAPIKey = ""
+        aiThinkingEffort = ""
         aiPrompt = SettingsDefaults.defaultPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
@@ -90,6 +94,8 @@ import Observation
         } else if userDefaults.object(forKey: DefaultsKeys.aiProvider) != nil {
             aiProvider = Defaults.aiProvider
         }
+        aiAPIKey = userDefaults.string(forKey: DefaultsKeys.aiAPIKey) ?? ""
+        aiThinkingEffort = userDefaults.string(forKey: DefaultsKeys.aiThinkingEffort) ?? ""
         if let value = userDefaults.string(forKey: DefaultsKeys.aiPrompt) {
             aiPrompt = value
         }
@@ -167,11 +173,8 @@ import Observation
         if !(500 ... 10000).contains(aiMinChunkSize) {
             aiMinChunkSize = Defaults.aiMinChunkSize
         }
-        if aiProvider.lowercased() != "openai" {
-            aiProvider = Defaults.aiProvider
-        } else {
-            aiProvider = "openai"
-        }
+        aiProvider = AIProvider.normalized(aiProvider)?.rawValue ?? Defaults.aiProvider
+        aiThinkingEffort = AIThinkingEffort.normalized(aiThinkingEffort)?.rawValue ?? ""
         if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             aiPrompt = SettingsDefaults.defaultPrompt
         }
@@ -187,6 +190,7 @@ import Observation
         }
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func value(forKey key: String) -> String {
         switch key {
         case "BOOKS_API_URL":
@@ -201,6 +205,10 @@ import Observation
             return aiExtraBodyJSON
         case "AI_PROVIDER":
             return aiProvider
+        case "AI_API_KEY":
+            return aiAPIKey
+        case "AI_THINKING_EFFORT":
+            return aiThinkingEffort
         case "AI_PROMPT":
             return aiPrompt
         case "PREFETCH_COUNT":
@@ -235,6 +243,10 @@ import Observation
             aiExtraBodyJSON = value
         case "AI_PROVIDER":
             aiProvider = value
+        case "AI_API_KEY":
+            aiAPIKey = value
+        case "AI_THINKING_EFFORT":
+            aiThinkingEffort = value
         case "AI_PROMPT":
             aiPrompt = value
         case "PREFETCH_COUNT":
@@ -277,6 +289,8 @@ import Observation
         userDefaults.set(aiCustomHeadersJSON, forKey: DefaultsKeys.aiCustomHeadersJSON)
         userDefaults.set(aiExtraBodyJSON, forKey: DefaultsKeys.aiExtraBodyJSON)
         userDefaults.set(aiProvider, forKey: DefaultsKeys.aiProvider)
+        userDefaults.set(aiAPIKey, forKey: DefaultsKeys.aiAPIKey)
+        userDefaults.set(aiThinkingEffort, forKey: DefaultsKeys.aiThinkingEffort)
         userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)

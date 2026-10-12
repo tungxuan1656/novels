@@ -6,7 +6,7 @@
 
 ## Current Scope Note — feat-031
 
-The original context below used iOS 26+. The accepted deployment floor is now iOS 26.0+; see [ios-scope.md](./ios-scope.md). Persistence choices remain unchanged. The ATS statement below is imprecise: the current exception covers localhost and its subdomains on any port, not only port 8317.
+The original context below used iOS 26+. The accepted deployment floor is now iOS 26.0+; see [ios-scope.md](./ios-scope.md). Persistence choices remain unchanged, including the masked `AI_API_KEY` added alongside custom JSON settings; see [settings schema](../contracts/settings-schema.md). The ATS statement below is imprecise: the current exception covers localhost and its subdomains on any port, not only port 8317.
 
 ## Context
 

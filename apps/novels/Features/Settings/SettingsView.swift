@@ -10,8 +10,14 @@ struct SettingsView: View {
                 row(key: "BOOKS_API_URL", label: "URL Danh mục", value: settings.booksAPIURL)
             }
             Section("AI") {
-                row(key: "OPENAI_API_URL", label: "URL OpenAI", value: settings.openaiAPIURL)
+                row(key: "OPENAI_API_URL", label: "URL AI", value: settings.openaiAPIURL)
                 row(key: "OPENAI_MODEL", label: "Mô hình", value: settings.openaiModel)
+                row(key: "AI_API_KEY", label: "API key (Bearer)", value: SettingsViewModel.apiKeyRowValue(settings))
+                row(key: "AI_PROVIDER", label: "Nhà cung cấp", value: SettingsViewModel.providerRowValue(settings))
+                row(
+                    key: "AI_THINKING_EFFORT", label: "Thinking",
+                    value: settings.aiThinkingEffort.isEmpty ? "Mặc định nhà cung cấp" : settings.aiThinkingEffort
+                )
                 row(
                     key: "AI_CUSTOM_HEADERS",
                     label: "Headers tùy chỉnh (JSON)",

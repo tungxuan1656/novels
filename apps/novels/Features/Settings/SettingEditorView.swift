@@ -20,7 +20,20 @@ struct SettingEditorView: View {
             }
             .listRowBackground(DesignTokens.surface)
             Section("Giá trị") {
-                if descriptor.key == "AI_CUSTOM_HEADERS"
+                if descriptor.key == "AI_API_KEY" {
+                    SecureField(descriptor.placeholder, text: $draft)
+                        .autocorrectionDisabled(true)
+                        .textInputAutocapitalization(.never)
+                        .accessibilityLabel("API key (Bearer)")
+                } else if descriptor.key == "AI_PROVIDER" {
+                    Picker("Nhà cung cấp", selection: $draft) {
+                        ForEach(AIProvider.allCases, id: \.rawValue) { provider in
+                            Text(provider.label).tag(provider.rawValue)
+                        }
+                    }
+                } else if descriptor.key == "AI_THINKING_EFFORT" {
+                    thinkingChoices
+                } else if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
                     || descriptor.key == "AI_PROMPT"
                 // swiftlint:disable:next opening_brace
@@ -67,6 +80,32 @@ struct SettingEditorView: View {
         .onChange(of: draft) { _, newValue in
             errorMessage = descriptor.validate(newValue)
         }
+    }
+
+    @ViewBuilder
+    private var thinkingChoices: some View {
+        thinkingChoice(value: "", label: "Mặc định nhà cung cấp")
+        ForEach(AIThinkingEffort.allCases, id: \.rawValue) { effort in
+            thinkingChoice(value: effort.rawValue, label: effort.rawValue)
+        }
+    }
+
+    private func thinkingChoice(value: String, label: String) -> some View {
+        Button {
+            draft = value
+        } label: {
+            HStack {
+                Text(label)
+                Spacer()
+                if draft == value {
+                    Image(systemName: "checkmark")
+                }
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .foregroundStyle(DesignTokens.text)
+        .accessibilityAddTraits(draft == value ? [.isSelected] : [])
     }
 
     private var shouldBlockSave: Bool {
