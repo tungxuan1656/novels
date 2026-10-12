@@ -1,6 +1,7 @@
 # Plan Document Reviewer Prompt Template
 
-Use this template when dispatching a plan document reviewer subagent.
+Use this optional template when an independent plan review is requested or risk warrants it.
+Use agent-docs-checker when available; a bounded self-check is otherwise sufficient.
 
 **Purpose:** Verify the plan is complete, matches the spec, and has proper task decomposition.
 
@@ -22,7 +23,9 @@ Subagent (general-purpose):
     | Completeness | TODOs, placeholders, incomplete tasks, missing steps |
     | Spec Alignment | Plan covers spec requirements, no major scope creep |
     | Task Decomposition | Tasks have clear boundaries, steps are actionable |
-    | Buildability | Could an engineer follow this plan without getting stuck? |
+    | Buildability | Could an engineer follow this plan without inventing behavior? |
+    | Simplicity | Unjustified phases, dependencies, abstractions, or duplicated future code |
+    | Verification | Actual check commands, baseline, relevant coverage and risk controls |
 
     ## Calibration
 
@@ -31,7 +34,9 @@ Subagent (general-purpose):
     Minor wording, stylistic preferences, and "nice to have" suggestions are not.
 
     Approve unless there are serious gaps — missing requirements from the spec,
-    contradictory steps, placeholder content, or tasks so vague they can't be acted on.
+    contradictory steps, unresolved critical behavior, or tasks so vague they cannot be acted on.
+    Do not require full future code, tiny time-boxed steps, or extra artifacts.
+    Never change the spec to justify a conflicting implementation.
 
     ## Output Format
 

@@ -1,63 +1,60 @@
 # Work Documents
 
-## Feature document
+## Task record
 
-Own one bounded execution unit. Link to durable truth instead of repeating it.
+Own one approved execution unit. Reuse a sufficient accessible tracker instead
+of making a local copy. Link durable specs and decisions rather than repeating them.
 
 ```markdown
-# <id> — <title>
+# <task-id> - <title>
 
-## Goal
+- Status: <todo | active | blocked | done>
+- Owner: <person or agent>
+- Required to start: <task link or none>
+- Required to integrate/release: <task link or none>
 
-<One observable outcome.>
+## Scope and non-goals
 
-## Scope
-
-- <Included work.>
-
-## Non-goals
-
-- <Explicitly excluded work.>
+<Outcome, boundary, and explicit exclusions.>
 
 ## Acceptance
 
-- [ ] <Concrete condition.>
+- [ ] <Observable condition.>
 
-## Relevant docs
+## Sources
 
-- `<path>`
+- <Canonical spec or decision link.>
 
-## Verify
+## Plan
 
-- `<command>`
+<Short inline steps or a link to the separate canonical plan when needed.>
 
-## Exceptions
+## Verification and handoff
 
-- <Accepted exception, only when needed.>
-
-## Handoff
-
-- State: <state>
-- Evidence: <result or link>
-- Next: <one action>
+- Evidence: <exact command/result or not run>
+- Blockers: <blocker or none>
+- Next: <one action or none when complete>
 ```
 
-Remove `Exceptions` and `Handoff` when they are not needed. Add a plan only when the work has several dependent steps.
+Keep only necessary sections. Status and owner have one location, not a second
+index. Independent tasks can be active; coordinate overlapping files separately.
+A roadmap index links to tasks but does not duplicate status or dependencies.
+Do not create a root progress log. At a material handoff, update this task or
+tracker with restart evidence. Follow existing history policy without erasing
+required evidence. A separate handoff is useful only when the canonical record
+cannot support restart. Across people, use an accessible shared source and
+disclose uncommitted work. Preserve legacy logs during approved migration.
+After closure, extract durable knowledge; check incoming links, dependency
+consumers, and retention policy before removing a disposable task. Archive
+only history worth retaining, not every task by default.
 
-Do not add commit, branch, or review requirements unless the repository or user requires them.
+## Execution plan
 
-## Progress record
+Keep bounded plans inline. A separate plan owns execution sequencing when
+phases, coordination, rollback, or recovery need durable detail. Link it from
+the task; do not duplicate status or durable product behavior there.
 
-Use an append-only block. Do not repeat the feature's scope or durable decisions.
-
-```markdown
-## <date> — <feature or task>
-
-**State**: <state>
-**Done**: <completed work>
-**Evidence**: <command and result>
-**Blockers**: <blocker or none>
-**Next**: <one action>
-```
-
-Use a separate handoff document only when the canonical feature and progress records cannot support a safe restart.
+Map approved acceptance to deliverables, affected paths, observed checks, and
+risk controls. Do not prescribe a line-count quota, generic phases, or complete
+future code. Name unresolved decisions instead of inventing them. Do not add
+commit, branch, or review requirements without repository or user policy.

@@ -15,7 +15,10 @@
 - No authentication for listing or download ([business-rules.md](../business-rules.md) BR-01, [integrations.md](../integrations.md) §1).
 - ZIP is deleted only after full success. Failed imports never create a valid book ([business-rules.md](../business-rules.md) BR-02).
 - Package structure and 1-based indexing are fixed ([domain-model.md](../domain-model.md) Invariants).
-- Listing is safe to retry. Re-import overwrites the same folder ([integrations.md](../integrations.md) §1).
+- Listing is safe to retry. Re-import replaces the same slug folder with the incoming package, without confirmation. The [storage recovery limits](../../contracts/local-data.md#1-local-book-repository) apply; copy fallback is not crash-atomic.
+- Sort locally: default name A→Z; "Mới nhất" sorts descending by `book.lastUpdated`, falling back to `ExportedBook.updatedAt`.
+- During download and extraction, block interaction with a simple spinner, not percentage progress. See [screen patterns](../../design/screens.md).
+- Invalid packages show "Gói sách không hợp lệ, không thể nhập". Success shows "Đã nhập sách", then follows [navigation rules](../../design/navigation.md) to pop and refresh Library.
 
 ## States
 
@@ -31,7 +34,7 @@
 | Catalog returns failure flag | Show its message or generic failure |
 | ZIP missing `book.json` or chapters | Fail import, no entry added |
 | Network lost during download | Fail import, no partial book |
-| Same book imported twice | Folder is replaced with same content |
+| Same slug imported again, including updated content | Replace the folder without confirmation or a duplicate entry; storage recovery limits apply |
 | ZIP delete fails after success | Book remains listed |
 
 ## Acceptance

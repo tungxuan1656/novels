@@ -1,0 +1,8 @@
+interface:
+  display_name: "Repo Skills"
+  short_description: "Select reputable, non-duplicated skills for this repo"
+  default_prompt: >-
+    Use $repo-skills to inspect this repo and propose the smallest skill set.
+    Reuse ponytail and git-commit; check source and stack fit.
+    When asked to install, use CLI defaults without selecting an agent.
+    Do not install when only recommendations were requested.

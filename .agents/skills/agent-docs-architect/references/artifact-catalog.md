@@ -17,7 +17,9 @@ the same truth, even when its name differs.
 | Data ownership guide | Domain ownership, lifecycle, migration, retention, and privacy rules | Shared, sensitive, or cross-domain data causes ambiguity | Schema and code make ownership clear |
 | Generated reference | Machine-derived schema, API, config, or inventory | Source is large or costly to inspect repeatedly | Generation is not reproducible or the source is easy to query |
 | External reference snapshot | Version-pinned agent-readable third-party knowledge | Network access is unreliable or exact versions matter | Official documentation is stable and accessible |
-| Execution plan | Scope, sequence, decisions, progress, and recovery | Work spans sessions or has dependent stages | The task is small or an external tracker is canonical |
+| Task record | Scope, acceptance, dependencies, owner, status, evidence, and handoff | Execution needs persistent coordination or recovery | Work is lightweight or an accessible tracker owns it |
+| Task roadmap/index | Outcome grouping and links to tasks or tracker | A roadmap is requested or the task set needs navigation | No routing need; never mirror execution state |
+| Execution plan | Implementation sequence, checks, and necessary recovery | Dependent stages or coordination need separate durable detail | Bounded steps stay inline in the task/tracker |
 | Completed plan archive | Historical execution evidence and superseded decisions | Past work prevents repeated investigation | The history has no durable value or lives canonically elsewhere |
 | Technical-debt tracker | Known debt, impact, owner, and review date | Debt needs repository-local coordination | An accessible issue tracker is canonical |
 | Security guide or threat model | Security boundaries, assets, controls, and residual risk | Security or privacy constraints cross subsystems | The project has no such constraints or a canonical source exists |
@@ -45,7 +47,7 @@ Do not create a permanent document solely to hide an unresolved question.
 | Class | Examples | Maintenance contract |
 |---|---|---|
 | Durable | Architecture, accepted decisions, product specs | Update when behavior, boundaries, or intent changes |
-| Active | Execution plans, migrations, temporary exceptions | Update during work; close or archive at a terminal state |
+| Active | Tasks, execution plans, migrations, temporary exceptions | Close after verification; extract durable knowledge, check links/consumers, then retain, selectively archive, or remove per policy |
 | Historical | Completed plans, replaced decisions | Preserve rationale; mark status and replacement routes |
 | Generated | Schemas, API inventories, dependency maps | Record generator, source inputs, and freshness check |
 | External | Vendor references, standards snapshots | Record source, version or retrieval date, and refresh trigger |

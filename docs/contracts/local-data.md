@@ -6,7 +6,7 @@
 
 | Boundary | Store | Root / file | API |
 |---|---|---|---|
-| Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<book.json.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) |
+| Local Book Repository | File system — `Codable` + `FileManager` | `Application Support/novels/books/<resolved Book.id slug>/` with `book.json` + `chapters/chapter-N.html` | `Foundation.FileManager` + `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) |
 | ProcessedChapter cache (single) | SQLite via system `libsqlite3` (no Swift package) | `Application Support/novels/cache/processed_chapters.sqlite` | `SQLite3` behind internal protocol; rendering is native `SwiftUI.Text` (no WebKit) |
 | Settings / Session / Typography | `UserDefaults` wrapped by `@Observable` | Current keys only; `AI_CUSTOM_HEADERS` stored as normal JSON string (no Keychain) | `Foundation.UserDefaults` + `Observation.@Observable` |
 | Runtime-only | In-memory | `PrefetchStatus` `{ isRunning, currentBookId, totalChapters, processedChapters, message, errors[]}` | — |
@@ -15,10 +15,12 @@ React Native findings are historical reference only — no RN package and no RN 
 
 ## 1. Local Book Repository
 
-- **Identity:** folder name is the string slug `book.json.id` (see `../decisions/book-identity.md`). Remote numeric `ExportedBook.id` / `bookId` are metadata only and never used as folder or cache key.
+- **Identity:** new imports use resolved `Book.id` as the folder slug. See [package decoding](book-package.md) for `book.json.id` tolerance and [identity decision](../decisions/book-identity.md). Remote numeric catalog ids remain metadata, never folder or cache keys.
+- **Existing-folder lookup:** prefer the exact slug folder; otherwise scan validated folders for a case-insensitive decoded ID match, with folder-name fallback. This compatibility lookup does not rename folders.
 - **Contents:** per book folder with `book.json` at root and `chapters/chapter-N.html` (1-based, `N=1..count`). See `book-package.md`.
 - **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to one optional title + one plain body string; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
 - **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) → validate (flattened) root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
+- **Observed replacement/recovery:** `FileBookRepository.save` stages validated content, then uses `FileManager.replaceItem` for an existing destination. If replacement fails while the destination remains, it reports failure and removes staging. If the destination disappeared, it falls back to `copyItem`; new imports also copy if moving staging fails. Copy recovery is not atomic: interruption can leave a partial destination. Strict crash-atomic recovery is not implemented.
 - **Reference:** https://developer.apple.com/documentation/foundation/filemanager
 
 ## 2. ProcessedChapter Cache (Single AI Cache)
@@ -39,7 +41,7 @@ CREATE TABLE IF NOT EXISTS processed_chapters (
 CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(book_id);
 ```
 
-- **Key:** `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) where `book_id` is the slug (`ProcessedChapter.bookId` / `book.json.id` in Swift), `mode` is `AIMode.rawValue`. Upsert via `INSERT OR REPLACE` (or `ON CONFLICT DO UPDATE`). `mode = 'none'` never written.
+- **Key:** `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) where `book_id` is the slug (`ProcessedChapter.bookId` / resolved `Book.id` in Swift), `mode` is `AIMode.rawValue`. Upsert via `INSERT OR REPLACE` (or `ON CONFLICT DO UPDATE`). `mode = 'none'` never written.
 - **Columns `created_at`/`updated_at`:** `TEXT NOT NULL` storing ISO8601 with fractional seconds (`.withInternetDateTime` + `.withFractionalSeconds`; fallback without fractional seconds on read).
 - **Queries:** `SELECT content FROM processed_chapters WHERE book_id=? AND chapter_number=? AND mode=?`; batch-check for prefetch range `WHERE book_id=? AND mode=? AND chapter_number IN (...)`; `SELECT count(*) WHERE book_id=?` for Cache Manager count.
 - **Clear:** `DELETE FROM processed_chapters` (all) or `DELETE WHERE book_id=?` on book delete leaves rows unreachable; no UserDefaults use for cache.
@@ -64,7 +66,7 @@ Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography
 
 ## Rules
 
-- Use slug `book.json.id` for folder and `book_id` column (`ProcessedChapter.bookId` in Swift); do not coerce numeric catalog ids.
+- Use resolved `Book.id` for new import folders and the `book_id` column (`ProcessedChapter.bookId` in Swift); do not coerce numeric catalog ids.
 - Keep single cache `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) with `content_hash, created_at, updated_at` (`contentHash` etc. in Swift).
 - Store only under `Application Support/novels/`; no Documents sync.
 
@@ -80,7 +82,7 @@ Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
+- Run `../../init.sh` (format → lint → build → focused unit tests). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Links
 

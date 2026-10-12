@@ -1,24 +1,17 @@
 #!/usr/bin/env bash
-set -o pipefail
+set -euo pipefail
 
-# Evidence-based verification for Novels (iOS).
-# Repo root: apps/novels.xcodeproj (scheme novels, minimum iOS 26.0; verification simulator iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
-# Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
-MAX_JOBS="${HARNESS_JOBS:-4}"
-STATUS=0
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 QUICK=0
-
 for arg in "$@"; do
   case "$arg" in
-    --quick|-q)
-      QUICK=1
-      ;;
+    --quick|-q) QUICK=1 ;;
     --help|-h)
       echo "Usage: ./init.sh [--quick]"
-      echo "  --quick, -q   Quick verification: format + lint + drift only (skip build and unit tests)"
+      echo "  --quick, -q   Format + lint only; skip build and unit tests"
       echo "  --help, -h    Show this help"
-      echo ""
-      echo "Full verification (default): format + lint + build + unit tests + drift"
+      echo "Full verification: format + lint + build + focused unit tests"
       exit 0
       ;;
     *)
@@ -28,124 +21,37 @@ for arg in "$@"; do
   esac
 done
 
-FORMAT_TASKS=(
-  "if command -v swiftformat >/dev/null; then swiftformat --lint apps --verbose; else echo 'FAIL [format] swiftformat not installed — run bash scripts/setup.sh' >&2; exit 1; fi"
-)
-
-LINT_TASKS=(
-  "if command -v swiftlint >/dev/null; then swiftlint lint --strict; else echo 'FAIL [lint] swiftlint not installed — run bash scripts/setup.sh' >&2; exit 1; fi"
-)
-
-BUILD_TASKS=(
-  "xcodebuild build -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -quiet"
-)
-
-# Unit tests only; no UI-test target. Keep build and test sequential for this shared project.
-TEST_TASKS=(
-  "xcodebuild test -project apps/novels.xcodeproj -scheme novels -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' -only-testing:novelsTests -parallel-testing-enabled NO -quiet"
-)
-
-if ! [[ "$MAX_JOBS" =~ ^[1-9][0-9]*$ ]]; then
-  echo "FAIL HARNESS_JOBS must be a positive integer" >&2
-  exit 2
-fi
-
-if [ "${#BUILD_TASKS[@]}" -eq 0 ] && [ "${#TEST_TASKS[@]}" -eq 0 ]; then
-  echo "FAIL init.sh not configured: no BUILD/TEST tasks (see SKILL.md#Write init.sh from evidence)" >&2
-  echo "Hint: add BUILD_TASKS/TEST_TASKS from project evidence, or keep explicit commented SKIP with evidence" >&2
-  exit 2
-fi
-
-run_task() {
-  local phase="$1"
-  local command="$2"
-
-  echo "RUN  [$phase] $command"
-  if bash -c "$command"; then
-    echo "PASS [$phase] $command"
-    return 0
-  fi
-
-  echo "FAIL [$phase] $command" >&2
-  return 1
-}
-
-run_parallel() {
-  local phase="$1"
-  shift
-
-  if [ "$#" -eq 0 ]; then
-    echo "SKIP [$phase] no task configured"
-    return 0
-  fi
-
-  local command
-  local pid
-  local -a pids=()
-
-  for command in "$@"; do
-    run_task "$phase" "$command" &
-    pids+=("$!")
-
-    if [ "${#pids[@]}" -ge "$MAX_JOBS" ]; then
-      for pid in "${pids[@]}"; do
-        wait "$pid" || STATUS=1
-      done
-      pids=()
-    fi
-  done
-
-  for pid in "${pids[@]}"; do
-    wait "$pid" || STATUS=1
-  done
-}
-
-echo "=== Format ==="
-run_parallel "format" "${FORMAT_TASKS[@]}"
-
-echo "=== Lint ==="
-run_parallel "lint" "${LINT_TASKS[@]}"
-
-echo "=== Build ==="
-if [ "$QUICK" -eq 1 ]; then
-  echo "SKIP [build] --quick (build skipped)"
-else
-  run_parallel "build" "${BUILD_TASKS[@]}"
-fi
-
-echo "=== Test ==="
-if [ "$QUICK" -eq 1 ]; then
-  echo "SKIP [test] --quick (unit tests skipped)"
-else
-  run_parallel "test" "${TEST_TASKS[@]}"
-fi
-
-echo "=== Drift ==="
-if [ ! -f .agents/skills/using-skills/SKILL.md ]; then
-  echo "SKIP [drift] using-skills not present"
-else
-  SKILL_TOTAL=$(ls -d .agents/skills/*/ 2>/dev/null | wc -l | tr -d ' ')
-  CLAIMED=$(grep -oE '[0-9]+ skills' .agents/skills/using-skills/SKILL.md | head -1 | grep -oE '[0-9]+' || echo 21)
-  EXPECTED=$((CLAIMED+1))
-  if [ "$SKILL_TOTAL" != "$EXPECTED" ]; then
-    echo "FAIL [drift] using-skills catalog claims ${CLAIMED} skills but found $((SKILL_TOTAL-1)) siblings (total $SKILL_TOTAL)" >&2
-    STATUS=1
+run_check() {
+  echo "RUN  $*"
+  if "$@"; then
+    echo "PASS $*"
   else
-    echo "PASS [drift] skill catalog claims ${CLAIMED} siblings, found $((SKILL_TOTAL-1)) siblings (total $SKILL_TOTAL)"
+    local status=$?
+    echo "FAIL $* (exit $status)" >&2
+    return "$status"
   fi
-  if grep -q "Tham chieu nhanh.*alphabet" .agents/skills/using-skills/SKILL.md; then
-    echo "FAIL [drift] duplicate section Tham chieu nhanh still present" >&2
-    STATUS=1
-  fi
-  if grep -q "Khi.*skill.*moi" .agents/skills/using-skills/SKILL.md; then
-    echo "FAIL [drift] duplicate section Khi.*skill.*moi still present" >&2
-    STATUS=1
-  fi
-fi
+}
 
-if [ "$STATUS" -ne 0 ]; then
-  echo "=== Verification failed ===" >&2
-  exit "$STATUS"
-fi
+require_tool() {
+  if ! command -v "$1" >/dev/null; then
+    echo "Required tool missing: $1; run bash scripts/setup.sh" >&2
+    return 1
+  fi
+}
 
-echo "=== Verification passed ==="
+run_check require_tool swiftformat
+run_check swiftformat --lint apps --verbose
+run_check require_tool swiftlint
+run_check swiftlint lint --strict
+
+if [ "$QUICK" -eq 1 ]; then
+  echo "SKIP build and unit tests (--quick)"
+  echo "=== Quick verification passed (format + lint only) ==="
+else
+  run_check xcodebuild build -project apps/novels.xcodeproj -scheme novels \
+    -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -quiet
+  run_check xcodebuild test -project apps/novels.xcodeproj -scheme novels \
+    -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" \
+    -only-testing:novelsTests -parallel-testing-enabled NO -quiet
+  echo "=== Verification passed ==="
+fi

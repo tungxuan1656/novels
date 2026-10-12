@@ -119,6 +119,11 @@ controllers that lost their place have re-dispatched entire completed task
 sequences — the single most expensive failure observed. Track progress in
 a ledger file, not only in todos.
 
+The ledger is internal recovery scratch, not shared task state. When a
+canonical task/tracker exists, identify it at setup and keep its material
+status, evidence, blockers, and next action current at handoffs. Do not create
+a second canonical log or copy the full ledger into it.
+
 - Each plan owns a workspace: at skill start, run this skill's
   `scripts/sdd-workspace PLAN_FILE` — it prints the plan's git-ignored
   directory (`<repo-root>/.agent-work/sdd/<plan-basename>/`), home to
@@ -248,6 +253,9 @@ Implementer subagents report one of four statuses. Handle each appropriately:
 4. If the plan itself is wrong, escalate to the human
 
 **Never** ignore an escalation or force the same model to retry without changes. If the implementer said it's stuck, something needs to change.
+
+For a material blocker or scope question, also update the selected canonical
+task/tracker before handing off; local scratch is not accessible shared state.
 
 If the implementer asks questions — before starting or mid-task — answer
 clearly and completely, provide additional context if needed, and don't
@@ -384,7 +392,10 @@ message as your other bookkeeping:
 - `Task <N>: complete (commits <base7>..<head7>, <K> parked)` after a
   tripped breaker
 
-Then mark the todo complete and move on. Never move to the next task while
+Update the selected canonical task/tracker with material verification evidence,
+remaining blockers, and next action, then mark the todo complete and move on.
+Completing a plan step does not mark its enclosing task done until all of that
+task's acceptance checks pass. Never move to the next task while
 the review has open Critical/Important issues that are neither fixed nor
 parked-with-ruling at the cap.
 
@@ -414,6 +425,9 @@ delivery policy.
 
 ## Finish
 
+Before retiring scratch, record final verification, unresolved findings, and
+handoff in the selected canonical task/tracker; promote durable knowledge to
+its canonical docs/tests. Do not retire the only copy of needed evidence.
 When the final whole-branch review is clean and its fixes are merged, retire
 this plan's scratch workspace only when repository policy or the user permits
 it. Leave sibling plan directories alone. Then follow the repository's branch,

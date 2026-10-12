@@ -25,7 +25,7 @@ Return an evidence-backed answer to: what knowledge must live with this
 repository, which document owns it, where the document belongs, when an agent
 must read it, and how it stays current.
 
-Use BA and solution-architecture lenses to discover information needs. Do not
+Use business-analysis and solution-architecture lenses to discover information needs. Do not
 act as the product owner or solution architect.
 
 | This skill does | This skill does not |
@@ -47,6 +47,8 @@ act as the product owner or solution architect.
   Do not rename it only for uniformity.
 - Create an artifact for a demonstrated failure, credible risk, or required
   decision. Do not create empty directories, placeholders, or generic guides.
+- Start from no new document. Treat scale profiles as examples, not default
+  trees to generate. Explain the smallest omission that keeps work safe.
 - Record unresolved facts as questions with a decision owner. Do not fill gaps
   from typical industry practice.
 - Prefer progressive disclosure: router -> one focused source -> code and
@@ -142,8 +144,10 @@ When the user accepts the blueprint:
 3. Give the writer the artifact responsibility, evidence sources, required
    routes, lifecycle, and size constraints.
 4. Create canonical truth before indexes and the root router.
-5. Re-audit the final graph for duplicated truth, broken routes, unlabelled
+5. Check the final graph for duplicated truth, broken routes, unlabelled
    uncertainty, empty artifacts, and mixed durable or temporary state.
+   Use `agent-docs-checker` when installed for a requested independent read-only
+   assessment; do not require an extra agent or audit on every writing task.
 
 If `agent-docs-writer` is unavailable, return the blueprint and handoff package.
 Do not invent a competing document-writing standard inside this skill.

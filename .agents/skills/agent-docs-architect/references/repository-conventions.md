@@ -19,6 +19,13 @@ instead. Do not rename working sources merely to conform.
 - Keep one topic per file. Split only when a file owns more than one class of
   truth or routes become unclear.
 
+## Harness v2 integration
+
+When Harness owns local work, use `tasks/task-<slug>.md` for task state.
+Keep bounded plans inline; link a needed separate `docs/plans/task-<slug>.md`.
+Do not also create `docs/exec-plans/`, a status index, or a root progress log.
+Reuse native trackers and adequate existing paths instead of renaming them.
+
 ## Baseline maps
 
 ### Compact
@@ -46,6 +53,8 @@ Add `docs/index.md` only when the root router cannot select the relevant
 focused source directly.
 
 ### Established or federated
+
+This is a capability menu, not a scaffold. Select only justified artifacts.
 
 ```text
 AGENTS.md

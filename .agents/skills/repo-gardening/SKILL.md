@@ -16,7 +16,7 @@ Continuously remove repository entropy before agents copy and amplify it. Treat 
 ## Orient
 
 1. Read `AGENTS.md` and follow repository-local instructions.
-2. Read the active feature, latest progress, and relevant project documents when present.
+2. Read the selected task or tracker, its handoff, and relevant project documents when present.
 3. Inspect the working tree. Preserve user and agent changes outside the cleanup scope.
 4. Identify canonical patterns from maintained code, tests, configuration, CI, linters, and architecture documents.
 5. Read the full [cleanup rubric](references/cleanup-rubric.md).
@@ -99,4 +99,4 @@ Finish with:
 - <one bounded candidate, or “none”>
 ```
 
-Update the repository’s feature and progress records when its harness requires it. Do not invent a cleanup tracker or new documentation hierarchy.
+Update only the selected canonical task or tracker when its state materially changes. Do not invent a cleanup tracker or new documentation hierarchy.

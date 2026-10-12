@@ -1,0 +1,100 @@
+{
+  "skill_name": "agent-docs-checker",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Accepted spec conflicts with implementation",
+      "prompt": "Check the accepted spec: refunds are allowed for 30 days. The code currently rejects after 7 days; no accepted decision changed this rule. Do not modify files.",
+      "expected_output": "Report the mismatch with sources; identify implementation as potentially wrong, not automatically stale spec.",
+      "files": [],
+      "expectations": [
+        "Read-only report",
+        "Never rewrites the spec to legitimize code",
+        "Does not claim tests passed from inspection"
+      ],
+      "tags": [
+        "intent",
+        "drift"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Reject unjustified planning machinery",
+      "prompt": "Review an approved one-endpoint change whose plan introduces an event bus, generic plugin registry, eight phases, and per-step commits without a requirement.",
+      "expected_output": "Point out concrete unnecessary work and the smallest complete endpoint change using existing patterns.",
+      "files": [],
+      "expectations": [
+        "Flags unjustified abstractions and phases",
+        "Does not demand extra skill gates or full future code",
+        "Preserves actual validation and error handling"
+      ],
+      "tags": [
+        "simplicity",
+        "plans"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Risk controls are not bloat",
+      "prompt": "Check the plan for a payment migration with idempotency, staged rollout, rollback, privacy constraints, and a real verification need.",
+      "expected_output": "Evaluate evidence and gaps without rejecting justified safeguards for their size.",
+      "files": [],
+      "expectations": [
+        "Preserves security, data integrity, and recovery",
+        "Does not impose a universal line-count or phase limit"
+      ],
+      "tags": [
+        "risk",
+        "minimality"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Broken route and nonexistent command",
+      "prompt": "Check selected AGENTS.md routes and its check:package-exports command; the linked document and command are missing from inspected repository sources.",
+      "expected_output": "Report observed missing paths/commands with precise sources and bounded repair.",
+      "files": [],
+      "expectations": [
+        "Inspects manifests and paths",
+        "Does not run unsafe source-fixing commands",
+        "Does not invent the missing script"
+      ],
+      "tags": [
+        "routes",
+        "commands"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Unavailable source limits confidence",
+      "prompt": "Audit our docs against a private tracker you cannot access. Only the local architecture map and code are available.",
+      "expected_output": "Check accessible claims and state unverifiable intent as uncertainty with an owner question.",
+      "files": [],
+      "expectations": [
+        "States coverage and unavailable evidence",
+        "Does not claim full consistency",
+        "No report file or repairs unless requested"
+      ],
+      "tags": [
+        "uncertainty",
+        "scope"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "No drift permits no-op",
+      "prompt": "Check one current subsystem spec and its tests. Routes, accepted behavior, and plan are consistent; omitted diagrams and indexes have no demonstrated need.",
+      "expected_output": "Explicit no-findings report with actual coverage and checks.",
+      "files": [],
+      "expectations": [
+        "Does not require every artifact type",
+        "Does not expand to the whole repository",
+        "No mandatory handoff or runtime-correctness claim"
+      ],
+      "tags": [
+        "no-op",
+        "scope"
+      ]
+    }
+  ]
+}

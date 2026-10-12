@@ -1,0 +1,85 @@
+{
+  "skill_name": "harness",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Existing root check owns monorepo concurrency",
+      "prompt": "Create init.sh for a monorepo whose existing pnpm run check covers format:check, lint, typecheck, test and build with native workspace concurrency. AGENTS.md forbids source fixes and installs.",
+      "expected_output": "Simple strict Bash wrapper, syntax and git checks, then pnpm run check.",
+      "files": [],
+      "expectations": [
+        "No custom scheduler, runtime discovery, fixes or installs",
+        "Preserves command failure",
+        "Does not invent workspace commands"
+      ],
+      "tags": [
+        "verification",
+        "minimality"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "No check means explicit coverage gap",
+      "prompt": "Create a harness for a docs-only repository without package manifests or a project test command.",
+      "expected_output": "Minimal routed instructions and syntax/whitespace checks with a disclosed coverage boundary.",
+      "files": [],
+      "expectations": [
+        "Does not fabricate a build or test command",
+        "Does not claim full application verification",
+        "Does not create empty task/spec trees"
+      ],
+      "tags": [
+        "coverage",
+        "docs-only"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Independent work retains index without state mirrors",
+      "prompt": "We need a roadmap and two developers can work on independent tasks. Generate the local task conventions.",
+      "expected_output": "Navigation index, separate task-local status/owners/dependencies, no root progress log.",
+      "files": [],
+      "expectations": [
+        "No global counter or one-active limit",
+        "Index changes only for roadmap membership/scope",
+        "Notes task files do not prevent source conflicts"
+      ],
+      "tags": [
+        "concurrency",
+        "index"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Approved migration preserves conflicting history",
+      "prompt": "Migrate our v1 harness to v2. Feature index says done but progress says blocked; task owner has not reconciled it yet.",
+      "expected_output": "Ask the owner to resolve conflicting state before finalizing migration; preserve original history.",
+      "files": [],
+      "expectations": [
+        "Explicit ID/link mapping",
+        "Does not guess status or delete history",
+        "Does not update provenance prematurely"
+      ],
+      "tags": [
+        "migration",
+        "ownership"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Reuse the external tracker",
+      "prompt": "The team’s accessible issue tracker already owns acceptance, status, dependencies and handoff. Our specs and architecture are canonical. Simplify the harness.",
+      "expected_output": "Reuse tracker and docs, keep short routes and verification; no local task mirror.",
+      "files": [],
+      "expectations": [
+        "No duplicate progress or status index",
+        "No universal scaffold",
+        "Keeps durable intent separate from observed code"
+      ],
+      "tags": [
+        "reuse",
+        "minimality"
+      ]
+    }
+  ]
+}

@@ -5,25 +5,31 @@
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/agent-docs-architect/SKILL.md",
-      "computedHash": "60f494e75351facabd826fada14c0343594dcb18d09274418e05c086519213a8"
+      "computedHash": "871d7a90072f4050920d3a6c0be4fc825a9ffea5398667258fc2b85e4ce25249"
+    },
+    "agent-docs-checker": {
+      "source": "tungxuan1656/harness-slim",
+      "sourceType": "github",
+      "skillPath": "skills/agent-docs-checker/SKILL.md",
+      "computedHash": "d0e8ef46343468ef1f54a30ad31a9cd3230a8f18b492ec75eef31d4dd9824e67"
     },
     "agent-docs-writer": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/agent-docs-writer/SKILL.md",
-      "computedHash": "8d5c9295be6b50b58e9030a8c042c931739b34a16f3d8dede3be0c0e544c1cfd"
+      "computedHash": "dc3032abcf53ae61d18975598f4b640dd4616ad297cf9acb98b0b5262294cbe2"
     },
     "brainstorming": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/brainstorming/SKILL.md",
-      "computedHash": "21c4763599bd4bd0bb51ff34f72bf7667983140d371d0520d1e7e41b03ec66e8"
+      "computedHash": "7863fe2cbfee2abe34b22a0624ae72300f72fe7f5a59804dafb6b10fee88f0ff"
     },
     "codebase-design": {
-      "source": "tungxuan1656/harness-slim",
+      "source": "mattpocock/skills",
       "sourceType": "github",
-      "skillPath": "skills/codebase-design/SKILL.md",
-      "computedHash": "31b6ed2f74931b5a9c0304c348c5de2668f0256407d152311e7fb7c34c36f2ea"
+      "skillPath": "skills/engineering/codebase-design/SKILL.md",
+      "computedHash": "b2888e4f4e8c0af3bfd557575a64b905c44e6248c3101d72077816882b3a92b9"
     },
     "coding-standards": {
       "source": "affaan-m/everything-claude-code",
@@ -35,13 +41,7 @@
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/executing-plans/SKILL.md",
-      "computedHash": "bf9b6758123e5a107054401fb600347593e669d2bed3f98df4d7c0300860f084"
-    },
-    "find-skills": {
-      "source": "tungxuan1656/harness-slim",
-      "sourceType": "github",
-      "skillPath": "skills/find-skills/SKILL.md",
-      "computedHash": "913b9d37d0d54047dd65222bb8c67b2bf04e3cb87dcad1729068d7a8b2c8c396"
+      "computedHash": "0dccc0c56bf8950f2c226566fe9314e68283f2b12391ea60126de19a53f8e3c3"
     },
     "frontend-design": {
       "source": "anthropics/skills",
@@ -50,7 +50,7 @@
       "computedHash": "4eabc66183767153e404b39d1b839b1c37f2d82d86f0a0d7e880a579d8d62336"
     },
     "git-commit": {
-      "source": "tungxuan1656/harness-slim",
+      "source": "github/awesome-copilot",
       "sourceType": "github",
       "skillPath": "skills/git-commit/SKILL.md",
       "computedHash": "2607fc60629b82b257136dd2a7a373f0a4466c0b49df7746d845d59313c99b21"
@@ -59,43 +59,49 @@
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/handoff/SKILL.md",
-      "computedHash": "694481fc747417172e8a866da43b1061270f1bbb76dd54a14ee4ce1e4b94a176"
+      "computedHash": "abaafc3156a69c8a28a65f3630e43ff71011ed8711978a7ea75f48121409ec04"
     },
-    "harness-slim": {
+    "harness": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
-      "skillPath": "skills/harness-slim/SKILL.md",
-      "computedHash": "ec7e5d58ba9c9624c17a6bcc45e2740d12a09bde37d9b5d7fe6d3750ca752478"
+      "skillPath": "skills/harness/SKILL.md",
+      "computedHash": "9f8a2a479110b9be90688531e37c1fad30eca9bd4fb7a246f8f7e2e506106a96"
     },
-    "harness-slim-review": {
+    "harness-review": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
-      "skillPath": "skills/harness-slim-review/SKILL.md",
-      "computedHash": "9ff0f053a9786935baceab560ba50f8762f1ecb47e86307b16823ce7dbefac0d"
+      "skillPath": "skills/harness-review/SKILL.md",
+      "computedHash": "5211219ebdc495f081aecf587c13599d112f62095f674e0a5918b0745ec7a731"
     },
     "harness-task": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/harness-task/SKILL.md",
-      "computedHash": "9722da074f574c8c897a7b7d6f455d6028e4f9b57e99430e5d81186eac558284"
+      "computedHash": "39ffde835c528c51a0693e8c69f4c9e6577dffe96d5cc56bb4e72154b0ccdc98"
+    },
+    "ponytail": {
+      "source": "dietrichgebert/ponytail",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "99f0589e5646b46da07b9419a5daa178004b3dd8930fec528918a51ab07f5efc"
     },
     "repo-gardening": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/repo-gardening/SKILL.md",
-      "computedHash": "1fb5872f40a7491e1ea1310db1fa74bdec36b6ed2ab4b24b3fa8091625ac84c7"
+      "computedHash": "0cc073673ef5641429d90bf82df852f29790fd523b7136a3639eabf4dbfb81ba"
     },
-    "simple-english": {
+    "repo-skills": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
-      "skillPath": "skills/simple-english/SKILL.md",
-      "computedHash": "993be02e540d53b94f9a136192b70967911c3fa40820b0149aef952678242b6e"
+      "skillPath": "skills/repo-skills/SKILL.md",
+      "computedHash": "bd1ff50ac111c5d96c767b937dc2cae75ea135e721b1061e9d2d28dd52d06ad3"
     },
     "subagent-driven-development": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/subagent-driven-development/SKILL.md",
-      "computedHash": "ee3c5806d5f30ec5a579d4c295113e71cb48b3f45b77343aff72d804a570381d"
+      "computedHash": "da75fd496cc3d7493b33c432c268ed2d81cdbd85b53dcb753fb2592e80a33b69"
     },
     "swiftui-expert-skill": {
       "source": "avdlee/swiftui-agent-skill",
@@ -121,11 +127,17 @@
       "skillPath": "skills/verification-before-completion/SKILL.md",
       "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
     },
+    "write-swift": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/write-swift/SKILL.md",
+      "computedHash": "f20bb9cf51dbee1900b264820a12f1d3d378dc4d23ac758e7ba9e644c49a2459"
+    },
     "writing-plans": {
       "source": "tungxuan1656/harness-slim",
       "sourceType": "github",
       "skillPath": "skills/writing-plans/SKILL.md",
-      "computedHash": "559a1ff7969c1f6554e21fda466e9cba774986e52c79f99e350b08401ccdd5ea"
+      "computedHash": "229eb7e02c1191d732a84a4bd0ff298836734bf3456d9b3125822ba89632febe"
     }
   }
 }

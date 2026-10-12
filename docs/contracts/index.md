@@ -30,4 +30,4 @@ Each file is the canonical source for its wire/storage shape. Do not duplicate p
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
+- Run `../../init.sh` (format → lint → build → focused unit tests). Test scope: [verification decision](../decisions/verification.md); no UI tests.

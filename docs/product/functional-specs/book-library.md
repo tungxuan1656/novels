@@ -44,7 +44,7 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (Book, Reference, Chapter) — local identity is `Book.id` slug (`book.json.id`)
+- Domain: [domain-model.md](../domain-model.md) (Book, Reference, Chapter) — local identity is the resolved `Book.id` slug
 - Flows: [flows.md](../flows.md) §3 Library Browse and Manage
 - Integrations: [integrations.md](../integrations.md) (no external call)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-10

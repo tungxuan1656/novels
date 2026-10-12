@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: "Clarify behavior and design before implementation when requirements or consequential choices are unresolved. Keep the discussion proportional; reuse approved specs and skip redundant design rituals for clear bounded work."
 ---
 
 # Brainstorming Ideas Into Designs
@@ -9,26 +9,25 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design and get user approval.
 
-<HARD-GATE>
-Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
-</HARD-GATE>
-
-## Anti-Pattern: "This Is Too Simple To Need A Design"
-
-Every project goes through this process. A todo list, a single-function utility, a config change — all of them. "Simple" projects are where unexamined assumptions cause the most wasted work. The design can be short (a few sentences for truly simple projects), but you MUST present it and get approval.
+Resolve missing behavior and consequential design choices before implementation.
+Reuse approved specifications and decisions; do not demand a new design or
+approval cycle for a clear, bounded change already authorized by the user.
+Keep small clarifications inline. Write a separate spec only when durable
+behavior or a consequential decision needs a canonical owner.
 
 ## Checklist
 
-You MUST create a task for each of these items and complete them in order:
+Use these steps only when needed; do not create tracking artifacts for the
+discussion itself or repeat completed approval steps:
 
 1. **Explore project context** — check files, docs, recent commits
 2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
-4. **Propose 2-3 approaches** — with trade-offs and your recommendation
-5. **Present design** — in sections scaled to their complexity, get user approval after each section
+4. **Compare approaches when there is a real choice** — brief trade-offs and a recommendation
+5. **Present design** — brief enough for one decision; ask approval for unresolved consequential choices
 6. **Record the accepted design** — use the repository's canonical product or design artifact
 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
-8. **User reviews written spec** — ask user to review the spec file before proceeding
+8. **Resolve unapproved choices** — do not repeat approval for already agreed behavior
 9. **Transition to implementation** — use the repository's planning workflow when implementation is approved
 
 ## Process Flow
@@ -59,7 +58,7 @@ digraph brainstorming {
 ```
 
 **The terminal state is an accepted design and a clear handoff.** Use
-`writing-plans` when it is installed and the change needs a multi-step plan.
+`writing-plans` when durable sequencing, coordination, or recovery needs a plan.
 Otherwise follow the repository's existing planning and implementation rules.
 
 ## The Process
@@ -76,7 +75,7 @@ Otherwise follow the repository's existing planning and implementation rules.
 
 **Exploring approaches:**
 
-- Propose 2-3 different approaches with trade-offs
+- Compare alternatives only when they materially change outcome, cost, or risk
 - Present options conversationally with your recommendation and reasoning
 - Lead with your recommended option and explain why
 - YAGNI ruthlessly - remove unnecessary features from every approach and design
@@ -85,7 +84,7 @@ Otherwise follow the repository's existing planning and implementation rules.
 
 - Once you believe you understand what you're building, present the design
 - Scale each section to its complexity: a few sentences if straightforward, up to 200-300 words if nuanced
-- Ask after each section whether it looks right so far
+- Ask about unresolved consequential choices; avoid approval after every paragraph
 - Cover: architecture, components, data flow, error handling, testing
 - Be ready to go back and clarify if something doesn't make sense
 
@@ -109,37 +108,40 @@ Otherwise follow the repository's existing planning and implementation rules.
 - Read `AGENTS.md` and existing product, design, and plan documents before
   selecting an output path.
 - Write the validated design in the repository-native artifact that already owns
-  the behavior. When Harness Slim is active, link the selected design source
-  from the feature record instead of creating a parallel spec tree.
+  the behavior. When Harness is active, link the selected design source
+  from the selected task or tracker instead of creating a parallel spec tree.
 - If the owner or location is unclear, use `agent-docs-architect` when it is
   installed to propose the artifact map; otherwise record the unresolved
   decision and do not invent a path. If it is known, use `agent-docs-writer`
   when installed or write the selected repository-native artifact directly.
 - Do not create `docs/superpowers/` or commit the design unless the repository
   policy or user explicitly requires it.
-- Use `simple-english` if it is installed and the document benefits from its
-  final clarity pass.
+- Give the document a brief clarity pass; preserve technical meaning and
+  exact identifiers without adding a separate writing workflow.
 
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
 
-1. **Placeholder scan:** Any "TBD", "TODO", incomplete sections, or vague requirements? Fix them.
+1. **Gap scan:** Identify missing critical behavior; ask its owner rather than inventing rules.
 2. **Internal consistency:** Do any sections contradict each other? Does the architecture match the feature descriptions?
 3. **Scope check:** Is this focused enough for a single implementation plan, or does it need decomposition?
-4. **Ambiguity check:** Could any requirement be interpreted two different ways? If so, pick one and make it explicit.
+4. **Ambiguity check:** If behavior has several interpretations, ask its decision owner instead of silently choosing.
 
-Fix any issues inline. No need to re-review — just fix and move on.
+Repair bounded editorial issues inline. Resolve behavior or decision gaps with
+their owner; do not rewrite a spec merely to legitimize incorrect implementation.
 
 **User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
+When the written spec introduces an unapproved consequential choice, ask for review:
 
 > "The accepted design is recorded at `<path>`. Please review it and let me know if you want changes before implementation planning."
 
-Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+Wait when the written spec introduces an unresolved or unapproved choice.
+Do not force another approval round when it only records already approved
+behavior and the user has authorized implementation.
 
 **Implementation:**
 
-- Use `writing-plans` for a multi-step implementation plan when it is installed.
+- Use `writing-plans` when durable sequencing, coordination, or recovery needs a plan.
 - Otherwise use the repository's existing plan format or proceed only under its
   explicit implementation rules.
 

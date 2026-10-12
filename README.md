@@ -21,7 +21,7 @@ Novels runs on iPhone only, iOS 26.0+, with Vietnamese UI. App device family is 
 | Contracts (wire and storage) | `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md` |
 | Decisions (tech + business) | `docs/decisions/index.md` + `docs/product/decisions.md`, `SECURITY.md` |
 | Agent workflow, verification | `AGENTS.md`, `init.sh` |
-| Work state | `feature_index.json`, `features/`, `progress.md` |
+| Roadmap and task records | [tasks/index.md](tasks/index.md); each task owns its execution state |
 
 Use the linked document as canonical source. Do not copy its facts here.
 
@@ -47,15 +47,16 @@ The simulator version is not the minimum supported iOS version.
 
 - Edit app Swift in `apps/novels/` and focused unit tests in `apps/novelsTests/`. No UI tests.
 - Run `./init.sh --quick` during local iterations and full `./init.sh` before commit/push.
-- Keep at most one feature `active`. See `AGENTS.md` and `feature_index.json`.
+- Use task-local scope and ownership; independent tasks can run concurrently. See `AGENTS.md` and [tasks/index.md](tasks/index.md).
 
 ## Verification
 
-- Full: `./init.sh` — format + lint + build + unit tests + drift (source of truth for pre-push / feature done)
-- Quick: `./init.sh --quick` (alias `-q`) — format + lint + drift; skips build and unit tests
+- Full: `./init.sh` — format + lint + build + focused unit tests (source of truth before task completion, commit or push)
+- Quick: `./init.sh --quick` (alias `-q`) — format + lint; skips build and unit tests
 - Help: `./init.sh --help`
 
-Missing SwiftFormat or SwiftLint fails verification. Each phase reports `PASS`, `SKIP`, or `FAIL`; failures return nonzero.
+Missing SwiftFormat or SwiftLint fails verification. Checks run sequentially, report `RUN`/`PASS`/`FAIL`, and stop at the first failure.
+Verification resolves the repository directory; it never fixes source or installs dependencies.
 The staged-Swift hook checks format/lint only. Docs-only commits must still run full verification before commit/push.
 Test scope and runtime limits → `docs/decisions/verification.md`.
 

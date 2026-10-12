@@ -25,6 +25,12 @@ Use `book.json.id` (string slug) as the sole local identity. Remote numeric ids 
 - Navigation `Reading(bookId: string)` and prefetch filter by slug.
 - Remote ids display as metadata only.
 
+## Observed Consumer Compatibility
+
+The original decision names the producer ID. The consumer uses resolved `Book.id`, including tolerant name-derived fallback for missing, null or empty IDs.
+The [package contract](../contracts/book-package.md) owns the decoding algorithm; producers still must emit `id`.
+Reader, session and cache keys use that resolved value, never numeric catalog IDs. Existing-folder lookup compatibility lives in [local data](../contracts/local-data.md).
+
 ## Links
 
 - Identity canonical: `../contracts/local-data.md` · Remote types: `../contracts/catalog-api.md` · Package: `../contracts/book-package.md` · Persistence: `local-persistence.md` · Domain: `../../docs/product/domain-model.md`

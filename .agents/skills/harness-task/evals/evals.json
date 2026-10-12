@@ -5,11 +5,14 @@
       "id": 1,
       "name": "Question and review avoid work artifacts",
       "prompt": "Explain how this service validates sessions, then review the current implementation for bugs. Do not change code.",
-      "expected_output": "A one-sentence no-feature assessment followed by read-only investigation, with no feature, plan, or progress mutation.",
+      "expected_output": "A one-sentence no-task assessment followed by read-only investigation, with no task record, plan, or progress mutation.",
       "files": [],
-      "tags": ["read-only", "minimality"],
+      "tags": [
+        "read-only",
+        "minimality"
+      ],
       "expectations": [
-        "Selects no feature",
+        "Selects no task record",
         "Creates no plan or progress record",
         "Does not run broad verification merely to classify the request"
       ]
@@ -18,24 +21,31 @@
       "id": 2,
       "name": "Small monorepo edit stays lightweight",
       "prompt": "In this large multi-team monorepo, correct one broken link in a subsystem README and verify that the target exists.",
-      "expected_output": "A no-feature assessment because the requested change is local, clear, reversible, and safe despite repository scale.",
+      "expected_output": "A no-task assessment because the requested change is local, clear, reversible, and safe despite repository scale.",
       "files": [],
-      "tags": ["project-scale", "docs", "minimality"],
+      "tags": [
+        "project-scale",
+        "docs",
+        "minimality"
+      ],
       "expectations": [
         "Does not escalate solely because the repository is large",
-        "Creates no feature, separate plan, or progress record",
+        "Creates no task, separate plan, or progress record",
         "Uses only proportional verification"
       ]
     },
     {
       "id": 3,
       "name": "Bounded tracked work keeps an inline plan",
-      "prompt": "Add the approved CSV export backlog item. Its scope and acceptance must remain in repository-local feature state, and implementation is one bounded session with no dependencies.",
-      "expected_output": "A feature with a concise inline plan, reusing existing feature state and avoiding a separate plan document.",
+      "prompt": "Add the approved CSV export backlog item. Its scope and acceptance must remain in repository-local task state, and implementation is one bounded session with no dependencies.",
+      "expected_output": "A task with a concise inline plan, reusing existing task state and avoiding a separate plan document.",
       "files": [],
-      "tags": ["feature", "inline-plan"],
+      "tags": [
+        "task",
+        "inline-plan"
+      ],
       "expectations": [
-        "Selects feature tracking because the backlog is durable project memory",
+        "Selects task tracking because the backlog is durable project memory",
         "Keeps the plan inline",
         "Does not create an external plan merely because implementation has several steps"
       ]
@@ -44,13 +54,17 @@
       "id": 4,
       "name": "Cross-system migration gets a separate plan",
       "prompt": "Migrate authentication sessions across the web app, API, worker, and database over several releases with rollback support and two agents working in parallel.",
-      "expected_output": "A feature linked to a separate durable plan covering phases, dependencies, ownership, verification, recovery, and handoff.",
+      "expected_output": "A task linked to a separate durable plan covering phases, dependencies, ownership, verification, recovery, and handoff.",
       "files": [],
-      "tags": ["migration", "multi-agent", "external-plan"],
+      "tags": [
+        "migration",
+        "multi-agent",
+        "external-plan"
+      ],
       "expectations": [
         "Uses complexity, coordination, impact, and rollback as evidence",
         "Selects a separate linked plan",
-        "Keeps feature scope and plan execution details in their canonical artifacts"
+        "Keeps task scope and plan execution details in their canonical artifacts"
       ]
     },
     {
@@ -59,7 +73,10 @@
       "prompt": "Change one authorization condition that controls access to customer billing records. The diff should be only a few lines.",
       "expected_output": "An assessment that escalates based on authorization and data impact, then chooses inline or separate planning according to discovered recovery and coordination needs rather than diff size.",
       "files": [],
-      "tags": ["security", "impact"],
+      "tags": [
+        "security",
+        "impact"
+      ],
       "expectations": [
         "Does not classify by line count",
         "Inspects relevant scope and safeguards before selecting the artifact level",
@@ -70,38 +87,113 @@
       "id": 6,
       "name": "Non-code work follows the same thresholds",
       "prompt": "Reorganize and redirect a large documentation set across three teams over multiple sessions while preserving inbound links.",
-      "expected_output": "A feature with a separate linked plan because coordination, phases, link migration, and recovery matter even though no application code changes.",
+      "expected_output": "A task with a separate linked plan because coordination, phases, link migration, and recovery matter even though no application code changes.",
       "files": [],
-      "tags": ["documentation", "multi-session", "external-plan"],
+      "tags": [
+        "documentation",
+        "multi-session",
+        "external-plan"
+      ],
       "expectations": [
         "Does not classify work by whether it changes code",
-        "Selects durable feature and plan artifacts",
-        "Updates progress only when execution state materially changes"
+        "Selects durable task and plan artifacts",
+        "Updates task handoff only when execution state materially changes"
       ]
     },
     {
       "id": 7,
       "name": "External tracker remains canonical",
-      "prompt": "Implement the assigned issue. The accessible tracker already contains scope, acceptance, dependencies, status, and handoff, and the repository has no local feature for it.",
-      "expected_output": "Reuse the external tracker and avoid duplicating it in feature_index.json, a feature file, or progress.md.",
+      "prompt": "Implement the assigned issue. The accessible tracker already contains scope, acceptance, dependencies, status, and handoff, and the repository has no local task for it.",
+      "expected_output": "Reuse the external tracker and avoid duplicating it in feature_index.json, a task file, or progress.md.",
       "files": [],
-      "tags": ["external-tracker", "reuse"],
+      "tags": [
+        "external-tracker",
+        "reuse"
+      ],
       "expectations": [
         "Reuses the canonical tracker",
-        "Creates no duplicate local feature state",
+        "Creates no duplicate local task state",
         "Still assesses whether execution needs a separate canonical plan"
       ]
     },
     {
       "id": 8,
-      "name": "No trigger outside Harness Slim",
-      "prompt": "Classify this task in a repository that has no Harness Slim instructions or feature artifacts.",
-      "expected_output": "harness-task should not trigger because the repository does not use Harness Slim.",
+      "name": "No trigger outside Harness",
+      "prompt": "Classify this task in a repository that has no Harness v2 instructions or task artifacts.",
+      "expected_output": "harness-task should not trigger because the repository does not use Harness v2.",
       "files": [],
-      "tags": ["trigger-negative"],
+      "tags": [
+        "trigger-negative"
+      ],
       "expectations": [
-        "Does not impose Harness feature or plan artifacts",
+        "Does not impose Harness task or plan artifacts",
         "Leaves repository-native workflow selection to applicable instructions"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Concurrent tasks leave the roadmap stable",
+      "prompt": "Two developers own independent tasks and tasks/index.md lists their roadmap. Update only Alice’s task evidence after tests pass while Bob remains active.",
+      "expected_output": "Update Alice’s task only; both can remain active and the roadmap receives no mirrored state.",
+      "files": [],
+      "expectations": [
+        "No global active limit",
+        "Does not edit Bob’s task or index for status updates",
+        "Checks actual acceptance before marking done"
+      ],
+      "tags": [
+        "concurrency",
+        "index"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Spec decomposition does not impose waterfall",
+      "prompt": "Decompose this approved export spec into a CSV slice and an API slice. They can implement independently against an agreed schema, but release requires both to integrate. A bug fix and refactor are in the same roadmap.",
+      "expected_output": "Verifiable tasks linked to the spec, with integrate/release gates distinct from start dependencies; retain roadmap navigation without mirrored status.",
+      "files": [],
+      "expectations": [
+        "Tasks support fixes and refactors as well as features",
+        "Keeps acceptance specific and canonical",
+        "Does not force one slice complete before another starts",
+        "Epics or subtasks only if they help coordination"
+      ],
+      "tags": [
+        "decomposition",
+        "dependencies"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Task closure preserves useful knowledge and references",
+      "prompt": "The migration task is done. It contains the only recorded rollback constraint and another task links to it. Can we delete it to reduce context?",
+      "expected_output": "Extract the durable rollback constraint to its canonical source and update/check consumers before any removal; follow retention policy.",
+      "files": [],
+      "expectations": [
+        "Does not immediately delete a referenced task",
+        "Does not archive every task unconditionally",
+        "Separates durable knowledge from execution history"
+      ],
+      "tags": [
+        "lifecycle",
+        "retention"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Delegated execution transfers material state before retiring scratch",
+      "prompt": "The approved migration plan was executed with subagent-driven-development. The private scratch ledger records success, but the shared task is active with old blocker information. Finish and retire scratch when permitted.",
+      "expected_output": "Update the selected canonical task/tracker with current acceptance, verification evidence, blockers and next action before retirement; preserve required evidence and durable knowledge.",
+      "files": [],
+      "expectations": [
+        "Scratch ledger is not the canonical work log",
+        "No competing progress document or full ledger dump",
+        "Enclosing task closes only after all acceptance passes"
+      ],
+      "tags": [
+        "delegation",
+        "handoff",
+        "lifecycle"
       ]
     }
   ]
