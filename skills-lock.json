@@ -25,6 +25,12 @@
       "skillPath": "skills/brainstorming/SKILL.md",
       "computedHash": "7863fe2cbfee2abe34b22a0624ae72300f72fe7f5a59804dafb6b10fee88f0ff"
     },
+    "codebase-design": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/codebase-design/SKILL.md",
+      "computedHash": "b2888e4f4e8c0af3bfd557575a64b905c44e6248c3101d72077816882b3a92b9"
+    },
     "coding-standards": {
       "source": "affaan-m/everything-claude-code",
       "sourceType": "github",
@@ -42,6 +48,12 @@
       "sourceType": "github",
       "skillPath": "skills/frontend-design/SKILL.md",
       "computedHash": "4eabc66183767153e404b39d1b839b1c37f2d82d86f0a0d7e880a579d8d62336"
+    },
+    "git-commit": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/git-commit/SKILL.md",
+      "computedHash": "2607fc60629b82b257136dd2a7a373f0a4466c0b49df7746d845d59313c99b21"
     },
     "handoff": {
       "source": "tungxuan1656/harness-slim",
@@ -66,6 +78,12 @@
       "sourceType": "github",
       "skillPath": "skills/harness-task/SKILL.md",
       "computedHash": "39ffde835c528c51a0693e8c69f4c9e6577dffe96d5cc56bb4e72154b0ccdc98"
+    },
+    "ponytail": {
+      "source": "dietrichgebert/ponytail",
+      "sourceType": "github",
+      "skillPath": "skills/ponytail/SKILL.md",
+      "computedHash": "99f0589e5646b46da07b9419a5daa178004b3dd8930fec528918a51ab07f5efc"
     },
     "repo-gardening": {
       "source": "tungxuan1656/harness-slim",
@@ -108,6 +126,12 @@
       "sourceType": "github",
       "skillPath": "skills/verification-before-completion/SKILL.md",
       "computedHash": "b529822bdac4b197b180fe12225cff86b930b65910435103c10622df7f041651"
+    },
+    "write-swift": {
+      "source": "emilkowalski/skills",
+      "sourceType": "github",
+      "skillPath": "skills/write-swift/SKILL.md",
+      "computedHash": "f20bb9cf51dbee1900b264820a12f1d3d378dc4d23ac758e7ba9e644c49a2459"
     },
     "writing-plans": {
       "source": "tungxuan1656/harness-slim",
