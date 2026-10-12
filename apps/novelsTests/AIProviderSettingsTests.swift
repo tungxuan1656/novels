@@ -106,6 +106,56 @@ final class AIProviderSettingsTests: XCTestCase {
         XCTAssertEqual(SettingsViewModel.descriptor(for: "OPENAI_API_URL").label, "URL AI")
     }
 
+    func testThinkingEditorBlocksMiMoDepthForManualAndAutoUnlessCustomOverrides() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+            store.openaiModel = "mimo-v2.6-flash"
+            for provider in ["mimo", "auto"] {
+                store.aiProvider = provider
+                for value in ["low", "medium", "high"] {
+                    XCTAssertNotNil(SettingsViewModel.validationMessage(
+                        for: "AI_THINKING_EFFORT", value: value, settings: store
+                    ))
+                }
+                for value in ["", "none"] {
+                    XCTAssertNil(SettingsViewModel.validationMessage(
+                        for: "AI_THINKING_EFFORT", value: value, settings: store
+                    ))
+                }
+            }
+            store.openaiModel = "alias"
+            store.openaiAPIURL = "https://api.xiaomimimo.com/v1/chat/completions"
+            XCTAssertNotNil(SettingsViewModel.validationMessage(
+                for: "AI_THINKING_EFFORT", value: "high", settings: store
+            ))
+            store.aiExtraBodyJSON = #"{"thinking":{"type":"enabled"}}"#
+            XCTAssertNil(SettingsViewModel.validationMessage(
+                for: "AI_THINKING_EFFORT", value: "high", settings: store
+            ))
+            store.aiExtraBodyJSON = ""
+            store.aiProvider = "openai"
+            XCTAssertNil(SettingsViewModel.validationMessage(
+                for: "AI_THINKING_EFFORT", value: "high", settings: store
+            ))
+        }
+    }
+
+    func testAutoProviderAndThinkingEditorNormalizeURLWhitespace() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+            store.aiProvider = "auto"
+            store.openaiModel = "alias"
+            store.openaiAPIURL = " \nhttps://api.xiaomimimo.com/v1/chat/completions\t "
+            XCTAssertEqual(
+                AIProvider.auto.resolved(model: store.openaiModel, urlString: store.openaiAPIURL), .mimo
+            )
+            XCTAssertEqual(SettingsViewModel.providerRowValue(store), "Tự động: MiMo")
+            XCTAssertNotNil(SettingsViewModel.validationMessage(
+                for: "AI_THINKING_EFFORT", value: "high", settings: store
+            ))
+        }
+    }
+
     private func withDefaults(_ check: (UserDefaults) -> Void) {
         let name = "AIProviderSettingsTests-\(UUID().uuidString)"
         guard let defaults = UserDefaults(suiteName: name) else { return XCTFail("Cannot create isolated defaults") }

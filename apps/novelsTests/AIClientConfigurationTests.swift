@@ -18,7 +18,10 @@ final class AIClientConfigurationTests: XCTestCase {
         let session = makeSession()
         defer { session.invalidateAndCancel() }
         let client = AIClient(settings: store, session: session)
-        let schema = AIOutputSchema(name: "result", json: #"{"type":"object"}"#)
+        let schema = AIOutputSchema(
+            name: "result",
+            json: #"{"type":"object","properties":{},"required":[],"additionalProperties":false}"#
+        )
         for custom in ["", #"{"aUtHoRiZaTiOn":"Bearer fixture-custom-key"}"#] {
             store.aiCustomHeadersJSON = custom
             AIConfigurationURLProtocol.configure(status: 200, response: #"{"status":"completed","output_text":"{}"}"#)
@@ -97,6 +100,31 @@ final class AIClientConfigurationTests: XCTestCase {
         } catch is CancellationError {
             XCTAssertTrue(AIConfigurationURLProtocol.requests().isEmpty)
         }
+    }
+
+    func testInvalidStrictSchemaFailsBeforeNetworkForChatAndResponses() async throws {
+        let name = "AIClientConfigurationTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let store = SettingsStore(userDefaults: defaults)
+        store.aiProvider = "openai"
+        AIConfigurationURLProtocol.configure(status: 200, response: "{}")
+        let session = makeSession()
+        defer { session.invalidateAndCancel() }
+        let client = AIClient(settings: store, session: session)
+        let schema = AIOutputSchema(
+            name: "result", json: #"{"type":"object","properties":{"text":{"type":"string"}}}"#
+        )
+        for path in ["chat/completions", "responses"] {
+            store.openaiAPIURL = "https://ai-fixture.test/v1/\(path)"
+            do {
+                _ = try await client.complete(prompt: "prompt", chunk: "chunk", outputSchema: schema)
+                XCTFail("Strict schema must fail locally")
+            } catch let error as AIClientError {
+                guard case .invalidConfiguration = error else { return XCTFail("Unexpected error: \(error)") }
+            }
+        }
+        XCTAssertTrue(AIConfigurationURLProtocol.requests().isEmpty)
     }
 
     func testBearerDefaultsRespectCustomAnthropicHeaders() {

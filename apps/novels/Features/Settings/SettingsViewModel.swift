@@ -100,6 +100,19 @@ struct SettingDescriptor {
 }
 
 enum SettingsViewModel {
+    static func validationMessage(for key: String, value: String, settings: SettingsStore) -> String? {
+        if let error = descriptor(for: key).validate(value) {
+            return error
+        }
+        guard key == "AI_THINKING_EFFORT",
+              let effort = AIThinkingEffort.normalized(value), effort != .none,
+              (AIProvider.normalized(settings.aiProvider) ?? .auto)
+              .resolved(model: settings.openaiModel, urlString: settings.openaiAPIURL) == .mimo,
+              !AIRequestOptions.hasCustomThinking(settings.effectiveExtraBody())
+        else { return nil }
+        return "MiMo không hỗ trợ low/medium/high. Chọn mặc định hoặc none; dùng body tùy chỉnh để bật thinking."
+    }
+
     // swiftlint:disable trailing_comma
     private static let descriptors: [String: SettingDescriptor] = [
         "BOOKS_API_URL": SettingDescriptor(

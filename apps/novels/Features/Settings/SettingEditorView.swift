@@ -75,10 +75,10 @@ struct SettingEditorView: View {
         }
         .onAppear {
             draft = settings.value(forKey: settingKey)
-            errorMessage = descriptor.validate(draft)
+            errorMessage = SettingsViewModel.validationMessage(for: settingKey, value: draft, settings: settings)
         }
         .onChange(of: draft) { _, newValue in
-            errorMessage = descriptor.validate(newValue)
+            errorMessage = SettingsViewModel.validationMessage(for: settingKey, value: newValue, settings: settings)
         }
     }
 
@@ -114,7 +114,7 @@ struct SettingEditorView: View {
     }
 
     private func save() {
-        let message = descriptor.validate(draft)
+        let message = SettingsViewModel.validationMessage(for: settingKey, value: draft, settings: settings)
         if let message, !descriptor.allowsVerbatimSave {
             errorMessage = message
             return

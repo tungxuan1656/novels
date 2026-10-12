@@ -210,6 +210,71 @@ final class AIRequestOptionsTests: XCTestCase {
         }
     }
 
+    func testStrictFormatsRejectSchemasMissingObjectConstraints() throws {
+        let invalid = [
+            #"{"type":"object","properties":{"text":{"type":"string"}}}"#,
+            #"{"type":"object","properties":{"text":{"type":"string"}},"additionalProperties":false}"#,
+            #"{"type":"object","properties":{"text":{"type":"string"}},"required":[],"additionalProperties":false}"#,
+            #"{"type":"object","properties":{},"required":[],"additionalProperties":true}"#,
+            #"{"type":"object","properties":{},"required":[],"additionalProperties":0}"#,
+            #"""
+            {"type":"object","properties":{"text":{"type":"string"}},
+             "required":["other"],"additionalProperties":false}
+            """#,
+            #"""
+            {"type":"object","properties":{"text":{"type":"string"}},
+             "required":["text","text"],"additionalProperties":false}
+            """#,
+        ]
+        for json in invalid {
+            let options = AIRequestOptions(provider: .openai, outputSchema: AIOutputSchema(name: "result", json: json))
+            for url in ["/chat/completions", "/responses"] {
+                XCTAssertThrowsError(try body(url: url, options: options), json)
+            }
+            XCTAssertNoThrow(try body(options: AIRequestOptions(provider: .mimo, outputSchema: options.outputSchema)))
+        }
+    }
+
+    func testStrictFormatsValidateNestedObjectSchemas() throws {
+        let openObject: [String: Any] = ["type": "object", "properties": ["value": ["type": "string"]]]
+        let nested: [[String: Any]] = [
+            openObject,
+            ["type": "array", "items": openObject],
+            ["anyOf": [["type": "null"], openObject]],
+            ["type": ["object", "null"], "properties": [:], "required": []],
+        ]
+        for child in nested {
+            let root: [String: Any] = [
+                "type": "object", "properties": ["child": child],
+                "required": ["child"], "additionalProperties": false,
+            ]
+            let json = try XCTUnwrap(String(bytes: JSONSerialization.data(withJSONObject: root), encoding: .utf8))
+            let options = AIRequestOptions(provider: .openai, outputSchema: AIOutputSchema(name: "nested", json: json))
+            XCTAssertThrowsError(try body(options: options))
+        }
+        let definitions = AIOutputSchema(name: "definitions", json: #"""
+        {"type":"object","properties":{},"required":[],"additionalProperties":false,
+         "$defs":{"child":{"type":"object"}}}
+        """#)
+        XCTAssertThrowsError(try body(options: AIRequestOptions(outputSchema: definitions)))
+    }
+
+    func testStrictFormatsPreserveValidNestedAndRecursiveSchema() throws {
+        let json = ##"""
+        {"type":"object","properties":{
+          "next":{"anyOf":[{"$ref":"#"},{"type":"null"}]},
+          "entries":{"type":"array","items":{"$ref":"#/$defs/entry"}}},
+         "required":["next","entries"],"additionalProperties":false,
+         "$defs":{"entry":{"type":"object","properties":{"text":{"type":["string","null"]}},
+          "required":["text"],"additionalProperties":false}}}
+        """##
+        let recursive = AIOutputSchema(name: "recursive", json: json)
+        let result = try body(options: AIRequestOptions(outputSchema: recursive))
+        let format = try XCTUnwrap(result["response_format"] as? [String: Any])
+        let specification = try XCTUnwrap(format["json_schema"] as? [String: Any])
+        XCTAssertEqual(specification["schema"] as? NSDictionary, try recursive.object() as NSDictionary)
+    }
+
     private func body(
         url: String = "/chat/completions",
         extra: [String: Any] = [:],

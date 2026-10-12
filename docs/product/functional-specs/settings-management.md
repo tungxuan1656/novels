@@ -35,7 +35,7 @@
 | Thinking unset | Preserve provider default; send no generated thinking fields |
 | Thinking `none` | Send explicit disable control; never replace with low |
 | Model rejects effort/schema | Fail through existing error handling; never downgrade |
-| MiMo depth selected | Explain binary-only API; reject undocumented depth locally |
+| MiMo depth selected (manual or Auto) | Show binary-only warning and block saving low/medium/high in the thinking editor; default/none remain available. Custom thinking overrides suppress generated depth and permit saving. |
 | Prompt empty/missing | Fallback to default prompt |
 | Prefetch N is 0 | Valid, disables prefetch |
 | Prefetch N is 1001, -1, "abc" | Use 3 |

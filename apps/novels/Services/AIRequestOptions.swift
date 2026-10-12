@@ -53,7 +53,9 @@ nonisolated struct AIRequestOptions: Sendable {
 
     func addingSchema(to body: [String: Any], family: AIEndpointFamily) throws -> [String: Any] {
         guard let outputSchema else { return body }
-        let schema = try outputSchema.object()
+        let strict = family == .responses
+            || (family == .chatCompletions && ![AIProvider.deepseek, .glm, .mimo, .minimax].contains(provider))
+        let schema = try outputSchema.object(strict: strict)
         var result = body
         let format: [String: Any] = [
             "type": "json_schema", "name": outputSchema.name, "schema": schema, "strict": true,

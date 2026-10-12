@@ -47,7 +47,7 @@ nonisolated enum AIProvider: String, CaseIterable, Sendable {
         if name.range(of: "^o[0-9]+([.-]|$)", options: .regularExpression) != nil {
             return .openai
         }
-        let host = URL(string: urlString)?.host?.lowercased() ?? ""
+        let host = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines))?.host?.lowercased() ?? ""
         let domains: [(String, AIProvider)] = [
             ("openai.com", .openai), ("anthropic.com", .anthropic), ("meta.ai", .muse),
             ("deepseek.com", .deepseek), ("xiaomimimo.com", .mimo), ("z.ai", .glm),

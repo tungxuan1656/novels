@@ -39,14 +39,40 @@ final class AIStructuredResponseTests: XCTestCase {
         }
     }
 
+    func testStructuredModeRequiresCompletionMarkersButLegacyTextDoesNot() throws {
+        let fixtures: [(AIEndpointFamily, [String: Any])] = [
+            (.chatCompletions, ["finish_reason": "stop", "message": ["content": "{}"]]),
+            (.responses, ["status": "completed", "output_text": "{}"]),
+            (.anthropic, ["stop_reason": "end_turn", "content": [["type": "text", "text": "{}"]]]),
+        ]
+        for (family, payload) in fixtures {
+            let marker = try XCTUnwrap(["finish_reason", "status", "stop_reason"].first { payload[$0] != nil })
+            for value: Any? in [nil, NSNull()] {
+                var envelope = payload
+                envelope[marker] = value
+                let root = family == .chatCompletions ? ["choices": [envelope]] : envelope
+                XCTAssertNil(try resolve(root, family: family), "\(family), \(marker)=\(String(describing: value))")
+                let data = try JSONSerialization.data(withJSONObject: root)
+                XCTAssertEqual(AIUnifiedResponse.resolve(data: data, family: family), "{}")
+            }
+        }
+    }
+
     func testMalformedMarkdownArraysAndScalarContentReject() throws {
         for content in ["not-json", "```json\n{}\n```", "[]", "null", "42", "\"scalar\""] {
-            XCTAssertNil(try resolve(["choices": [["message": ["content": content]]]], family: .chatCompletions))
+            XCTAssertNil(try resolve(
+                ["choices": [["finish_reason": "stop", "message": ["content": content]]]],
+                family: .chatCompletions
+            ))
         }
     }
 
     func testObjectShapeValidationIsNotSemanticSchemaValidation() throws {
-        XCTAssertEqual(try resolve(["choices": [["message": ["content": "{}"]]]], family: .chatCompletions), "{}")
+        XCTAssertEqual(
+            try resolve(["choices": [["finish_reason": "stop", "message": ["content": "{}"]]]],
+                        family: .chatCompletions),
+            "{}"
+        )
     }
 
     private func resolve(_ root: [String: Any], family: AIEndpointFamily) throws -> String? {

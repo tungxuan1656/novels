@@ -35,7 +35,7 @@ For each chunk of chapter text (see Chunking):
 ### Provider Identity and Thinking
 
 - `AI_PROVIDER` selects Auto or a manual family, independently of endpoint transport.
-- Auto checks recognized model names first: `gpt`/`o` reasoning prefixes, `claude`, `muse`, `deepseek`, `mimo`, `glm`, `minimax`, `kimi`/`moonshot`, `gemini`.
+- Auto trims surrounding model/URL whitespace, matching request preparation. It checks recognized model names first: `gpt`/`o` reasoning prefixes, `claude`, `muse`, `deepseek`, `mimo`, `glm`, `minimax`, `kimi`/`moonshot`, `gemini`.
 - If model identity is unknown, Auto checks provider-owned hosts. Exact host or subdomain matching prevents lookalike domains.
 - Host routes: `openai.com`, `anthropic.com`, `meta.ai`, `deepseek.com`, `xiaomimimo.com`, `z.ai`/`bigmodel.cn`, `minimax.io`/`minimaxi.com`, `moonshot.ai`/`moonshot.cn`/`kimi.ai`, `googleapis.com`.
 - Otherwise use the OpenAI-compatible baseline. Proxy/localhost hosts do not identify their upstream provider.
@@ -76,7 +76,8 @@ OpenCode Go routes by transport; these mappings are not authenticated gateway ve
 - Anthropic Messages uses `output_config.format` with type=json_schema and schema. MiniMax Messages uses prompt instructions only.
 - Other Messages/provider schema combinations fail explicitly; no fallback transport is selected.
 - Reject a conflicting custom response format or malformed nested text/output_config container instead of silently dropping the schema.
-- Structured responses require final answer text and a valid JSON object. Do not substitute reasoning_content, accept refusals, or accept truncated/incomplete envelopes.
+- Before sending strict=true, validate every object schema: `additionalProperties: false`, object `properties`, and `required` listing every property exactly once. Check nested properties, array items, schema alternatives, and definitions; preserve the schema without normalization. Other provider-specific schema limits remain server-owned.
+- Structured responses require final answer text and a valid JSON object. Require Chat `finish_reason: stop`, Responses `status: completed`, or Messages `stop_reason: end_turn/stop_sequence`. Missing, null, or invalid markers fail; legacy text mode remains tolerant. Do not substitute reasoning_content or accept refusals.
 - Return the JSON string; future feature callers own typed decoding and schema/semantic validation. This seam is not a general JSON Schema validator.
 - Server/gateway/model restrictions remain errors; retries keep the same body and never weaken format controls.
 
@@ -150,7 +151,7 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 
 ## Defaults and Sanitization
 
-Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch, typography, chunk `1300`, provider `openai`, `AI_PROMPT` default). Prefetch `N=3` is separate.
+Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch, typography, chunk `1300`, provider `auto`, `AI_PROMPT` default). Prefetch `N=3` is separate.
 
 ## Rules
 

@@ -242,17 +242,13 @@ enum AIUnifiedResponse {
             case .chatCompletions:
                 let choice = (root["choices"] as? [[String: Any]])?.first
                 let message = choice?["message"] as? [String: Any]
-                if let reason = choice?["finish_reason"] as? String, reason != "stop" {
-                    return nil
-                }
+                guard choice?["finish_reason"] as? String == "stop" else { return nil }
                 if let refusal = message?["refusal"] as? String, !refusal.isEmpty {
                     return nil
                 }
                 text = message?["content"] as? String
             case .responses:
-                if let status = root["status"] as? String, status != "completed" {
-                    return nil
-                }
+                guard root["status"] as? String == "completed" else { return nil }
                 let items = root["output"] as? [[String: Any]] ?? []
                 let blocks = items.flatMap { $0["content"] as? [[String: Any]] ?? [] }
                 if blocks.contains(where: { $0["type"] as? String == "refusal" }) {
@@ -260,10 +256,9 @@ enum AIUnifiedResponse {
                 }
                 text = (try? JSONDecoder().decode(AIResponsesResponse.self, from: data))?.resolvedText
             case .anthropic:
-                let stopReason = root["stop_reason"] as? String
-                if let reason = stopReason, !["end_turn", "stop_sequence"].contains(reason) {
-                    return nil
-                }
+                guard let reason = root["stop_reason"] as? String,
+                      ["end_turn", "stop_sequence"].contains(reason)
+                else { return nil }
                 text = (try? JSONDecoder().decode(AIAnthropicResponse.self, from: data))?.resolvedText
         }
         guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
