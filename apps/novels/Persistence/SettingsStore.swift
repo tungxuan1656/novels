@@ -17,6 +17,7 @@ import Observation
         static let aiMinChunkSize = 1300
         static let diagnosticsVerbose = false
         static let readingTheme = ReadingTheme.sach
+        static let aiBilingualPrompt = SettingsDefaults.defaultBilingualPrompt
     }
 
     private let userDefaults: UserDefaults
@@ -30,6 +31,7 @@ import Observation
     var aiAPIKey: String
     var aiThinkingEffort: String
     var aiPrompt: String
+    var aiBilingualPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
     var aiMode: AIMode
@@ -51,6 +53,7 @@ import Observation
         aiAPIKey = ""
         aiThinkingEffort = ""
         aiPrompt = SettingsDefaults.defaultPrompt
+        aiBilingualPrompt = Defaults.aiBilingualPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
         aiMode = Defaults.aiMode
@@ -63,6 +66,7 @@ import Observation
         removeLegacyKeys()
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func load() {
         if let value = userDefaults.string(forKey: DefaultsKeys.booksAPIURL) {
             booksAPIURL = value
@@ -98,6 +102,9 @@ import Observation
         aiThinkingEffort = userDefaults.string(forKey: DefaultsKeys.aiThinkingEffort) ?? ""
         if let value = userDefaults.string(forKey: DefaultsKeys.aiPrompt) {
             aiPrompt = value
+        }
+        if let value = userDefaults.string(forKey: DefaultsKeys.aiBilingualPrompt) {
+            aiBilingualPrompt = value
         }
         if let value = intValue(forKey: DefaultsKeys.prefetchCount) {
             prefetchCount = value
@@ -178,6 +185,9 @@ import Observation
         if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             aiPrompt = SettingsDefaults.defaultPrompt
         }
+        if aiBilingualPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            aiBilingualPrompt = SettingsDefaults.defaultBilingualPrompt
+        }
         typography.font = ReaderFontMapper.normalizedFontName(typography.font)
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
@@ -211,6 +221,8 @@ import Observation
             return aiThinkingEffort
         case "AI_PROMPT":
             return aiPrompt
+        case "AI_BILINGUAL_PROMPT":
+            return aiBilingualPrompt
         case "PREFETCH_COUNT":
             return "\(prefetchCount)"
         case "AI_MIN_CHUNK_SIZE":
@@ -249,6 +261,8 @@ import Observation
             aiThinkingEffort = value
         case "AI_PROMPT":
             aiPrompt = value
+        case "AI_BILINGUAL_PROMPT":
+            aiBilingualPrompt = value
         case "PREFETCH_COUNT":
             if let intValue = SettingDescriptor.parsedPrefetchCount(value) {
                 prefetchCount = intValue
@@ -292,6 +306,7 @@ import Observation
         userDefaults.set(aiAPIKey, forKey: DefaultsKeys.aiAPIKey)
         userDefaults.set(aiThinkingEffort, forKey: DefaultsKeys.aiThinkingEffort)
         userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
+        userDefaults.set(aiBilingualPrompt, forKey: DefaultsKeys.aiBilingualPrompt)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)

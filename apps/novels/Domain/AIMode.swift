@@ -3,6 +3,7 @@ import Foundation
 enum AIMode: String, Codable, CaseIterable, Equatable, Identifiable {
     case none
     case rewrite
+    case bilingual
 
     var id: String {
         rawValue
@@ -12,9 +13,11 @@ enum AIMode: String, Codable, CaseIterable, Equatable, Identifiable {
         // swiftlint:disable switch_case_alignment
         switch self {
             case .none:
-                return "Không"
+                return "Bản gốc"
             case .rewrite:
-                return "Rewrite"
+                return "Dịch"
+            case .bilingual:
+                return "Song ngữ"
         }
         // swiftlint:enable switch_case_alignment
     }

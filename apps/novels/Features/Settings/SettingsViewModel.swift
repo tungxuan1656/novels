@@ -35,7 +35,7 @@ struct SettingDescriptor {
                     return "JSON phải là object, ví dụ {\"Authorization\":\"Bearer ...\"}"
                 }
                 return nil
-            case "AI_PROMPT":
+            case "AI_PROMPT", "AI_BILINGUAL_PROMPT":
                 if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     return "Rỗng sẽ về mặc định, dùng Xóa để khôi phục"
                 }
@@ -186,6 +186,14 @@ enum SettingsViewModel {
             placeholder: "Dịch truyện sang...",
             description: "Prompt hệ thống cho AI Rewrite (dịch, tóm tắt, viết lại)",
             defaultValue: SettingsDefaults.defaultPrompt,
+            allowsVerbatimSave: false
+        ),
+        "AI_BILINGUAL_PROMPT": SettingDescriptor(
+            key: "AI_BILINGUAL_PROMPT",
+            label: "Prompt song ngữ",
+            placeholder: "Dịch truyện sang song ngữ...",
+            description: "Prompt hệ thống cho đọc song ngữ (tiếng Việt và tiếng Anh)",
+            defaultValue: SettingsDefaults.defaultBilingualPrompt,
             allowsVerbatimSave: false
         ),
         "PREFETCH_COUNT": SettingDescriptor(

@@ -1,6 +1,6 @@
 # Contract — AI Processing Service (OpenAI-Compatible)
 
-> Canonical wire contract for AI rewrite (single prompt). Business view: `../../docs/product/integrations.md` §2. Consumers: `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `../../ARCHITECTURE.md`.
+> Canonical wire contract for independent rewrite and bilingual processing. Business view: `../../docs/product/integrations.md` §2. Consumers: `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md`. Settings: `settings-schema.md`. Topology: `../../ARCHITECTURE.md`.
 
 ## Endpoint
 
@@ -24,7 +24,7 @@
 
 For each chunk of chapter text (see Chunking):
 
-1. Base body depends on the endpoint family (see table above) and always includes `"stream": false` explicitly. Chat: `model` + `messages` (`system` = `AI_PROMPT`, `user` = chunk). Responses: `model` + `instructions` (`AI_PROMPT`) + `input` (chunk string). Anthropic: `model` + `system` (`AI_PROMPT`) + `messages` (`user` = chunk) + `max_tokens` (default `1024` when `AI_EXTRA_BODY` lacks it).
+1. Base body depends on the endpoint family (see table above) and always includes `"stream": false` explicitly. Chat: `model` + `messages` (`system` = the selected mode prompt, `user` = chunk). Responses: `model` + `instructions` (selected mode prompt) + `input` (chunk string). Anthropic: `model` + `system` (selected mode prompt) + `messages` (`user` = chunk) + `max_tokens` (default `1024` when `AI_EXTRA_BODY` lacks it).
 2. If `AI_EXTRA_BODY` is valid JSON object, merge it shallowly into the request body (nested `output_config` preserves generated effort before custom entries override it). Reserved keys are stripped per family and never overridden from extra: chat `{model, messages, stream}`; responses `{model, input, instructions, stream}`; anthropic `{model, messages, system, stream}` (`max_tokens` IS overridable via extra). `JSONSerialization` failure (invalid value types) fails fast with no retry. If the JSON is invalid, ignore it and continue. The request does not fail. Per-family passthrough examples:
    - Chat: `{"temperature": 0.7}`.
    - Responses: `{"reasoning": {"effort": "medium", "summary": "auto"}}`, `{"max_output_tokens": 512}`, `{"text": {"verbosity": "medium"}}`.
@@ -78,7 +78,7 @@ OpenCode Go routes by transport; these mappings are not authenticated gateway ve
 - Reject a conflicting custom response format or malformed nested text/output_config container instead of silently dropping the schema.
 - Before sending strict=true, validate every object schema: `additionalProperties: false`, object `properties`, and `required` listing every property exactly once. Check nested properties, array items, schema alternatives, and definitions; preserve the schema without normalization. Other provider-specific schema limits remain server-owned.
 - Structured responses require final answer text and a valid JSON object. Require Chat `finish_reason: stop`, Responses `status: completed`, or Messages `stop_reason: end_turn/stop_sequence`. Missing, null, or invalid markers fail; legacy text mode remains tolerant. Do not substitute reasoning_content or accept refusals.
-- Return the JSON string; future feature callers own typed decoding and schema/semantic validation. This seam is not a general JSON Schema validator.
+- Return the JSON string; feature callers own typed decoding and schema/semantic validation. This seam is not a general JSON Schema validator.
 - Server/gateway/model restrictions remain errors; retries keep the same body and never weaken format controls.
 
 ### Request and Response Shape
@@ -131,9 +131,18 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 - **Title exclusion:** AI input is the body string by construction. The parser sets the title from the first heading block and skips it, so only the body is chunked; the raw title renders above the translated body and is never translated. Chapters without a heading chunk exactly as before.
 - Prefetch processes chapters sequentially (BR-08, `chapter-prefetch.md`).
 
+### Bilingual Chunk Contract
+
+- `bilingual` uses independent `AI_BILINGUAL_PROMPT` plus a noneditable pairing protocol and `BilingualChapter.outputSchema`. `rewrite` still uses `AI_PROMPT` and plain text.
+- Normalize CRLF/CR to LF; split on blank lines and keep internal single newlines for fitting paragraphs. Oversized paragraphs reuse sentence/word-safe chunking. Assign chapter-wide IDs after splitting, before packing. Source character size excludes JSON overhead.
+- Input: `{"paragraphs":[{"id":"p001","text":"<source>"}]}`. Output: `{"paragraphs":[{"id":"p001","vi":"<Vietnamese>","en":"<English>"}]}`. Both languages required and nonempty after trimming. Exactly the requested ID set; duplicate/missing/unknown IDs reject. Returned order may differ; restore source order.
+- Validate before `chunk.success`. Flatten successful chunks by input order into ONE version-1 chapter JSON for cache; never join JSON strings. Semantic pairing errors abort without a new paid repair/retry loop. Transport/final-JSON retry remains bounded below.
+- Validate version, unique IDs and language fields on bilingual cache read. Corrupt/unknown-version cache fails explicitly; manual reprocess can replace it. Never render JSON or silently borrow rewrite.
+- Cancellation is checked before cache upsert. Failed reprocess retains an existing entry. Structural checks do not prove translation accuracy or detect repeated content assigned to distinct valid IDs.
+
 ## Retry and Failure
 
-- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to every failure kind (4xx, 5xx, network, timeout, decode/no-response). Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2.
+- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2.
 - **Success:** join chunk outputs in source order, clean, save to ProcessedChapter cache as text, render with `SwiftUI.Text`.
 - **Failure mapping:**
   - One chunk still failing after its 2nd attempt aborts the whole chapter: no partial cache write, toast once, render raw fallback. Manual "Xử lý lại" retries the chapter on demand.
@@ -146,7 +155,7 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 
 ## Cache
 
-- Single ProcessedChapter cache keyed by `bookId + chapterNumber + mode` (mode = `none`/`rewrite`). Mode `none` bypasses cache and service. The app checks the cache before calling. The app saves on success (upsert). No second cache exists. See `local-data.md` and `../../docs/product/business-rules.md` BR-07. Prefetch batch-checks then skips cached entries.
+- Single ProcessedChapter cache keyed by `bookId + chapterNumber + mode` (mode = `none`/`rewrite`/`bilingual`). Mode `none` bypasses cache and service. The app checks the cache before calling. The app saves on success (upsert). No second cache exists. See `local-data.md` and `../../docs/product/business-rules.md` BR-07. Prefetch batch-checks then skips cached entries.
 - Entries written before the version-2 migration are never served. On upgrade from `user_version` 1 the app runs a one-time `DELETE FROM processed_chapters` and bumps `user_version` to 2, so stale heading-included entries cannot be read.
 
 ## Defaults and Sanitization

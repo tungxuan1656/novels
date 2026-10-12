@@ -11,6 +11,7 @@ enum DefaultsKeys {
     static let aiAPIKey = "AI_API_KEY"
     static let aiThinkingEffort = "AI_THINKING_EFFORT"
     static let aiPrompt = "AI_PROMPT"
+    static let aiBilingualPrompt = "AI_BILINGUAL_PROMPT"
     static let aiMinChunkSize = "AI_MIN_CHUNK_SIZE"
     static let prefetchCount = "PREFETCH_COUNT"
     static let aiMode = "AI_MODE"
@@ -31,6 +32,7 @@ enum DefaultsKeys {
         aiAPIKey,
         aiThinkingEffort,
         aiPrompt,
+        aiBilingualPrompt,
         aiMinChunkSize,
         prefetchCount,
         aiMode,

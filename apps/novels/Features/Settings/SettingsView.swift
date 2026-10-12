@@ -34,6 +34,11 @@ struct SettingsView: View {
                     value: settings.aiPrompt
                 )
                 row(
+                    key: "AI_BILINGUAL_PROMPT",
+                    label: "Prompt song ngữ",
+                    value: settings.aiBilingualPrompt
+                )
+                row(
                     key: "AI_MIN_CHUNK_SIZE",
                     label: "Kích thước chunk",
                     value: "\(settings.aiMinChunkSize)"
