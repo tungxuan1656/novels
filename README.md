@@ -1,6 +1,6 @@
 # Novels
 
-![iOS 18.6+](https://img.shields.io/badge/iOS-18.6%2B-blue)
+![iOS 26.0+](https://img.shields.io/badge/iOS-26.0%2B-blue)
 ![Swift 5](https://img.shields.io/badge/Swift-5-orange)
 ![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-lightgrey)
 ![SwiftLint](https://img.shields.io/badge/SwiftLint-required-green)
@@ -9,7 +9,7 @@
 
 > Offline-first reader for iPhone. Download ZIP once and read offline. Optional AI rewrite uses one cache (`bookId+chapterNumber+mode`).
 
-Novels runs on iPhone only, iOS 18.6+, with Vietnamese UI. App device family is `1`. Product scope → `docs/decisions/ios-scope.md`.
+Novels runs on iPhone only, iOS 26.0+, with Vietnamese UI. App device family is `1`. Product scope → `docs/decisions/ios-scope.md`.
 
 ## Start here
 

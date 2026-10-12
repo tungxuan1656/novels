@@ -25,7 +25,7 @@ This supersedes the no-test/build-only policy in previous feature evidence and d
 
 Full verification now requires the iPhone 17 Pro/iOS 26.5 simulator. Unit tests are not UI automation and do not certify all app behavior.
 
-The app minimum is iOS 18.6; that runtime is not installed locally. Static availability review and newer-simulator tests do not replace runtime QA on 18.6.
+The app minimum is iOS 26.0; that runtime is not installed locally. Static availability review and newer-simulator tests do not replace runtime QA on 26.0.
 
 The pre-commit hook applies to staged Swift files only. It is a fast gate, not a substitute for full verification before commit/push.
 

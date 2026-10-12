@@ -2,7 +2,7 @@
 
 Novels is an offline-first reader for iPhone. It downloads one ZIP book package and reads offline.
 
-Product scope is iPhone only, iOS 18.6+, Vietnamese UI. App Debug and Release use device family `1`. See `docs/decisions/ios-scope.md`.
+Product scope is iPhone only, iOS 26.0+, Vietnamese UI. App Debug and Release use device family `1`. See `docs/decisions/ios-scope.md`.
 
 ## Start here
 
@@ -19,7 +19,7 @@ Product scope is iPhone only, iOS 18.6+, Vietnamese UI. App Debug and Release us
 ## Repository map
 
 ```
-apps/novels.xcodeproj  → Xcode project (scheme novels, minimum iOS 18.6 — see ARCHITECTURE.md §1)
+apps/novels.xcodeproj  → Xcode project (scheme novels, minimum iOS 26.0 — see ARCHITECTURE.md §1)
 apps/novels/           → SwiftUI app module
 apps/novelsTests/      → focused unit tests; no UI tests
 docs/                  → product, contracts, design, decisions

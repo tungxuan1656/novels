@@ -1,16 +1,18 @@
 # Verification and Documentation Alignment Implementation Plan
 
-**Goal:** Fix false verification success and align current guidance with the app and approved unit-only/iOS 18.6+ policies.
+**Goal:** Fix false verification success and align current guidance with the app and approved unit-only/iOS 26.0+ policies.
 
 **Architecture:** Keep the single app module. Add one hosted unit-test target to the existing shared scheme.
 
 ## Constraints
 
-- iPhone only; minimum iOS 18.6; Vietnamese UI; English code and documentation.
+- iPhone only; minimum iOS 26.0; Vietnamese UI; English code and documentation.
 - Add tests only for high-risk ZIP ingestion, SQLite cache behavior, and tolerant AI response decoding. Separate suites by responsibility.
 - No UI tests, new packages, CI, state validator, or changes to past progress/plan evidence.
 - Preserve feat-030 acceptance and verification evidence; update only its current handoff.
 - Parent owns all edits. Reviewers are read-only; they do not run verification concurrently.
+
+The original phases below were completed with an 18.6 floor. Their checked steps are historical; the current revision follows Phase 3.
 
 ## Phase 1 — Verification and Focused Tests
 
@@ -37,6 +39,13 @@
 - [x] Record evidence and done state only after acceptance passes.
 - [x] Commit with hooks, push a new branch, and open a PR to main. Record its URL in handoff.
 
+## Minimum-iOS Revision — User Approved
+
+- [x] Set project, app, and unit-test Debug/Release deployment targets to 26.0.
+- [x] Align current documents and skills; retain earlier acceptance evidence as history.
+- [x] Check effective settings and run full init on the unchanged 26.5 simulator.
+- [ ] Record the result, commit/push, and update existing PR #37.
+
 ## Verification Limits
 
-The available simulator is iOS 26.5, not 18.6. Compilation and API review do not substitute for runtime QA on iOS 18.6.
+The available simulator is iOS 26.5, not 26.0. Compilation and newer-simulator tests do not substitute for runtime QA on iOS 26.0.

@@ -2,7 +2,7 @@
 
 > Vision, personas, and scope only. Entities → [domain-model.md](./domain-model.md), terms → [glossary.md](./glossary.md), flows → [flows.md](./flows.md), rules → [business-rules.md](./business-rules.md). Topology → [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
-> Target: iPhone only, iOS 18.6+, Vietnamese UI. App device family is `1` — see [ios-scope](../decisions/ios-scope.md).
+> Target: iPhone only, iOS 26.0+, Vietnamese UI. App device family is `1` — see [ios-scope](../decisions/ios-scope.md).
 
 ## Purpose
 

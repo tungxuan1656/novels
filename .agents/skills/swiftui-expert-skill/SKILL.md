@@ -8,7 +8,7 @@ description: Use when writing, reviewing, or refactoring SwiftUI code for iOS or
 
 ## Operating Rules
 
-- Novels supports iOS 18.6+ with Swift 5 language mode on a Swift 6.2-capable compiler. Respect that floor and the unit-only policy in `AGENTS.md`; do not add UI tests.
+- Novels supports iOS 26.0+ with Swift 5 language mode on a Swift 6.2-capable compiler. Respect that floor and the unit-only policy in `AGENTS.md`; do not add UI tests.
 
 - Consult `references/latest-apis.md` at the start of every task to avoid deprecated APIs
 - Prefer native SwiftUI APIs over UIKit/AppKit bridging unless bridging is necessary

@@ -2,7 +2,7 @@
 set -o pipefail
 
 # Evidence-based verification for Novels (iOS).
-# Repo root: apps/novels.xcodeproj (scheme novels, minimum iOS 18.6; verification simulator iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
+# Repo root: apps/novels.xcodeproj (scheme novels, minimum iOS 26.0; verification simulator iOS 26.5). SwiftLint + SwiftFormat active (.swiftlint.yml, .swiftformat, .githooks/pre-commit, scripts/setup.sh).
 # Keep at least one BUILD_TASKS entry when build evidence exists; explicit SKIP comments otherwise.
 MAX_JOBS="${HARNESS_JOBS:-4}"
 STATUS=0

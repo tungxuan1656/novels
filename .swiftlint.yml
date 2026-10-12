@@ -1,5 +1,5 @@
 # SwiftLint configuration for Novels — app and unit tests.
-# Swift 5 language mode, minimum iOS 18.6.
+# Swift 5 language mode, minimum iOS 26.0.
 # Tuned for small team: not too strict, but catches real issues.
 
 included:

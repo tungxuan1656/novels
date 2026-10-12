@@ -4,7 +4,7 @@
 
 ## 1. Topology
 
-- **App:** iPhone only, minimum iOS 18.6, Vietnamese UI. Single reader, offline-first. App Debug and Release use device family `1`.
+- **App:** iPhone only, minimum iOS 26.0, Vietnamese UI. Single reader, offline-first. App Debug and Release use device family `1`.
 - **Stack:** SwiftUI, Foundation, Observation, system SQLite3. `apps/novels.xcodeproj`, shared scheme `novels`, app module `novels`, unit-test target `novelsTests`. No SwiftPM or Node workspace.
 - **Toolchain:** Xcode 26+ with Swift 6.2-capable compiler; `SWIFT_VERSION=5.0` is the language mode, not the compiler version. Verification uses iPhone 17 Pro/iOS 26.5. SDK version is separate from the deployment floor. See `docs/decisions/ios-scope.md`.
 - **Quality tools:** SwiftLint and SwiftFormat are required. Configuration: `.swiftlint.yml`, `.swiftformat`, `.githooks/pre-commit`; setup: `scripts/setup.sh`. Setup installs Homebrew versions, not pinned versions.
@@ -55,7 +55,7 @@ This is one app module; the folders are responsibility boundaries, not separate 
 
 - **Verification:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, unit tests, and drift. Quick `--quick`/`-q` runs format, lint, and drift, explicitly skipping build/tests. Missing SwiftFormat or SwiftLint fails verification.
 - **Tests:** Only targeted unit tests for difficult or high-risk logic, in separate files under `apps/novelsTests/`. The hosted test process bypasses `AppRoot` before production stores or session restoration; a startup guard test checks host detection. No UI tests or blanket coverage requirement. See `docs/decisions/verification.md`.
-- **Runtime limit:** The current verification destination is iOS 26.5, not 18.6. Deployment settings and API review do not prove runtime behavior on iOS 18.6.
+- **Runtime limit:** The current verification destination is iOS 26.5, not 26.0. Deployment settings and API review do not prove runtime behavior on iOS 26.0.
 - **Product:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/functional-specs/`, `docs/product/decisions.md`.
 - **Design:** `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
 - **Contracts:** `docs/contracts/index.md`; **Decisions:** `docs/decisions/index.md`; **Security:** `SECURITY.md`.
