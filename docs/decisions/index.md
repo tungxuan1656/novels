@@ -6,12 +6,13 @@
 
 | ADR | Title | Status | Links |
 |---|---|---|---|
-| [ios-scope.md](./ios-scope.md) | iPhone-only, iOS 26+, Vietnamese UI | Accepted | `../../ARCHITECTURE.md` §1, `../../docs/product/overview.md`, `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../docs/design/design-system.md` |
+| [ios-scope.md](./ios-scope.md) | iPhone-only, iOS 26.0+, Vietnamese UI | Accepted | `../../ARCHITECTURE.md` §1, `../../docs/product/overview.md`, `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../docs/design/design-system.md` |
 | [network-logger-removed.md](./network-logger-removed.md) | Remove Network Logger from product/design scope | Accepted | `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../SECURITY.md` |
 | [book-package-shape.md](./book-package-shape.md) | ZIP producer shape at archive root; sample ZIP non-canonical | Accepted | `../contracts/book-package.md`, `../contracts/local-data.md` |
 | [local-persistence.md](./local-persistence.md) | Native Swift persistence (FileManager+Codable, SQLite cache, UserDefaults@Observable, unzipItem, SwiftUI.Text pipeline, URLSession, localhost ATS) | Accepted | `../../ARCHITECTURE.md`, `../contracts/local-data.md`, `../contracts/settings-schema.md`, `../contracts/book-package.md`, `../contracts/ai-service.md`, `../../SECURITY.md` |
 | [book-identity.md](./book-identity.md) | Local slug identity (`book.json.id`) vs remote numeric catalog ids | Accepted | `../contracts/catalog-api.md`, `../contracts/book-package.md`, `../contracts/local-data.md` |
 | [diagnostic-log-viewer.md](./diagnostic-log-viewer.md) | In-session diagnostic log viewer (ring 500, redaction, 180s timeout) | Accepted | `../../ARCHITECTURE.md` §3, `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../SECURITY.md`, `../contracts/ai-service.md` |
+| [verification.md](./verification.md) | Required format/lint, focused unit tests only, no UI tests | Accepted | `../../init.sh`, `../../AGENTS.md`, `../../ARCHITECTURE.md` |
 
 ## Superseded
 

@@ -80,7 +80,7 @@ Startup ──UserDefaults restore/sanitize──► Settings/Session/Typography
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → drift). No test targets by decision; verification is build-only.
+- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Links
 

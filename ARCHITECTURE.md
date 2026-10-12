@@ -1,75 +1,68 @@
 # ARCHITECTURE.md — Novels
 
-> Topology for agents. Product behavior → `docs/product/` and `docs/design/`. Wire and storage → `docs/contracts/`.
+> Current topology for agents. Product behavior → `docs/product/` and `docs/design/`. Wire and storage → `docs/contracts/`.
 
 ## 1. Topology
 
-- **App:** iPhone only, iOS 26+, Vietnamese UI. Single reader, offline-first. [Intended — product is iPhone-only/Vietnamese; project `apps/novels.xcodeproj` still lists family `1,2`]
-- **Stack:** SwiftUI / Xcode — `apps/novels.xcodeproj` (scheme `novels`, iOS 26.5, Swift 5.0, `DEVELOPMENT_TEAM M5U4E4H84J`). Module `apps/novels`. No SwiftPM/Node. No test targets by decision — single app target `novels`. Toolchain is SwiftLint 0.65.1 and SwiftFormat 0.62.1 via `.swiftlint.yml` / `.swiftformat` and `.githooks/pre-commit` (setup `scripts/setup.sh`). [Observed — `init.sh`]
-- **Integrations:** Remote Book Catalog (listing and ZIP) and one OpenAI-compatible AI service (rewrite via `AI_PROMPT`). Both need network. Library, Reader, and settings work offline. See `docs/contracts/catalog-api.md`, `docs/contracts/ai-service.md`, `docs/product/integrations.md`.
-- **Local stores (accepted native):** See `docs/decisions/local-persistence.md` and `docs/decisions/book-identity.md`.
-  - Local Book Repository → `books/<slug>/` in `Application Support/novels/` via `Foundation.FileManager` and `Codable`. See `docs/contracts/local-data.md` and `docs/decisions/book-identity.md`.
-  - ProcessedChapter cache → `processed_chapters.sqlite` in `Application Support/novels/cache/` via system `SQLite3` (`libsqlite3`, no package). See `docs/contracts/local-data.md`.
-  - Settings, Session, Typography → `UserDefaults` wrapped by `@Observable`. Stores `AI_CUSTOM_HEADERS` as normal JSON. No `Keychain`. See `docs/contracts/settings-schema.md`.
-   - File handling: `FileManager.unzipItem` extracts ZIP with tolerant hygiene + wrapper flatten + data-descriptor support, strict security invariants preserved. See `docs/contracts/book-package.md` and `docs/contracts/local-data.md`.
-  - HTML rendering: `Foundation` parses `div`, `h*`, `p`, `br`, `b`, `strong`, `i`, `em`, `span` into spans for `SwiftUI.Text`. No WebKit. See `docs/contracts/local-data.md`.
-  - Networking: `URLSession` uses `async/await`, `Task` cancellation, and `actor` de-duplication for catalog, AI, and prefetch. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
-  - Security: `NSAppTransportSecurity` allows `http://localhost:8317` only.
-  - Scope: No React Native packages. No RN migration in any direction. Historical RN findings are reference only.
-- **Settings keys:** Current keys only. Canonical list lives in `docs/contracts/settings-schema.md`. Keys include `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `PREFETCH_COUNT`, and `DIAGNOSTICS_VERBOSE`. Defaults are `gpt-4o`, prefetch `3`, chunk `1300`. Invalid JSON is ignored. Unknown or legacy keys are ignored. See `docs/decisions/local-persistence.md`. [Accepted]
+- **App:** iPhone only, minimum iOS 26.0, Vietnamese UI. Single reader, offline-first. App Debug and Release use device family `1`.
+- **Stack:** SwiftUI, Foundation, Observation, system SQLite3. `apps/novels.xcodeproj`, shared scheme `novels`, app module `novels`, unit-test target `novelsTests`. No SwiftPM or Node workspace.
+- **Toolchain:** Xcode 26+ with Swift 6.2-capable compiler; `SWIFT_VERSION=5.0` is the language mode, not the compiler version. Verification uses iPhone 17 Pro/iOS 26.5. SDK version is separate from the deployment floor. See `docs/decisions/ios-scope.md`.
+- **Quality tools:** SwiftLint and SwiftFormat are required. Configuration: `.swiftlint.yml`, `.swiftformat`, `.githooks/pre-commit`; setup: `scripts/setup.sh`. Setup installs Homebrew versions, not pinned versions.
+- **Integrations:** Catalog listing and ZIP download, plus configurable AI endpoints supporting Chat Completions, Responses, and Anthropic messages. Network is needed for catalog/import and uncached AI, not local reading. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
+- **Stores:** Books in `Application Support/novels/books/<slug>/` via FileManager and Codable; processed chapters in `cache/processed_chapters.sqlite` via SQLite3. Settings, session, and typography use UserDefaults with an `@Observable` store. No Keychain. See `docs/contracts/local-data.md` and `docs/contracts/settings-schema.md`.
+- **Rendering:** Foundation parses HTML into an optional title and a plain body string. Reader splits the body into paragraph chunks for SwiftUI `Text`; no spans, emphasis, or WebKit.
+- **File handling:** Local ZIP extraction supports stored/deflated entries, hygiene filtering, data descriptors, and single-wrapper flattening. Root validation, traversal, CRC, and expansion limits remain enforced. See `docs/contracts/book-package.md`.
+- **Security:** ATS has an insecure-HTTP exception for localhost and its subdomains; it does not restrict ports. `http://localhost:8317` is the default AI endpoint, not an ATS port rule. No React Native packages or migration. See `SECURITY.md`.
 
 ## 2. Code Map
 
-> Current code is stub (`apps/novels/ContentView.swift` is `Hello, world!`). Map below is intended layering. All locations are [Proposed/Intended].
+All paths below exist in the app. This is not a proposed layout.
 
-| Layer | Responsibility | Intended location | Native choice |
-|---|---|---|---|
-| Presentation | SwiftUI screens, navigation, overlays (Library, Add Book, Reading, References, Settings, Cache Manager, Setting Editor, Bottom Sheet, Toast) | `apps/novels/**` views | SwiftUI and `SwiftUI.Text` (HTML → spans, no WebKit) |
-| Domain | Entities and invariants from `docs/product/domain-model.md`, state machines (AI Mode, Reading Position, Prefetch Status), rules BR-01..12 | domain models / use-cases | pure Swift |
-| Data — Repository | Scan, extract, and delete ZIP; read `book.json` and HTML; per-book offset and typography | `docs/contracts/local-data.md`, `docs/contracts/book-package.md` | `FileManager` + `Codable` + `FileManager.unzipItem` in `Application Support` |
-| Data — Cache | ProcessedChapter cache, de-duplication, `contentHash` | `docs/contracts/local-data.md` | system `SQLite3` (`processed_chapters.sqlite`) |
-| Data — Settings | Restore and sanitize on launch; validate on edit | `docs/contracts/settings-schema.md` | `UserDefaults` + `@Observable` (no Keychain) |
-| Integrations | Catalog POST client, ZIP download, AI chunk and retry client (merge `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY`) | `docs/contracts/catalog-api.md`, `docs/contracts/ai-service.md` | `URLSession` `async/await` + `actor` de-dup + `Task` cancel |
-| Cross-cutting | Chunking (~1300), retry (3×, `1000/2000 ms`), prefetch status (runtime-only) | `docs/contracts/ai-service.md`, `docs/product/functional-specs/chapter-prefetch.md` | — |
-
-No test targets; do not add test config in any task. Do not change project config in docs tasks. [Decided]
+| Location | Responsibility |
+|---|---|
+| `apps/novels/NovelsApp.swift`, `apps/novels/App/` | Entry point, dependency composition in `AppRoot`, navigation and session restore in `Router` |
+| `apps/novels/Features/Library/`, `apps/novels/Features/Import/` | Local library, book info/delete, catalog and ZIP import view models and screens |
+| `apps/novels/Features/Reading/` | Reader view/model, body splitter, references, controls, scroll offset and typography |
+| `apps/novels/Features/Settings/`, `apps/novels/Features/Diagnostics/` | Settings editors, cache management, in-session diagnostic viewer |
+| `apps/novels/Domain/`, `apps/novels/Models/` | Book/chapter/session/settings types, HTML parser, slug validation, hashing and exported-book model |
+| `apps/novels/Persistence/` | `FileBookRepository`, paths/defaults, ZIP extraction/root validation, `SettingsStore`, `SQLiteProcessedChapterCache` |
+| `apps/novels/Services/` | `CatalogService`, `AIClient`, request/response helpers, `AIReadingService`, `PrefetchManager`, diagnostic logging |
+| `apps/novels/SharedUI/`, `apps/novels/Shared/`, `apps/novels/Resources/` | Sheets, loading/toast UI, accessibility helpers, design tokens and bundled fonts |
+| `apps/novelsTests/` | Separate ZIP ingestion, processed-cache, and AI response unit suites; no UI-test target |
 
 ## 3. Boundaries
 
-Allowed direction: Presentation → Domain → Data/Integrations. Contracts are interfaces.
+This is one app module; the folders are responsibility boundaries, not separate framework targets.
 
-- **Allowed:** Presentation can depend on Domain and contracts. Domain can depend on contract protocols and types. Data and Integrations implement contracts and can depend on Domain entities.
-- **Allowed:** `chapter-prefetch` can depend on `ai-reading` cache path and `local-data` cache boundary.
-- **Forbidden:** Domain must not import SwiftUI, UIKit, or WebKit. Data must not import Presentation. Integrations must not mutate UI state directly. They return results to Domain. No business rule duplication outside `docs/product/business-rules.md`. No second AI cache. Use the accepted boundaries in `docs/decisions/local-persistence.md` and `docs/contracts/local-data.md`.
-- **Forbidden:** No `SwiftData`, `Core Data`, Swift package, `Keychain`, or `BGTaskScheduler` for these boundaries (see `local-persistence.md` Non-Decisions). No React Native dependency or migration. No persisted Network Logger; in-session diagnostic viewer allowed with redaction per `docs/decisions/diagnostic-log-viewer.md` (partial supersede `network-logger-removed.md`).
+- Views and view models coordinate domain types, repositories, settings, and services. Domain models do not import SwiftUI, UIKit, or WebKit.
+- Persistence and services use domain models; they do not depend on feature views. Actors return results to UI coordination on the main actor.
+- `AIReadingService` and `PrefetchManager` share one processed-chapter cache and AI pipeline. No second AI cache.
+- Contracts own wire/storage rules; `docs/product/business-rules.md` owns business rules. Do not duplicate those rules here.
+- No SwiftData, Core Data, Swift package, Keychain, or BGTaskScheduler for these boundaries. See `docs/decisions/local-persistence.md`.
+- No persisted Network Logger. The in-session viewer follows redaction rules in `docs/decisions/diagnostic-log-viewer.md` and `SECURITY.md`.
 
 ## 4. Flows
 
-Startup → Session restore (no network) → route `onScreen ? Reading(bookId: slug) : Library`. See `docs/product/flows.md` §1 and `docs/design/navigation.md`.
-
-Discover and Import → read `BOOKS_API_URL` and POST catalog (no body). Then it lists results, downloads ZIP via `URLSession` to temp, extracts with `FileManager.unzipItem` to `Application Support/novels/books/<slug>/`, validates root, deletes ZIP, and refreshes Library. See `docs/contracts/catalog-api.md`, `docs/contracts/book-package.md`, `docs/contracts/local-data.md`, `docs/decisions/book-identity.md`.
-
-Library → scan `Application Support/novels/books/` and `Codable` read `book.json`. Then it shows rows, and supports Info sheet or swipe Delete (confirm removes slug folder). See `docs/contracts/local-data.md`, `docs/product/functional-specs/book-library.md`.
-
-Reader → parse `chapters/chapter-N.html` to text spans and render with `SwiftUI.Text`. It uses typography from `@Observable` store. Previous, Next, and index save offset per slug `bookId`. See `docs/contracts/local-data.md`, `docs/product/functional-specs/book-reader.md`.
-
-AI Reading → mode `none` shows raw text. Mode `rewrite` checks cache first (`bookId(slug)+chapterNumber+mode` via SQLite). On miss, the app chunks text (~1300) and POSTs each chunk to `OPENAI_API_URL` via `URLSession`. It merges `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` JSON and ignores invalid JSON. It retries 3× (`1000/2000 ms`) with `actor` de-duplication, joins and cleans text, then does `INSERT OR REPLACE` into cache. See `docs/contracts/ai-service.md`, `docs/contracts/settings-schema.md`, `docs/product/functional-specs/ai-reading.md`.
-
-Prefetch → runs when mode is not `none` and chapter is ready. N = `PREFETCH_COUNT` (default `3`, range `0..1000`, else `3`). Batch-check SQLite → sequential chapters via same AI path → `Task` cancels on chapter or mode change. See `docs/contracts/ai-service.md`, `docs/contracts/local-data.md`, `docs/product/functional-specs/chapter-prefetch.md`.
-
-Settings → sanitize on launch (missing or invalid → defaults; unknown or legacy → ignored; unknown provider → `openai`; empty `AI_PROMPT` → default prompt). Edit → validate → persist to `UserDefaults`. See `docs/contracts/settings-schema.md`, `SECURITY.md`, `docs/product/functional-specs/settings-management.md`.
+- **Startup:** `NovelsApp` → `AppRoot` → `Router.restoreInitialRoute()`. Restore a valid reading session without network; otherwise show Library.
+- **Import:** `ImportViewModel` loads catalog, downloads a ZIP to temporary storage, extracts, resolves the canonical root, and validates it. `FileBookRepository` imports by slug and refreshes Library. See `docs/contracts/book-package.md` and `docs/decisions/book-identity.md`.
+- **Library:** `LibraryViewModel` scans local books through the repository. Confirmed deletion removes the slug folder and related state. See `docs/product/functional-specs/book-library.md`.
+- **Reader:** `ReaderViewModel` loads source HTML or processed text. `HtmlParser` extracts title/body; `ReaderBodySplitter` prepares paragraph chunks for `ReaderView`. Navigation and scrolling persist per-book position through `SettingsStore`.
+- **AI:** Mode `none` uses source text; `rewrite` checks SQLite by slug, chapter, and mode. On a miss, `AIReadingService` de-duplicates work and processes chunks in parallel. `AIClient` makes at most two attempts per chunk. Results join in order; only a complete successful result enters cache. See `docs/contracts/ai-service.md`.
+- **Prefetch:** `PrefetchManager` batch-checks cache, then processes chapters sequentially through the same AI pipeline. Same-book/mode navigation reconciles the FIFO queue; book/mode changes or explicit cancellation end it. An unsuccessful chapter can be requeued once. See `docs/product/functional-specs/chapter-prefetch.md`.
+- **Settings:** `SettingsStore` sanitizes persisted values, uses defaults for invalid values, and stores validated edits in UserDefaults. See `docs/contracts/settings-schema.md`.
 
 ## 5. Verification and Routes
 
-- **Build only:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, drift; `--quick` (`-q`) runs format + lint + drift only (skip build) for fast local loops. Evidence: `apps/novels.xcodeproj/project.pbxproj` (scheme `novels`, iOS 26.5), `xcodebuild -list` shows single app target `novels`, `xcrun simctl list` shows iPhone 17 Pro (iOS 26.5). Format and lint use SwiftLint and SwiftFormat. [Observed]
-- **Product truth:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/*`, business decisions `docs/product/decisions.md`.
+- **Verification:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, unit tests, and drift. Quick `--quick`/`-q` runs format, lint, and drift, explicitly skipping build/tests. Missing SwiftFormat or SwiftLint fails verification.
+- **Tests:** Only targeted unit tests for difficult or high-risk logic, in separate files under `apps/novelsTests/`. The hosted test process bypasses `AppRoot` before production stores or session restoration; a startup guard test checks host detection. No UI tests or blanket coverage requirement. See `docs/decisions/verification.md`.
+- **Runtime limit:** The current verification destination is iOS 26.5, not 26.0. Deployment settings and API review do not prove runtime behavior on iOS 26.0.
+- **Product:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/functional-specs/`, `docs/product/decisions.md`.
 - **Design:** `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
-- **Contracts:** `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`.
-- **Decisions:** `docs/decisions/index.md` → `ios-scope.md`, `network-logger-removed.md`, `ai-service-defaults.md`, `book-package-shape.md`, `local-persistence.md`, `book-identity.md`; business canonical `docs/product/decisions.md`.
-- **Security:** `SECURITY.md` (no Keychain, no Network Logger, no secrets in docs).
-- **Work state:** `feature_index.json`, `features/*`, `progress.md`, `init.sh`.
+- **Contracts:** `docs/contracts/index.md`; **Decisions:** `docs/decisions/index.md`; **Security:** `SECURITY.md`.
+- **Current work state:** `feature_index.json` and current feature handoffs in `features/`. A feature can be done before PR merge. `progress.md` and completed plans record historical evidence, not live Git status.
 
-## 6. Notes
+## 6. Maintenance
 
-- Labels: **Observed** is in repo; **Intended** is accepted but not in code; **Open** is undecided detail (for example backup exclusion).
-- Do not edit Swift, Xcode project, `feature_index.json`, `features/`, `progress.md`, `init.sh`, or delete `docs/samples/van-gioi-chi-rut-thuong-he-thong.zip` in docs tasks. That ZIP is tracked. It has an outer folder and `__MACOSX` data. It is not a valid fixture. See `docs/contracts/book-package.md`.
+Update this map when entry points, topology, or verification change. Follow linked contracts rather than copying their detailed defaults here.
+
+Keep documentation-only work separate from Swift/project changes unless approved. Preserve completed plan/progress evidence and the tracked sample ZIP; its wrapper shape is non-canonical producer output, not a canonical test fixture.

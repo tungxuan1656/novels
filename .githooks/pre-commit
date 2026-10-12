@@ -37,7 +37,8 @@ if command -v swiftformat >/dev/null 2>&1; then
         echo -e "${GREEN}[pre-commit] SwiftFormat passed.${NC}"
     fi
 else
-    echo -e "${YELLOW}[pre-commit] swiftformat not found — skipping format check (install: brew install swiftformat).${NC}"
+    echo -e "${RED}[pre-commit] swiftformat not found — install: brew install swiftformat.${NC}"
+    HAS_ERROR=1
 fi
 
 # --- SwiftLint check (full project, single run) ---
@@ -52,7 +53,8 @@ if command -v swiftlint >/dev/null 2>&1; then
         echo -e "${GREEN}[pre-commit] SwiftLint passed.${NC}"
     fi
 else
-    echo -e "${YELLOW}[pre-commit] swiftlint not found — skipping lint check (install: brew install swiftlint).${NC}"
+    echo -e "${RED}[pre-commit] swiftlint not found — install: brew install swiftlint.${NC}"
+    HAS_ERROR=1
 fi
 
 if [ "$HAS_ERROR" -ne 0 ]; then

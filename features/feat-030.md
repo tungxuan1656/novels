@@ -121,6 +121,7 @@ Verify for Task 2: `./init.sh --quick` PASS (drift must stay PASS).
 - State: done
 - Evidence: commits `efacc29` (code) + `96e7ac5` (docs) on `feat/030-opencode-session`; ledger `.agent-work/sdd/feat-030/progress.md`
 - Blockers: none
-- Next: merge PR to main on request; no commit/push done (not requested).
+- Integration: PR #34 merged on 2026-09-07 (`5af1787`): https://github.com/tungxuan1656/novels/pull/34
+- Next: none for this feature; completed and merged. Acceptance and verification evidence above are historical.
 
 <!-- harness-slim 1.4.0 · generated 2026-08-24 -->

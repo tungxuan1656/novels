@@ -184,6 +184,12 @@
       "title": "Auto-inject x-opencode-session per chapter",
       "status": "done",
       "depends_on": ["feat-006"]
+    },
+    {
+      "id": "feat-031",
+      "title": "Verification and Documentation Alignment",
+      "status": "done",
+      "depends_on": ["feat-030"]
     }
   ]
 }

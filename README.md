@@ -1,15 +1,15 @@
 # Novels
 
-![iOS 26.5](https://img.shields.io/badge/iOS-26.5-blue)
+![iOS 26.0+](https://img.shields.io/badge/iOS-26.0%2B-blue)
 ![Swift 5](https://img.shields.io/badge/Swift-5-orange)
-![SwiftUI](https://img.shields.io/badge/SwiftUI-iOS26-lightgrey)
-![SwiftLint 0.65.1](https://img.shields.io/badge/SwiftLint-0.65.1-green)
-![SwiftFormat 0.62.1](https://img.shields.io/badge/SwiftFormat-0.62.1-green)
+![SwiftUI](https://img.shields.io/badge/UI-SwiftUI-lightgrey)
+![SwiftLint](https://img.shields.io/badge/SwiftLint-required-green)
+![SwiftFormat](https://img.shields.io/badge/SwiftFormat-required-green)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 
-> Offline-first reader for iPhone. Download ZIP once and read offline. Optional AI translate and summary use one cache (`bookId+chapterNumber+mode`).
+> Offline-first reader for iPhone. Download ZIP once and read offline. Optional AI rewrite uses one cache (`bookId+chapterNumber+mode`).
 
-Novels runs on iPhone only, iOS 26+ (builds against 26.5), Vietnamese UI. Product scope → `docs/decisions/ios-scope.md`. Project still declares family `1,2`.
+Novels runs on iPhone only, iOS 26.0+, with Vietnamese UI. App device family is `1`. Product scope → `docs/decisions/ios-scope.md`.
 
 ## Start here
 
@@ -35,26 +35,29 @@ Details live in `ARCHITECTURE.md` §1 and §2. Verification lives in `init.sh`.
 
 ## Getting started
 
-Prerequisite: Xcode 16+ and iPhone 17 Pro simulator (iOS 26.5).
+Prerequisite: Xcode 26+ with a Swift 6.2-capable compiler, Homebrew, and iPhone 17 Pro simulator (iOS 26.5).
+The simulator version is not the minimum supported iOS version.
 
-1. Run `bash scripts/setup.sh` to install `swiftlint 0.65.1`, `swiftformat 0.62.1`, and hooks.
+1. Run `bash scripts/setup.sh` to install SwiftLint, SwiftFormat, and hooks. Homebrew versions are not pinned; existing installations are retained.
 2. Open `apps/novels.xcodeproj`.
 3. Select scheme `novels` and destination `iPhone 17 Pro (iOS 26.5)`.
 4. Run on simulator.
 
 ## Development
 
-- Edit Swift in `apps/novels/`.
-- Run `./init.sh --quick` trong lúc lặp nhanh, và `./init.sh` (full) trước khi commit.
+- Edit app Swift in `apps/novels/` and focused unit tests in `apps/novelsTests/`. No UI tests.
+- Run `./init.sh --quick` during local iterations and full `./init.sh` before commit/push.
 - Keep at most one feature `active`. See `AGENTS.md` and `feature_index.json`.
 
 ## Verification
 
-- Full: `./init.sh` — format + lint + build + test + drift (source of truth, dùng cho CI / pre-push / feature done)
-- Quick: `./init.sh --quick` (alias `-q`) — chỉ format + lint + drift, skip build/test (dùng cho loop local nhanh)
+- Full: `./init.sh` — format + lint + build + unit tests + drift (source of truth for pre-push / feature done)
+- Quick: `./init.sh --quick` (alias `-q`) — format + lint + drift; skips build and unit tests
 - Help: `./init.sh --help`
 
-Run `./init.sh --quick` cho feedback nhanh (vài giây). Chạy `./init.sh` full trước khi commit/push. Script in `PASS`/`SKIP`/`FAIL` per phase và `Verification passed` ở cuối. Nếu phase báo `FAIL`, fix và chạy lại.
+Missing SwiftFormat or SwiftLint fails verification. Each phase reports `PASS`, `SKIP`, or `FAIL`; failures return nonzero.
+The staged-Swift hook checks format/lint only. Docs-only commits must still run full verification before commit/push.
+Test scope and runtime limits → `docs/decisions/verification.md`.
 
 ## Security
 

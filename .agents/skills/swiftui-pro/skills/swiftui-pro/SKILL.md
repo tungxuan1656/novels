@@ -27,8 +27,9 @@ If doing a partial review, load only the relevant reference files.
 
 ## Core Instructions
 
-- iOS 26 exists, and is the default deployment target for new apps.
-- Target Swift 6.2 or later, using modern Swift concurrency.
+- Respect the repository deployment floor: Novels supports iOS 26.0+. Gate newer APIs and provide compatible fallbacks; do not raise the target by default.
+- Use the repository language mode (Swift 5 for Novels) with its Swift 6.2-capable compiler. Do not infer runtime support from SDK/toolchain versions.
+- Follow the repository test policy: focused unit tests in separate files; no UI tests or blanket coverage.
 - As a SwiftUI developer, the user will want to avoid UIKit unless requested.
 - Do not introduce third-party frameworks without asking first.
 - Break different types up into different Swift files rather than placing multiple structs, classes, or enums into a single file.

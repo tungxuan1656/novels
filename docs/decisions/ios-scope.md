@@ -1,7 +1,32 @@
-# ADR — iPhone-Only, iOS 26+, Vietnamese UI
+# ADR — iPhone-Only, iOS 26.0+, Vietnamese UI
 
 - **Date:** 2026-08-24
-- **Status:** Accepted
+- **Status:** Accepted; current scope amended in feat-031.
+
+## Current Scope — feat-031 Revision
+
+The user restored the iOS 26+ scope and selected 26.0 as the minimum, superseding the earlier 18.6 amendment.
+
+- Project, app, and unit-test Debug/Release use `IPHONEOS_DEPLOYMENT_TARGET=26.0`; app device family remains `1`.
+- No current API requires a 26.5 minimum. Supporting 26.0 avoids excluding earlier iOS 26 releases without a technical reason.
+- Verification stays on iPhone 17 Pro/iOS 26.5; that simulator version does not define the deployment floor.
+- iOS 26.0 runtime QA remains unverified locally. Newer APIs must respect the 26.0 floor.
+- Toolchain requirements and the focused unit-only policy are unchanged: [verification.md](./verification.md).
+
+## Previous feat-031 Amendment — Historical
+
+The user approved iPhone-only support on iOS 18.6+, with Vietnamese UI. This supersedes the original iOS 26+ floor below.
+
+- App and project Debug/Release use `IPHONEOS_DEPLOYMENT_TARGET=18.6`; app device family is `1`.
+- The app target already used 18.6. This amendment aligns product intent and project defaults; it does not lower the app target.
+- The source uses a Swift 6.2-capable compiler, normally Xcode 26+. SDK/toolchain versions do not define the minimum runtime version.
+- Static API review found no unguarded API above iOS 18.6. The reader's scroll APIs require iOS 18.0.
+- Verification uses iPhone 17 Pro/iOS 26.5. Runtime QA on iOS 18.6 remains unverified; do not claim certification from build/API review.
+- Test policy is now focused unit tests only: [verification.md](./verification.md).
+
+## Original Decision — Historical
+
+The remaining sections retain the original decision and feat-008 evidence. They do not define the current deployment floor or test policy.
 
 ## Context
 

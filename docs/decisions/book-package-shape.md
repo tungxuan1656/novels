@@ -33,6 +33,10 @@ Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but pr
 - Decision: App tolerates a single outer-folder + hygiene ignore + data-descriptor support, while keeping strict checks for 2+ top-level entries / missing chapter / CRC failure.
 - Consequences: Sample `van-gioi-...zip` now imports via flatten; see `docs/plans/feat-010`.
 
+## Amendment — feat-031 Verification
+
+The build-only/no-test statement above is historical. Focused ZIP unit tests now exercise ingestion and rejection; see [verification.md](./verification.md). No UI tests are added.
+
 ## Links
 
 - Canonical: `../contracts/book-package.md` · `../contracts/local-data.md` · `../../docs/product/domain-model.md` Invariants · `../../docs/product/functional-specs/book-import.md`
