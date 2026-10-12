@@ -212,7 +212,10 @@ struct AIAnthropicResponse: Decodable {
 
 /// Unified resolver: decode the struct matching `family` and return its `resolvedText`.
 enum AIUnifiedResponse {
-    static func resolve(data: Data, family: AIEndpointFamily) -> String? {
+    static func resolve(data: Data, family: AIEndpointFamily, structured: Bool = false) -> String? {
+        if structured {
+            return structuredText(data: data, family: family)
+        }
         let decoder = JSONDecoder()
         // swiftlint:disable switch_case_alignment
         switch family {
@@ -228,11 +231,49 @@ enum AIUnifiedResponse {
         }
         // swiftlint:enable switch_case_alignment
     }
+
+    // swiftlint:disable switch_case_alignment
+    private static func structuredText(data: Data, family: AIEndpointFamily) -> String? {
+        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              root["error"] == nil || root["error"] is NSNull
+        else { return nil }
+        let text: String?
+        switch family {
+            case .chatCompletions:
+                let choice = (root["choices"] as? [[String: Any]])?.first
+                let message = choice?["message"] as? [String: Any]
+                guard choice?["finish_reason"] as? String == "stop" else { return nil }
+                if let refusal = message?["refusal"] as? String, !refusal.isEmpty {
+                    return nil
+                }
+                text = message?["content"] as? String
+            case .responses:
+                guard root["status"] as? String == "completed" else { return nil }
+                let items = root["output"] as? [[String: Any]] ?? []
+                let blocks = items.flatMap { $0["content"] as? [[String: Any]] ?? [] }
+                if blocks.contains(where: { $0["type"] as? String == "refusal" }) {
+                    return nil
+                }
+                text = (try? JSONDecoder().decode(AIResponsesResponse.self, from: data))?.resolvedText
+            case .anthropic:
+                guard let reason = root["stop_reason"] as? String,
+                      ["end_turn", "stop_sequence"].contains(reason)
+                else { return nil }
+                text = (try? JSONDecoder().decode(AIAnthropicResponse.self, from: data))?.resolvedText
+        }
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines),
+              (try? JSONSerialization.jsonObject(with: Data(text.utf8))) is [String: Any]
+        else { return nil }
+        return text
+    }
+    // swiftlint:enable switch_case_alignment
 }
 
-enum AIClientError: Error, LocalizedError {
+nonisolated enum AIClientError: Error, LocalizedError {
     case noResponse
     case httpError(Int, String)
+    case invalidConfiguration(String)
+    case invalidStructuredOutput
 
     var errorDescription: String? {
         // swiftlint:disable switch_case_alignment
@@ -241,6 +282,10 @@ enum AIClientError: Error, LocalizedError {
                 return "no response from AI service."
             case let .httpError(code, message):
                 return "AI processing failed. (\(code) \(message))"
+            case let .invalidConfiguration(message):
+                return "AI configuration invalid. \(message)"
+            case .invalidStructuredOutput:
+                return "AI structured output is missing, incomplete, or not a JSON object."
         }
         // swiftlint:enable switch_case_alignment
     }

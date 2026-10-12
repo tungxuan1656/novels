@@ -5,14 +5,14 @@
 ## Flow (ordered steps actor / system)
 
 1. On launch, system restores current settings from `UserDefaults` via `@Observable` store. Missing or invalid values are sanitized to defaults before features read them. Unknown and legacy keys are ignored.
-2. Actor opens Settings. System shows groups: catalog address, AI (service address, model, provider, custom headers/body, unit size, Prompt system prompt), prefetch N, typography (font, size, line height).
+2. Actor opens Settings. System shows groups: catalog address, AI (URL AI, model, masked API key, Auto/manual provider, thinking, custom headers/body, unit size, Prompt system prompt), prefetch N, typography (font, size, line height).
 3. Actor edits a value. System validates and saves to `UserDefaults` via the `@Observable` store. Next operation uses the new value.
 4. Invalid edits fallback to defaults on next launch without crashing. Typography restores on launch to style the reader. No network at launch.
 
 ## Rules (business rules, link to business-rules.md)
 
-- Missing or invalid current values fallback to defaults: catalog URL, AI address, model `gpt-4o`, N=3, unit size 1300, provider `openai`, default `AI_PROMPT` ([business-rules.md](../business-rules.md) BR-12).
-- Unknown provider → `openai` ([business-rules.md](../business-rules.md) BR-12).
+- Missing or invalid current values fallback to defaults: catalog URL, AI address, model `gpt-4o`, N=3, unit size 1300, provider `auto`, empty API key, unset thinking, default `AI_PROMPT` ([business-rules.md](../business-rules.md) BR-12).
+- Unknown provider → `auto` ([business-rules.md](../business-rules.md) BR-12).
 - Empty prompt → default prompt ([business-rules.md](../business-rules.md) BR-12).
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
@@ -30,7 +30,12 @@
 |------|--------|
 | No stored settings (first launch) | Use all defaults |
 | Headers/body JSON invalid | Treated as empty, proceed |
-| Provider unknown | Normalized to `openai` |
+| Provider unknown | Normalized to `auto` |
+| Existing provider `openai` | Retained as manual selection |
+| Thinking unset | Preserve provider default; send no generated thinking fields |
+| Thinking `none` | Send explicit disable control; never replace with low |
+| Model rejects effort/schema | Fail through existing error handling; never downgrade |
+| MiMo depth selected (manual or Auto) | Show binary-only warning and block saving low/medium/high in the thinking editor; default/none remain available. Custom thinking overrides suppress generated depth and permit saving. |
 | Prompt empty/missing | Fallback to default prompt |
 | Prefetch N is 0 | Valid, disables prefetch |
 | Prefetch N is 1001, -1, "abc" | Use 3 |
@@ -41,7 +46,10 @@
 
 - [ ] Launch restores current settings and replaces invalid or missing values with defaults. Unknown and legacy keys are ignored.
 - [ ] Editing catalog, AI, prefetch, or typography persists via `UserDefaults` + `@Observable` and survives restart.
-- [ ] Unknown provider or empty prompt corrects to `openai` and default `AI_PROMPT`.
+- [ ] Unknown provider or empty prompt corrects to `auto` and default `AI_PROMPT`.
+- [ ] Existing configuration stays intact; API key is masked and custom Authorization wins.
+- [ ] Auto identifies provider without changing endpoint transport or guessing model capabilities.
+- [ ] Four explicit thinking levels and a provider-default reset are available; schema has no UI.
 - [ ] Typography changes apply to reader and persist.
 - [ ] No legacy migration occurs.
 

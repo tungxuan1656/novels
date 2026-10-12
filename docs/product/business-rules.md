@@ -17,7 +17,7 @@
 | BR-09 | Save scroll position per book in the persistent settings store. Restore position only for the same book. Start a new chapter at top. If no saved offset exists, start at top. | Reader | None. |
 | BR-10 | Delete removes the entire book folder from the local book repository. Delete also removes the library entry. | Library | Other books stay unchanged. Cached AI results for the deleted book become unreachable. |
 | BR-11 | Persist typography in the persistent settings store. Apply typography to every render. | Reader | If values are missing, use defaults. |
-| BR-12 | On launch, sanitize settings. If a value is invalid or missing, fall back to defaults. Defaults are catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, default `AI_PROMPT`, and provider `openai`. Ignore unknown and legacy keys. Keep only current keys. | Persistent settings store (`UserDefaults` + `@Observable`) | If provider is unknown, use `openai`. If prompt is empty, use default prompt. |
+| BR-12 | On launch, sanitize settings. If a value is invalid or missing, fall back to defaults. Defaults are catalog URL, AI endpoint, model `gpt-4o`, N=3, chunk 1300, default `AI_PROMPT`, provider `auto`, empty AI key, and unset thinking. Ignore unknown and legacy keys. Keep only current keys. | Persistent settings store (`UserDefaults` + `@Observable`) | If provider is unknown, use `auto`; retain an existing manual `openai`. If prompt is empty, use default prompt. |
 
 ## Notes
 

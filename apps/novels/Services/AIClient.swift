@@ -27,7 +27,8 @@ actor AIClient {
     func complete(
         prompt: String,
         chunk: String,
-        context: AIDiagnosticsContext = AIDiagnosticsContext()
+        context: AIDiagnosticsContext = AIDiagnosticsContext(),
+        outputSchema: AIOutputSchema? = nil
     ) async throws -> String {
         // One MainActor hop for all settings reads (A4).
         // swiftlint:disable:next large_tuple
@@ -36,6 +37,8 @@ actor AIClient {
             modelRaw: String,
             headers: [String: String],
             extra: [String: Any],
+            apiKey: String,
+            options: AIRequestOptions,
             verbose: Bool
         ) = await MainActor.run {
             (
@@ -43,6 +46,12 @@ actor AIClient {
                 modelRaw: settings.openaiModel,
                 headers: settings.effectiveHeaders(),
                 extra: settings.effectiveExtraBody(),
+                apiKey: settings.aiAPIKey,
+                options: AIRequestOptions(
+                    provider: AIProvider.normalized(settings.aiProvider) ?? .auto,
+                    thinking: AIThinkingEffort.normalized(settings.aiThinkingEffort),
+                    outputSchema: outputSchema
+                ),
                 verbose: settings.diagnosticsVerbose
             )
         }
@@ -58,7 +67,8 @@ actor AIClient {
         let headers = Self.effectiveRequestHeaders(
             settingsSnapshot.headers,
             family: family,
-            openCodeSession: openCodeSession
+            openCodeSession: openCodeSession,
+            apiKey: settingsSnapshot.apiKey
         )
         let extra = settingsSnapshot.extra
         let verbose = settingsSnapshot.verbose
@@ -78,7 +88,8 @@ actor AIClient {
                 prompt: prompt,
                 chunk: chunk,
                 extra: extra,
-                urlString: urlString
+                urlString: urlString,
+                options: settingsSnapshot.options
             )
         } catch {
             let nsError = error as NSError
@@ -154,8 +165,9 @@ actor AIClient {
                     )
                 }
                 let shape = AIResponseShape.parse(data)
-                guard let content = AIUnifiedResponse.resolve(data: data, family: family)
-                else {
+                guard let content = AIUnifiedResponse.resolve(
+                    data: data, family: family, structured: outputSchema != nil
+                ) else {
                     await recordApiAttempt(
                         context: context,
                         attempt: attemptNumber,
@@ -163,7 +175,8 @@ actor AIClient {
                         urlString: url.absoluteString,
                         model: model,
                         statusCode: statusCode,
-                        errorDomain: "AIClientError.noResponse",
+                        errorDomain: outputSchema == nil ? "AIClientError.noResponse" :
+                            "AIClientError.invalidStructuredOutput",
                         errorCode: 0,
                         responseLen: data.count,
                         responseHashPrefix: DiagnosticsRedactor.hashPrefix(
@@ -178,7 +191,7 @@ actor AIClient {
                         requestBody: requestBodyString,
                         responseBody: responseBodyString
                     )
-                    throw AIClientError.noResponse
+                    throw outputSchema == nil ? AIClientError.noResponse : AIClientError.invalidStructuredOutput
                 }
                 await recordApiAttempt(
                     context: context,
@@ -233,69 +246,63 @@ actor AIClient {
         throw lastError ?? AIClientError.noResponse
     }
 
+    // swiftlint:disable switch_case_alignment
     static func makeRequestBodyData(
         model: String,
         prompt: String,
         chunk: String,
         extra: [String: Any],
-        urlString: String = ""
+        urlString: String = "",
+        options: AIRequestOptions = AIRequestOptions()
     ) throws -> Data {
-        // swiftlint:disable switch_case_alignment
-        switch AIEndpointFamily.detect(urlString: urlString) {
-            case .responses:
-                // Reasoning via extra {"reasoning":{"effort":"medium","summary":"auto"}},
-                // tokens via {"max_output_tokens":512}, verbosity via {"text":{"verbosity":"medium"}}.
-                // No default token cap.
-                var baseBody: [String: Any] = [
-                    "model": model,
-                    "instructions": prompt,
-                    "input": chunk,
-                    "stream": false,
-                ]
-                for (key, value) in extra {
-                    if key == "model" || key == "input" || key == "instructions" || key == "stream" {
-                        continue
-                    }
-                    baseBody[key] = value
-                }
-                return try JSONSerialization.data(withJSONObject: baseBody)
-            case .anthropic:
-                // Thinking via extra {"thinking":{"type":"adaptive"}} + {"output_config":{"effort":"high"}}, temp 0..1.
-                var baseBody: [String: Any] = [
-                    "model": model,
-                    "system": prompt,
-                    "messages": [
-                        ["role": "user", "content": chunk],
-                    ],
-                    "stream": false,
-                    "max_tokens": 1024,
-                ]
-                for (key, value) in extra {
-                    if key == "model" || key == "messages" || key == "system" || key == "stream" {
-                        continue
-                    }
-                    baseBody[key] = value
-                }
-                return try JSONSerialization.data(withJSONObject: baseBody)
-            case .chatCompletions:
-                var baseBody: [String: Any] = [
-                    "model": model,
-                    "messages": [
-                        ["role": "system", "content": prompt],
-                        ["role": "user", "content": chunk],
-                    ],
-                    "stream": false,
-                ]
-                for (key, value) in extra {
-                    if key == "model" || key == "messages" || key == "stream" {
-                        continue
-                    }
-                    baseBody[key] = value
-                }
-                return try JSONSerialization.data(withJSONObject: baseBody)
+        let family = AIEndpointFamily.detect(urlString: urlString)
+        var options = options
+        options.provider = options.provider.resolved(model: model, urlString: urlString)
+        var effectivePrompt = prompt
+        if let schema = options.outputSchema {
+            _ = try schema.object()
+            effectivePrompt += "\n\nReturn only a JSON object matching this JSON Schema. No markdown or commentary.\n"
+                + schema.json
         }
-        // swiftlint:enable switch_case_alignment
+        var body: [String: Any]
+        let reserved: Set<String>
+        switch family {
+            case .responses:
+                body = ["model": model, "instructions": effectivePrompt, "input": chunk, "stream": false]
+                reserved = ["model", "input", "instructions", "stream"]
+            case .anthropic:
+                body = [
+                    "model": model, "system": effectivePrompt,
+                    "messages": [["role": "user", "content": chunk]], "stream": false, "max_tokens": 1024,
+                ]
+                reserved = ["model", "messages", "system", "stream"]
+            case .chatCompletions:
+                body = [
+                    "model": model,
+                    "messages": [
+                        ["role": "system", "content": effectivePrompt], ["role": "user", "content": chunk],
+                    ],
+                    "stream": false,
+                ]
+                reserved = ["model", "messages", "stream"]
+        }
+        try body.merge(options.thinkingFields(family: family, extra: extra)) { _, new in new }
+        for (key, value) in extra where !reserved.contains(key) {
+            if key == "output_config", let custom = value as? [String: Any] {
+                let generated = body[key] as? [String: Any] ?? [:]
+                body[key] = generated.merging(custom) { _, new in new }
+            } else {
+                body[key] = value
+            }
+        }
+        body = try options.addingSchema(to: body, family: family)
+        guard JSONSerialization.isValidJSONObject(body) else {
+            throw AIClientError.invalidConfiguration("Request body must contain only JSON-compatible values.")
+        }
+        return try JSONSerialization.data(withJSONObject: body)
     }
+
+    // swiftlint:enable switch_case_alignment
 
     static func openCodeSessionValue(bookId: String, chapterNumber: Int, mode: String) -> String {
         guard !bookId.isEmpty, chapterNumber > 0 else { return "" }
@@ -309,9 +316,14 @@ actor AIClient {
     static func effectiveRequestHeaders(
         _ headers: [String: String],
         family: AIEndpointFamily,
-        openCodeSession: String = ""
+        openCodeSession: String = "",
+        apiKey: String = ""
     ) -> [String: String] {
         var out = headers
+        let key = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !key.isEmpty, !out.keys.contains(where: { $0.lowercased() == "authorization" }) {
+            out["Authorization"] = "Bearer \(key)"
+        }
         if family == .anthropic {
             if !out.keys.contains(where: { $0.lowercased() == "anthropic-version" }) {
                 out["anthropic-version"] = "2023-06-01"
