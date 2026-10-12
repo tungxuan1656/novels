@@ -20,7 +20,7 @@ No UI tests, CI, state validator, broad test restoration, or unrelated app refac
 - [x] Project, app, and unit-test Debug/Release resolve to iOS 26.0; device family remains `1`.
 - [x] Current documents and skill guidance describe implemented code, iOS 26.0+, and the unit-only policy.
 - [x] feat-030 stays done; its handoff records merged PR #34 without rewriting historical evidence.
-- [ ] Full `./init.sh` passes after the floor revision; existing PR #37 is updated.
+- [x] Full `./init.sh` passes after the floor revision; existing PR #37 is updated.
 
 ## Plan
 
@@ -52,7 +52,7 @@ The user selected iOS 26.0+ instead of 18.6+. Keep the simulator on 26.5 and pre
 
 ## Handoff
 
-- State: active
-- Delivery: [PR #37](https://github.com/tungxuan1656/novels/pull/37), branch `fix/031-verification-docs-alignment`; implementation commit `f9f2154`.
+- State: done
+- Delivery: [PR #37](https://github.com/tungxuan1656/novels/pull/37), branch `fix/031-verification-docs-alignment`; implementation commit `f9f2154`, minimum-iOS revision `94e190c`. Both are pushed; the PR body records the current scope and verification.
 - Blockers: none
-- Next: verify the 26.0 revision and push it to PR #37. iOS 26.0 runtime QA remains a separate follow-up.
+- Next: user review and merge PR #37 when approved. iOS 26.0 runtime QA remains a separate follow-up.

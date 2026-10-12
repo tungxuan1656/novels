@@ -44,7 +44,7 @@ The original phases below were completed with an 18.6 floor. Their checked steps
 - [x] Set project, app, and unit-test Debug/Release deployment targets to 26.0.
 - [x] Align current documents and skills; retain earlier acceptance evidence as history.
 - [x] Check effective settings and run full init on the unchanged 26.5 simulator.
-- [ ] Record the result, commit/push, and update existing PR #37.
+- [x] Record the result, commit/push, and update existing PR #37.
 
 ## Verification Limits
 

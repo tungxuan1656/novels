@@ -188,7 +188,7 @@
     {
       "id": "feat-031",
       "title": "Verification and Documentation Alignment",
-      "status": "active",
+      "status": "done",
       "depends_on": ["feat-030"]
     }
   ]

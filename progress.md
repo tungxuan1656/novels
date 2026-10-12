@@ -412,3 +412,11 @@
 **Evidence**: https://github.com/tungxuan1656/novels/pull/37 — full verification and focused-test evidence are recorded in `features/feat-031.md`.
 **Blockers**: none. iOS 18.6 runtime QA remains unverified, not a merge claim.
 **Next**: user review and merge PR #37 when approved.
+
+## 2026-10-12 — feat-031 minimum-iOS revision delivered
+
+**State**: done
+**Done**: User-approved support policy now requires iOS 26.0+. All six project/app/unit-test Debug/Release settings and current docs/skills agree. Revision `94e190c` is pushed to existing PR #37; its body records the revised scope and evidence. Previous 18.6 records remain historical. No feature is active.
+**Evidence**: Full `./init.sh` PASS; XCResult 13/13 passed, 0 failed/skipped, on iPhone 17 Pro/iOS 26.5. Both targets resolve to floor 26.0/family 1; built app/test Info.plists report `MinimumOSVersion=26.0`. See `features/feat-031.md` and https://github.com/tungxuan1656/novels/pull/37.
+**Blockers**: none. An iOS 26.0 runtime is not installed; minimum-version runtime QA remains unverified.
+**Next**: user review and merge PR #37 when approved.
