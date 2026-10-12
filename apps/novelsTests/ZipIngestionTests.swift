@@ -67,6 +67,8 @@ final class ZipIngestionTests: XCTestCase {
             XCTAssertTrue(String(describing: (error as NSError).userInfo).contains("site=\(site)"))
         }
         XCTAssertFalse(FileManager.default.fileExists(atPath: temp.appendingPathComponent("escape").path))
-        XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: extracted.path).isEmpty)
+        if FileManager.default.fileExists(atPath: extracted.path) {
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: extracted.path).isEmpty)
+        }
     }
 }

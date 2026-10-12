@@ -53,6 +53,6 @@ The user selected iOS 26.0+ instead of 18.6+. Keep the simulator on 26.5 and pre
 ## Handoff
 
 - State: done
-- Delivery: [PR #37](https://github.com/tungxuan1656/novels/pull/37), branch `fix/031-verification-docs-alignment`; implementation commit `f9f2154`, minimum-iOS revision `94e190c`. Both are pushed; the PR body records the current scope and verification.
+- Delivery: [PR #37](https://github.com/tungxuan1656/novels/pull/37), branch `fix/031-verification-docs-alignment`; implementation commit `f9f2154`, minimum-iOS revision `94e190c`. Both are pushed; the PR body records the current scope and verification. Internal review feedback on the ADR index table and the ZIP rejection test is addressed.
 - Blockers: none
 - Next: user review and merge PR #37 when approved. iOS 26.0 runtime QA remains a separate follow-up.
