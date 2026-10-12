@@ -3,6 +3,12 @@
 This index owns navigation and roadmap scope only. Each linked task owns status, ownership, dependencies, evidence and handoff.
 Use descriptive task slugs for new approved work; do not continue the legacy numeric counter.
 
+## Bilingual Reading
+
+- [Validated processing](task-bilingual-processing.md).
+- [Reader and English learning](task-bilingual-learning.md).
+- [Detailed implementation plan](plans/bilingual-reading.md).
+
 ## AI Configuration
 
 - [AI provider settings](task-ai-provider-settings.md).
