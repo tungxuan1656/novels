@@ -49,4 +49,4 @@ Codex owns all edits; any delegated review is read-only.
 - LSP probes are incomplete: timeouts and missing cross-file/module context; passing Xcode build/tests are authoritative. Build emits actor-isolation warnings in Swift 5 mode; no Swift 6 migration performed.
 - Coverage limits: no authenticated provider/proxy requests, UI execution, real device, or iOS 26.0 runtime verification. JSON mode/prompt-only output does not enforce schema semantics; future callers own typed validation.
 - Blockers: none within approved scope.
-- Handoff: [PR #39](https://github.com/tungxuan1656/novels/pull/39), branch `task/ai-provider-standardization`, base commit `c5a4b85`. Review repairs are verified but uncommitted and not published to the PR; next action is commit/push if requested. Existing chapter cache is unchanged.
+- Handoff: [PR #39](https://github.com/tungxuan1656/novels/pull/39), branch `task/ai-provider-standardization`, base commit `c5a4b85`. Review repairs are published in commit `2a8a6e3`; next action is PR review. Existing chapter cache is unchanged.
