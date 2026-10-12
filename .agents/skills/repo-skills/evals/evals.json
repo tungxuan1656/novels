@@ -1,0 +1,77 @@
+{
+  "skill_name": "repo-skills",
+  "evals": [
+    {
+      "id": 1,
+      "name": "Reuse baseline and local design guidance",
+      "prompt": "Recommend skills for this TypeScript utility repo. Global ponytail and repo-local git-commit and codebase-design already work. There is no React, database, or browser task. Do not install anything.",
+      "expected_output": "Reuse the installed baseline and design skill; no new installation or framework bundle is needed.",
+      "files": [],
+      "expectations": ["Checks installed scopes and manifests", "No duplicate baseline copy", "No automatic install, commit, session activation, or report file"],
+      "tags": ["reuse", "baseline", "no-op"]
+    },
+    {
+      "id": 2,
+      "name": "React guidance is not canary authorization",
+      "prompt": "This stable React web repo needs performance help. We are considering view transitions later; no transition requirement or experimental React approval exists. Suggest reputable skills, not dependency upgrades.",
+      "expected_output": "Recommend the verified React web performance specialist and defer view-transition guidance until need and runtime compatibility are established.",
+      "files": [],
+      "expectations": ["Separates performance from transition work", "No canary upgrade or automatic dependency addition", "Does not add React Native skills"],
+      "tags": ["react", "compatibility", "scope"]
+    },
+    {
+      "id": 3,
+      "name": "Expo discovery index is stale",
+      "prompt": "Prepare skills for an Expo SDK upgrade. The search index names upgrading-expo, but listing the official source exposes expo-upgrade. No build, deployment, or global skill installation has been authorized.",
+      "expected_output": "Inspect the current official upgrade skill, report the verified name and prerequisites, and propose a targeted local installation for approval.",
+      "files": [],
+      "expectations": ["Source listing wins over stale search aliases", "No full Expo bundle", "No build, submit, credentials, or SDK operation during setup"],
+      "tags": ["expo", "source-verification", "authorization"]
+    },
+    {
+      "id": 4,
+      "name": "One browser workflow",
+      "prompt": "We already have a functioning browser automation skill and runtime. Add agent-browser only if it fills a specific gap. There is no current gap and this task only recommends skills.",
+      "expected_output": "Reuse the working primary browser workflow; explain why an overlapping installation is skipped.",
+      "files": [],
+      "expectations": ["No second browser workflow by default", "No binary downloads or runtime setup", "No claim that a skill replaces committed E2E tests"],
+      "tags": ["browser", "duplicates"]
+    },
+    {
+      "id": 5,
+      "name": "Separate SQL guidance from platform operations",
+      "prompt": "Recommend skills for PostgreSQL query optimization in a self-hosted database. We do not use Supabase SDK, auth, storage, or platform tooling. Do not connect to the database.",
+      "expected_output": "Consider official PostgreSQL best practices rather than broad Supabase platform tooling; propose no database operations.",
+      "files": [],
+      "expectations": ["Verifies actual database evidence", "No automatic paired Supabase installation", "No credentials, MCP, migrations, or SQL execution"],
+      "tags": ["postgres", "supabase", "scope"]
+    },
+    {
+      "id": 6,
+      "name": "High popularity is not a safety guarantee",
+      "prompt": "A very popular skill with a familiar name comes from an unknown mirror. The official source cannot be fetched. Recommend a skill that will not conflict with Harness; do not guess trusted instructions.",
+      "expected_output": "Flag missing source/trust evidence and withhold installation, preserving the existing Harness workflow.",
+      "files": [],
+      "expectations": ["Labels unverified evidence", "No invented counts or conflict-free guarantee", "No mirror fallback, global escalation, or unsafe source execution"],
+      "tags": ["trust", "network-failure", "conflicts"]
+    },
+    {
+      "id": 7,
+      "name": "Install selected skill with CLI defaults",
+      "prompt": "Install ponytail from dietrichgebert/ponytail into this repo using the default behavior. Its current exact name is verified. Do not ask me to select an agent or install the other ponytail skills or change existing custom copies.",
+      "expected_output": "Check existing installations and source instructions; if a new copy is needed, run npx skills add https://github.com/dietrichgebert/ponytail --skill ponytail with CLI defaults and report the actual installed path and changed files.",
+      "files": [],
+      "expectations": ["Uses --skill ponytail without --agent or an agent-selection question", "No -g, --all, or bundle installation", "Does not claim default directories are agent-exclusive", "Customized existing skill requires separate overwrite approval", "Installation failure reports partial state"],
+      "tags": ["installation", "consent", "partial-state"]
+    },
+    {
+      "id": 8,
+      "name": "Voice skill remains optional",
+      "prompt": "Set up Harness for a mixed Next.js and Expo monorepo. I prefer normal clear communication and do not want another planning/docs/review bundle. Ponytail and git-commit are already installed.",
+      "expected_output": "Reuse the baseline, assess web and native specialists per workspace, and skip caveman and competing process bundles.",
+      "files": [],
+      "expectations": ["Monorepo workspaces justify separate web/native targets", "No caveman voice without opt-in", "Harness retains task, docs, handoff, and verification ownership"],
+      "tags": ["monorepo", "boundaries", "voice"]
+    }
+  ]
+}

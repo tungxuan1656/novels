@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repository Gardening"
+  short_description: "Clean one verified batch of repository drift"
+  default_prompt: "Use $repo-gardening to remove one small, evidence-backed batch of repository drift."

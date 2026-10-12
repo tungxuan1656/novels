@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Docs Checker"
+  short_description: "Check docs, evidence, drift, and unnecessary complexity"
+  default_prompt: >-
+    Use $agent-docs-checker to review selected docs against evidence.
+    Do not modify files.
