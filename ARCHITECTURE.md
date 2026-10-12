@@ -53,16 +53,17 @@ This is one app module; the folders are responsibility boundaries, not separate 
 
 ## 5. Verification and Routes
 
-- **Verification:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, unit tests, and drift. Quick `--quick`/`-q` runs format, lint, and drift, explicitly skipping build/tests. Missing SwiftFormat or SwiftLint fails verification.
+- **Verification:** `init.sh` is canonical. Full `./init.sh` runs format, lint, build, and focused unit tests sequentially, stopping at the first failure. Quick `--quick`/`-q` runs format and lint, explicitly skipping build/tests. Missing SwiftFormat or SwiftLint fails verification.
 - **Tests:** Only targeted unit tests for difficult or high-risk logic, in separate files under `apps/novelsTests/`. The hosted test process bypasses `AppRoot` before production stores or session restoration; a startup guard test checks host detection. No UI tests or blanket coverage requirement. See `docs/decisions/verification.md`.
 - **Runtime limit:** The current verification destination is iOS 26.5, not 26.0. Deployment settings and API review do not prove runtime behavior on iOS 26.0.
 - **Product:** `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`, `docs/product/functional-specs/`, `docs/product/decisions.md`.
 - **Design:** `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`.
 - **Contracts:** `docs/contracts/index.md`; **Decisions:** `docs/decisions/index.md`; **Security:** `SECURITY.md`.
-- **Current work state:** `feature_index.json` and current feature handoffs in `features/`. A feature can be done before PR merge. `progress.md` and completed plans record historical evidence, not live Git status.
+- **Work routes:** [tasks/index.md](tasks/index.md) owns roadmap/navigation only. Each task owns scope, status, dependencies, evidence and handoff. Task completion does not require PR merge. Historical evidence does not describe live Git status.
 
 ## 6. Maintenance
 
 Update this map when entry points, topology, or verification change. Follow linked contracts rather than copying their detailed defaults here.
 
-Keep documentation-only work separate from Swift/project changes unless approved. Preserve completed plan/progress evidence and the tracked sample ZIP; its wrapper shape is non-canonical producer output, not a canonical test fixture.
+Keep documentation-only work separate from Swift/project changes unless approved. Preserve useful execution evidence in task records before retiring redundant history.
+Preserve the tracked sample ZIP; its wrapper shape is non-canonical producer output, not a canonical test fixture.

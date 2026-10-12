@@ -1,7 +1,7 @@
 # ADR — Focused Unit Verification
 
 - **Date:** 2026-10-12
-- **Status:** Accepted (feat-031; user-approved)
+- **Status:** Accepted ([verification and documentation alignment](../../tasks/task-verification-docs-alignment.md); user-approved)
 
 ## Context
 
@@ -12,7 +12,7 @@ Missing formatter/linter tools also produced successful SKIP tasks. Required gat
 ## Decision
 
 - Require SwiftFormat and SwiftLint. Missing tools fail `init.sh` and the staged-Swift pre-commit gate.
-- Full `../../init.sh` runs format, lint, build, unit tests, and drift. Quick mode skips build and tests explicitly.
+- Full `../../init.sh` runs format, lint, build and unit tests sequentially, stopping at the first failure. Quick mode skips build and tests explicitly.
 - Use one hosted `novelsTests` target in the shared `novels` scheme, with separate files under `apps/novelsTests/`.
 - Add tests only for difficult or high-risk logic. Current suites cover ZIP ingestion/rejection, SQLite cache semantics/migration, and AI response extraction.
 - Keep unit fixtures local and temporary. Tests must not depend on live services or user data.
@@ -21,7 +21,7 @@ Missing formatter/linter tools also produced successful SKIP tasks. Required gat
 
 ## Consequences
 
-This supersedes the no-test/build-only policy in previous feature evidence and decisions. Historical plans and progress remain unchanged.
+This supersedes the no-test/build-only policy in historical task evidence and decisions. Migrated task records retain historical evidence and coverage limits.
 
 Full verification now requires the iPhone 17 Pro/iOS 26.5 simulator. Unit tests are not UI automation and do not certify all app behavior.
 

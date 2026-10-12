@@ -44,7 +44,7 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (Book, Chapter, Reference, ReadingSession, TypographySetting) — `Book.id` / `ReadingSession.bookId` is slug `book.json.id`
+- Domain: [domain-model.md](../domain-model.md) (Book, Chapter, Reference, ReadingSession, TypographySetting) — `ReadingSession.bookId` uses the resolved `Book.id` slug
 - Flows: [flows.md](../flows.md) §1 Startup and Resume, §4 Reading and Navigation
 - Integrations: [integrations.md](../integrations.md) (none for raw reading)
 - Rules: [business-rules.md](../business-rules.md) BR-01, BR-09, BR-11

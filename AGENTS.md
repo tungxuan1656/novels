@@ -1,99 +1,63 @@
 # AGENTS.md
 
-Novels is an offline-first reader for iPhone. It downloads one ZIP book package and reads offline.
+Novels is an offline-first iPhone reader with Vietnamese UI. Download one ZIP book package and read offline.
+Support iOS 26.0+; app Debug and Release use device family `1`.
 
-Product scope is iPhone only, iOS 26.0+, Vietnamese UI. App Debug and Release use device family `1`. See `docs/decisions/ios-scope.md`.
+## Read When Needed
 
-## Start here
+- Topology, toolchain, code boundaries and flows: [ARCHITECTURE.md](ARCHITECTURE.md).
+- Product: [overview](docs/product/overview.md), [domain model](docs/product/domain-model.md), [business rules](docs/product/business-rules.md), [flows](docs/product/flows.md).
+- Terms, integrations and feature behavior: [glossary](docs/product/glossary.md), [integrations](docs/product/integrations.md), `docs/product/functional-specs/`.
+- Design: [navigation](docs/design/navigation.md), [screens](docs/design/screens.md), [design system](docs/design/design-system.md).
+- Wire and storage contracts: [contracts index](docs/contracts/index.md).
+- Decisions: [technical index](docs/decisions/index.md), [product decisions](docs/product/decisions.md), [SECURITY.md](SECURITY.md).
+- Persistence and identity: [local persistence](docs/decisions/local-persistence.md), [book identity](docs/decisions/book-identity.md), [local data](docs/contracts/local-data.md), [settings](docs/contracts/settings-schema.md).
+- Support scope and verification policy: [iOS scope](docs/decisions/ios-scope.md), [focused unit verification](docs/decisions/verification.md).
+- Roadmap and task links: [tasks/index.md](tasks/index.md). Verification commands: `init.sh`.
 
-- Topology, stack, boundaries, flows → `ARCHITECTURE.md`
-- Product behavior, rules, flows → `docs/product/overview.md`, `docs/product/domain-model.md`, `docs/product/business-rules.md`, `docs/product/flows.md`
-- Product terms → `docs/product/glossary.md`, `docs/product/integrations.md`, `docs/product/functional-specs/`
-- Design → `docs/design/navigation.md`, `docs/design/screens.md`, `docs/design/design-system.md`
-- Contracts → `docs/contracts/index.md` → `catalog-api.md`, `ai-service.md`, `book-package.md`, `settings-schema.md`, `local-data.md`
-- Decisions → `docs/decisions/index.md` (tech) + `docs/product/decisions.md` (business) + `SECURITY.md`
-- Persistence, identity, settings → `docs/decisions/local-persistence.md`, `docs/decisions/book-identity.md`, `docs/contracts/local-data.md`, `docs/contracts/settings-schema.md`
-- Work state → `feature_index.json`, `features/`, `progress.md`
-- Verification → `init.sh`
+Read the relevant spec or decision before changing product behavior or architecture. Ask when evidence conflicts.
 
-## Repository map
+## Repository Boundaries
 
-```
-apps/novels.xcodeproj  → Xcode project (scheme novels, minimum iOS 26.0 — see ARCHITECTURE.md §1)
-apps/novels/           → SwiftUI app module
-apps/novelsTests/      → focused unit tests; no UI tests
-docs/                  → product, contracts, design, decisions
-init.sh                → verification source of truth
-```
+- `apps/novels.xcodeproj`: shared `novels` scheme; one SwiftUI app module under `apps/novels/`.
+- `apps/novelsTests/`: focused unit tests in separate files for difficult or high-risk logic. No UI tests or blanket coverage.
+- Keep one processed-chapter SQLite cache; use FileManager/Codable for books and UserDefaults for settings/session.
+- Do not introduce SwiftData, Core Data, Keychain, or background scheduling without an approved decision.
+- Write docs, code and comments in English. Vietnamese is for user-facing strings and quoted UI examples.
+- Preserve unrelated changes and the tracked sample ZIP. Follow [SECURITY.md](SECURITY.md) for secrets and logging.
 
-Stack and toolchain live in `ARCHITECTURE.md` §1. Verification steps live in `init.sh`.
+## Work Scope
 
-## Assess the task
+- Start only user-approved work. Keep changes inside its scope and acceptance criteria.
+- Use no task record for small, clear work or read-only requests. Read only relevant sources.
+- Use skill `harness-task` for non-trivial intake; select other installed skills only when relevant.
+- Keep durable local work in `tasks/task-<slug>.md`; use descriptive slugs or existing tracker IDs, not global counters.
+- Read the selected task and linked sources, not all task history.
+- Keep bounded plans inline. Link a separate plan only for sequencing, coordination, or recovery needs.
+- Keep durable behavior and decisions in canonical docs/tests, not task history.
 
-Before any non-trivial task, use skill `using-skills` and follow its Decision Tree to pick and chain skills. Skip skills only for light, clear, low-risk work.
+## Ownership And Handoff
 
-Assess scale, complexity, and impact before you create or update a feature. Use no feature for lightweight work. Use an inline plan for bounded tracked work. Use a separate linked plan for substantial work.
-
-If the work does not need a feature, read only the relevant sources. Then run proportional verification without updating feature or progress state.
-
-## Start feature work
-
-1. Run `./init.sh`.
-2. Read `feature_index.json`.
-3. Read the selected feature file in `features/`.
-4. Read the latest block in `progress.md`.
-5. Load only the documents linked by the selected feature.
-
-If baseline verification fails, record the failure. Fix the failure only when the current scope includes it.
-
-## Working rules
-
-- Write all docs, code, and comments in English. Other languages are allowed only for user-facing UI strings and their quoted examples.
-- Keep at most one feature `active`. Zero active features means the repository is idle.
-- Use only `todo`, `active`, `blocked`, or `done` for feature status.
-- Start `todo` work only after the user selects or approves it.
-- Keep feature work inside the active scope and acceptance criteria.
-- Complete every dependency before you activate its dependent feature.
-- Record scope, acceptance, evidence, and handoff in the feature file.
-- Record a result in `progress.md` only when the result, blocker, handoff, or next action materially changes. Do not copy feature scope there.
-- Current state lives in `feature_index.json` and feature handoffs. Progress and completed plans are historical; feature done does not require PR merge.
-- Update `init.sh` when verification commands or workspace modules change.
-
-## Plans
-
-- Keep the plan inside `features/feat-<id>.md` for bounded work (1-3 files, 1 workspace, <200 lines).
-- Create `docs/plans/feat-<id>.md` only for substantial work (>=4 files or >=2 workspaces, DB migration, breaking API, or needs phases/rollback — requires >=2 signals). Default to inline.
-- Link the external plan from the feature file.
-- Define agent and file ownership before parallel work starts.
-
-## Escalation
-
-- Read the relevant project document before you make an architecture or product decision.
-- Ask the user when requirements, scope, ownership, or repeated verification failure remain unclear.
-
-## Feature done
-
-A feature is done only when:
-
-- [ ] Every acceptance criterion passes.
-- [ ] `./init.sh` passes (full, not `--quick`).
-- [ ] The feature file records verification evidence.
-- [ ] `progress.md` records the result and next action.
-
-## End session
-
-1. Update the feature status and handoff.
-2. When state materially changes, add a new block below the final template note in `progress.md`. Do not edit older blocks.
-3. Record blockers and one next action when they exist.
+- Each task owns its status, owner, acceptance, dependencies, evidence, blockers and next action.
+- Use `todo`, `active`, `blocked`, or `done`. Independent tasks can be active concurrently.
+- Separate dependencies required to start from integration/release gates; do not serialize independent implementation.
+- Agree file ownership or integration order before parallel edits. A task record is not a lock.
+- `tasks/index.md` owns roadmap/navigation only. Update it when tasks or roadmap scope change, not on status changes.
+- Update only the affected task at a material handoff. Do not create a shared root progress log.
+- Record baseline failures; repair them only within approved scope. Ask about unclear ownership or repeated verification failures.
+- Mark done only when acceptance passes and full verification evidence is recorded. Done does not require PR merge.
+- Disclose uncommitted work and share an accessible PR, branch, or commit when handing off.
+- Before removing a task, extract durable knowledge and check incoming links, dependents and the retention decision.
 
 ## Verification
 
-- Full: `./init.sh` — format + lint + build + unit tests + drift (source of truth, use for pre-push / feature done)
-- Quick: `./init.sh --quick` (alias `-q`) — only format + lint + drift, skip build and unit tests (for fast local loops)
-- Help: `./init.sh --help`
-- Testing: unit tests only in `apps/novelsTests/`, with separate files for difficult or high-risk logic. Do not add UI tests, XCUITest, or blanket coverage. See `docs/decisions/verification.md`.
-- SwiftFormat and SwiftLint are required; missing tools fail verification. The Swift pre-commit hook is a fast gate, not a substitute for full verification.
+- Full: `./init.sh` runs format, lint, build and focused unit tests. Run it before task completion, commit or push.
+- Quick: `./init.sh --quick` (alias `-q`) runs format and lint, explicitly skipping build and unit tests.
+- Help: `./init.sh --help`. Checks run sequentially and stop at the first failure.
+- SwiftFormat and SwiftLint are required. Missing tools fail; verification never fixes source or installs dependencies.
+- Build/test outputs are allowed. Unit tests isolate temporary data and bypass production startup.
+- The staged-Swift pre-commit hook is a fast gate, not a substitute for full verification.
+- Update `init.sh` and affected canonical docs when check commands or workspace modules change.
+- Disclose coverage limits: iOS 26.5 simulator checks do not prove iOS 26.0 runtime behavior.
 
-`init.sh` is the source of truth. Full runs format, lint, build, unit tests, drift. For feature done and before commit/push always run **full** `./init.sh`. See `ARCHITECTURE.md` §5 for evidence.
-
-<!-- harness-slim 1.4.0 · generated 2026-08-24 · managed sections above; check drift with skill CHANGELOG.md -->
+<!-- harness 2.0.0 | migrated 2026-10-12 | repository-specific rules retained -->

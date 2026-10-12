@@ -80,7 +80,7 @@ Domain mapping: `ExportedBook 1—1 BookMeta` in `../../docs/product/domain-mode
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
+- Run `../../init.sh` (format → lint → build → focused unit tests). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Maintenance
 

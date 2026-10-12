@@ -63,7 +63,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
+- Run `../../init.sh` (format → lint → build → focused unit tests). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Links
 

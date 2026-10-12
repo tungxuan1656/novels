@@ -20,7 +20,7 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 ### book.json
 
-`id` is the string slug that is the local identity (see `../decisions/book-identity.md`). Shape mirrors `Book` + `Reference` list. Minimal required fields:
+Producers must emit `id` as the string slug. The consumer resolves local identity as `Book.id` (see [identity decision](../decisions/book-identity.md)). Shape mirrors `Book` + `Reference` list. Minimal producer-required fields:
 
 ```json
 {
@@ -32,7 +32,10 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 }
 ```
 
-- `id` (string slug) determines the local folder `Application Support/novels/books/<id>/`, the Reader route `bookId`, and SQLite `bookId`. Remote numeric catalog ids do not affect it.
+- Resolved `Book.id` determines the local folder `Application Support/novels/books/<id>/`, the Reader route `bookId`, and SQLite `bookId`. Remote numeric catalog ids do not affect it.
+- Observed tolerant decoding: a missing, null or empty `id` derives `Book.id` from `name`; a nonempty string is used unchanged.
+- `Book.slugify` folds diacritics with locale `vi_VN`, lowercases, replaces each non-letter/non-number run with `-`, and trims edge dashes. Empty results use `"book"`.
+- This fallback does not assign a unique suffix. Identical resolved slugs use the same local identity and re-import replacement rule. Invalid nonempty slugs still fail import validation.
 - `count` is a number and must equal `references.length`; each HTML file must exist. Invalid folders are skipped in Library (`book-library.md` Cases).
 - Concrete field names are as emitted by the producer; consumers read `book.json` via `Codable` and build `Book`/`Reference` per `domain-model.md`. Treat unknown extra fields as preserved/ignored.
 
@@ -78,7 +81,7 @@ chapters/chapter-N.html   # N = 1 .. count, 1-based
 
 ## Verification
 
-- Run `../../init.sh` (format → lint → build → unit tests → drift). Test scope: [verification decision](../decisions/verification.md); no UI tests.
+- Run `../../init.sh` (format → lint → build → focused unit tests). Test scope: [verification decision](../decisions/verification.md); no UI tests.
 
 ## Open
 

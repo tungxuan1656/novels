@@ -31,7 +31,7 @@ Valid package requires `book.json` and `chapters/chapter-N.html` 1-based, but pr
 
 - Real producer ZIPs are Finder ZIPs with flag `0x08` + outer-folder + `__MACOSX` (like the sample). Strict rejection causes false invalid results.
 - Decision: App tolerates a single outer-folder + hygiene ignore + data-descriptor support, while keeping strict checks for 2+ top-level entries / missing chapter / CRC failure.
-- Consequences: Sample `van-gioi-...zip` now imports via flatten; see `docs/plans/feat-010`.
+- Consequences: The sample now imports through wrapper flattening; see [tolerant ZIP ingestion](../../tasks/task-tolerant-zip-ingestion.md).
 
 ## Amendment — feat-031 Verification
 
