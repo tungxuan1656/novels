@@ -20,6 +20,7 @@ React Native findings are historical reference only — no RN package and no RN 
 - **Contents:** per book folder with `book.json` at root and `chapters/chapter-N.html` (1-based, `N=1..count`). See `book-package.md`.
 - **Operations:** scan `books/` → `Codable` decode `book.json` → list; read `chapters/chapter-N.html` and parse to one optional title + one plain body string; delete whole slug folder on Library delete (BR-10). Invalid folders (missing `book.json`) skipped.
 - **Lifecycle:** `exportUrl` → `URLSession` download to temp → `FileManager.unzipItem` (tolerant hygiene + wrapper flatten + data-descriptor, strict security invariants preserved) → validate (flattened) root layout → delete ZIP on success; on failure no entry. See `catalog-api.md`, `book-package.md`.
+- **Observed replacement/recovery:** `FileBookRepository.save` stages validated content, then uses `FileManager.replaceItem` for an existing destination. If replacement fails while the destination remains, it reports failure and removes staging. If the destination disappeared, it falls back to `copyItem`; new imports also copy if moving staging fails. Copy recovery is not atomic: interruption can leave a partial destination. Strict crash-atomic recovery is not implemented.
 - **Reference:** https://developer.apple.com/documentation/foundation/filemanager
 
 ## 2. ProcessedChapter Cache (Single AI Cache)
