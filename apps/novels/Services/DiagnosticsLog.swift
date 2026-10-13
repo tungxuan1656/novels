@@ -249,11 +249,17 @@ final class DiagnosticsStore {
 
     var entries: [LogEntry] = []
 
-    /// Rows the error filter would list. Same definition as `LogKindFilter.error`
-    /// (`LogEntry.isError`): HTTP status >= 400, error domain/code present, or
-    /// fail/error/timeout/cancel markers; muted cancels are excluded.
-    var errorCount: Int {
-        entries.filter(LogEntry.isError).count
+    func runGroups(bookId: String?, bookTitles: [String: String] = [:]) -> [LogRunGroup] {
+        var scoped = entries
+        if let bookId {
+            scoped = scoped.filter { $0.bookId == bookId }
+        }
+        return LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
+    }
+
+    /// The Reader warning uses the same book-scoped outcomes as the Log filter.
+    func failedRunCount(bookId: String) -> Int {
+        runGroups(bookId: bookId).filter { $0.status == .failed }.count
     }
 
     init() {}
@@ -262,6 +268,7 @@ final class DiagnosticsStore {
         entries = await DiagnosticsLog.shared.snapshot()
     }
 
+    /// Subscribe before the initial refresh so opening a viewer cannot miss a tick.
     /// Realtime follow with MainActor-side debounce: rapid ticks coalesce
     /// into one refresh 250ms after the last tick. The final pending refresh
     /// is flushed before exit, and cancellation finishes only this observer's
@@ -269,6 +276,7 @@ final class DiagnosticsStore {
     func observe() async {
         let subscription = await DiagnosticsLog.shared.subscribe()
         await withTaskCancellationHandler {
+            await refresh()
             var pending: Task<Void, Never>?
             for await _ in subscription.stream {
                 pending?.cancel()

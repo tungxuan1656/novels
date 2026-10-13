@@ -17,6 +17,7 @@
 - Offset is saved per book and restored only for the same book ([business-rules.md](../business-rules.md) BR-09).
 - Song ngữ renders typed VI/EN pairs with derived English styling; an English paragraph opens sentence learning. Speech and Google lookup follow [bilingual-learning](bilingual-learning.md).
 - Typography persists and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
+- Opening the diagnostic Log covers Reading without cancelling current-chapter AI or prefetch. Returning to the same chapter keeps that work/result without another current-chapter request. Actual Reader exit and chapter/mode changes retain their cancellation rules.
 
 ## States
 

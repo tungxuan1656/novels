@@ -15,9 +15,9 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 | **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above native paragraph text or ordered VI/EN pairs; English paragraph opens sentence learning; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
 | **Settings** | Edit config | Header; grouped list, Audio source with API-only key/model; cards for data | Content | Row → Editor; Data → Cache |
-| **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
+| **Cache Manager** | Inspect and clear saved AI versions | Saved-version/distinct-chapter counts; expandable book → chapter/mode/update time; existing clear actions | Loading, Content, Empty, Error | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
-| **Log** | Diagnose AI/prefetch per chapter-run | Header; search; grouped chapter rows with status; JSON body sheet | Content, Empty, No-match | Reading sheet → Log → back |
+| **Log** | Diagnose AI-processing runs | Book/chapter/mode rows; source/duration/progress/cause; status/mode filters; request attempts and RAM-only JSON | Content, Empty, No-match | Reading sheet → Log; Log → Cache Manager; back |
 
 ## 3. Shared Patterns
 
@@ -26,10 +26,14 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
 - In Song ngữ, appearance hint: "Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn"
 - Steppers for size and line height
-- Log button ("Nhật ký") below AI section → push Log timeline
+- Log button ("Nhật ký") below AI section → push Log timeline for the current book. "Xem lỗi" selects failed runs when errors are present. Filters select whole runs and never strip sibling requests or retries.
 Gear opens Settings.
 
 **English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google in a nested system browser sheet only after a tap. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
+
+**Diagnostic Log.** One row per AI-processing run, newest first: book/chapter/mode, reader/prefetch/manual source, duration, chunk progress and outcome. Cache-only reads and general queue events are omitted. Cancelled is separate from failed; a short cause includes chunk and attempt when available. Expand for one outcome per API attempt, validation failures and shared-request context; retries remain visible. Technical codes, sanitized endpoint and model are available in detail. Search matches whole runs by safe labels/codes, never raw bodies. JSON remains RAM-only. HTTP 200 alone does not mean valid bilingual output.
+
+**Cache Inventory.** The existing Cache Manager reads SQLite metadata, not diagnostics history. Counts distinguish saved chapter/mode versions from distinct chapters. Expand each book title/slug for ordered chapter, mode and update time. Pull to refresh; opening/query/deletion errors are explicit. Existing per-book/all deletes require confirmation and do not delete the original book.
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 

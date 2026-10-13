@@ -12,7 +12,8 @@ Home Library --> Add Book
 Home Library --> Reading (bookId)
 Home Library --> Settings
 Reading --> References
-Reading --> Log (diagnostic timeline, in-session only)
+Reading --> Log (AI-processing timeline, in-session only)
+Log --> Cache Manager
 Reading --> Settings (via sheet shortcut)
 Reading --English paragraph--> English Learning sheet
 English Learning --explicit lookup--> Google browser sheet
@@ -46,6 +47,7 @@ Abstract stack:
 - **Reading:** requires `bookId: string`. Chapter comes from book state, not URL. Offset is per book.
 - **References:** reads `bookId` from active session. No param.
 - **Setting Editor:** requires `settingKey`, `label`, `placeholder`. Optional `description`, `multiple=true` for multi-line.
+- **Log:** optional `bookId` scopes runs; optional error-focused entry initially selects failed runs.
 - Others have no params. Missing required param shows toast and stays on current screen.
 
 ## 5. Navigation Rules
@@ -54,6 +56,7 @@ Abstract stack:
 - Reading back → Home, sets `onScreen=false` and saves offset.
 - Chapter change stays in Reading. Scroll resets to top. New chapter uses its own offset.
 - References tap → update current chapter for that `bookId` → pop to Reading.
+- Opening Log covers Reading but keeps its current-chapter AI and prefetch running; popping Log does not reload the same chapter. Actual Reader exit still cancels its consumer and prefetch.
 - Add Book success → pop to Home and refresh list.
 - Settings edit → persist at once. Invalid input blocks save and shows error.
 - Swipe on Home reveals actions but does not navigate.

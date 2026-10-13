@@ -102,6 +102,29 @@ final class AIClientConfigurationTests: XCTestCase {
         }
     }
 
+    func testCancelledTransportIsLoggedOnceWithoutRetry() async throws {
+        let name = "AIClientCancellationTests-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        let store = SettingsStore(userDefaults: defaults)
+        store.openaiAPIURL = "https://ai-fixture.test/v1/chat/completions"
+        AIConfigurationURLProtocol.configure(status: 200, response: "", error: .cancelled)
+        let session = makeSession()
+        defer { session.invalidateAndCancel() }
+        let client = AIClient(settings: store, session: session)
+        let context = AIDiagnosticsContext(requestId: UUID())
+        do {
+            _ = try await client.complete(prompt: "prompt", chunk: "chunk", context: context)
+            XCTFail("Expected cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertEqual(AIConfigurationURLProtocol.requests().count, 1)
+        let entries = await DiagnosticsLog.shared.snapshot().filter { $0.requestId == context.requestId }
+        XCTAssertEqual(entries.filter { $0.errorCode == URLError.cancelled.rawValue }.count, 1)
+        XCTAssertFalse(entries.contains(where: LogEntry.isError))
+    }
+
     func testInvalidStrictSchemaFailsBeforeNetworkForChatAndResponses() async throws {
         let name = "AIClientConfigurationTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
@@ -153,16 +176,18 @@ final class AIClientConfigurationTests: XCTestCase {
     }
 }
 
-private final nonisolated class AIConfigurationURLProtocol: URLProtocol, @unchecked Sendable {
+final nonisolated class AIConfigurationURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var status = 200
     private nonisolated(unsafe) static var response = "{}"
     private nonisolated(unsafe) static var captured: [URLRequest] = []
+    private nonisolated(unsafe) static var error: URLError.Code?
 
-    static func configure(status: Int, response: String) {
+    static func configure(status: Int, response: String, error: URLError.Code? = nil) {
         lock.withLock {
             self.status = status
             self.response = response
+            self.error = error
             captured = []
         }
     }
@@ -197,7 +222,11 @@ private final nonisolated class AIConfigurationURLProtocol: URLProtocol, @unchec
         }
         let fixture = Self.lock.withLock {
             Self.captured.append(copy)
-            return (Self.status, Self.response)
+            return (Self.status, Self.response, Self.error)
+        }
+        if let error = fixture.2 {
+            client?.urlProtocol(self, didFailWithError: URLError(error))
+            return
         }
         guard let url = request.url,
               let response = HTTPURLResponse(url: url, statusCode: fixture.0, httpVersion: nil,

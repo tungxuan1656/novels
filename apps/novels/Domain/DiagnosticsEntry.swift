@@ -167,13 +167,19 @@ extension LogEntry {
     }
 
     static func isMutedCancel(_ entry: LogEntry) -> Bool {
+        if entry.event == "run.cancel" {
+            return true
+        }
+        if entry.errorDomain == NSURLErrorDomain, entry.errorCode == URLError.cancelled.rawValue {
+            return true
+        }
         guard let reason = cancelReason(of: entry) else { return false }
         return mutedCancelReasons.contains(reason)
     }
 
-    /// Error heuristic behind the error filter tab, the store badge, and run status.
-    /// Muted cancels are intentional control flow, never errors:
-    /// cancelled rows stay non-red and the error tab never lists them.
+    /// Entry-level error heuristic for rows and run diagnosis. Recovered retry
+    /// errors remain visible but do not count as failed runs.
+    /// Muted cancels are intentional control flow, never errors.
     static func isError(_ entry: LogEntry) -> Bool {
         if isMutedCancel(entry) {
             return false

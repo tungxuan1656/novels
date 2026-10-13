@@ -12,6 +12,11 @@ Use descriptive task slugs for new approved work; do not continue the legacy num
 - [Sentence audio replay and inline loading](task-audio-session-cache.md).
 - [Detailed implementation plan](plans/bilingual-reading.md).
 
+## Reader Diagnostics
+
+- [Reader cancellation and diagnostic outcomes](task-reader-diagnostics-cancellation.md).
+- [AI log and cache organization](task-ai-log-cache-organization.md).
+
 ## AI Configuration
 
 - [AI provider settings](task-ai-provider-settings.md).

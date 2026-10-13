@@ -59,6 +59,63 @@ final class ProcessedChapterCacheTests: XCTestCase {
         XCTAssertEqual(try reopened.get(bookId: "sample", chapterNumber: 1, mode: .rewrite)?.content, "current")
     }
 
+    func testMetadataQueryOrderModeCoexistenceAndIsolation() throws {
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        let t1 = Date(timeIntervalSince1970: 1_700_000_100)
+        let t2 = Date(timeIntervalSince1970: 1_700_000_200)
+        let t3 = Date(timeIntervalSince1970: 1_700_000_300)
+
+        // Chapter 2 rewrite
+        try cache.upsert(ProcessedChapter(
+            bookId: "book-a", chapterNumber: 2, mode: .rewrite,
+            content: "ch2 rewrite", contentHash: "h1", createdAt: t1, updatedAt: t1
+        ))
+        // Chapter 1 bilingual
+        try cache.upsert(ProcessedChapter(
+            bookId: "book-a", chapterNumber: 1, mode: .bilingual,
+            content: "ch1 bi", contentHash: "h2", createdAt: t2, updatedAt: t2
+        ))
+        // Chapter 1 rewrite (coexists with bilingual)
+        try cache.upsert(ProcessedChapter(
+            bookId: "book-a", chapterNumber: 1, mode: .rewrite,
+            content: "ch1 rw", contentHash: "h3", createdAt: t3, updatedAt: t3
+        ))
+        // Chapter from another book
+        try cache.upsert(ProcessedChapter(
+            bookId: "book-b", chapterNumber: 1, mode: .rewrite,
+            content: "other", contentHash: "h4", createdAt: t1, updatedAt: t1
+        ))
+
+        let metaA = try cache.metadata(bookId: "book-a")
+        XCTAssertEqual(metaA.count, 3)
+        // Chapter 1 bilingual, Chapter 1 rewrite, Chapter 2 rewrite (ordered by chapter_number, then mode)
+        XCTAssertEqual(metaA[0].chapterNumber, 1)
+        XCTAssertEqual(metaA[0].mode, .bilingual)
+        XCTAssertEqual(metaA[0].updatedAt.timeIntervalSince1970, t2.timeIntervalSince1970, accuracy: 0.01)
+
+        XCTAssertEqual(metaA[1].chapterNumber, 1)
+        XCTAssertEqual(metaA[1].mode, .rewrite)
+        XCTAssertEqual(metaA[1].updatedAt.timeIntervalSince1970, t3.timeIntervalSince1970, accuracy: 0.01)
+
+        XCTAssertEqual(metaA[2].chapterNumber, 2)
+        XCTAssertEqual(metaA[2].mode, .rewrite)
+        XCTAssertEqual(metaA[2].updatedAt.timeIntervalSince1970, t1.timeIntervalSince1970, accuracy: 0.01)
+
+        // Book isolation: book-b only sees its own
+        let metaB = try cache.metadata(bookId: "book-b")
+        XCTAssertEqual(metaB.count, 1)
+        XCTAssertEqual(metaB[0].chapterNumber, 1)
+
+        // Unknown book returns empty list
+        let metaEmpty = try cache.metadata(bookId: "book-none")
+        XCTAssertEqual(metaEmpty, [])
+
+        // Clear reflects in metadata
+        try cache.clear(bookId: "book-a")
+        XCTAssertEqual(try cache.metadata(bookId: "book-a"), [])
+        XCTAssertEqual(try cache.metadata(bookId: "book-b").count, 1)
+    }
+
     private func chapter(book: String, number: Int, content: String, mode: AIMode = .rewrite) -> ProcessedChapter {
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         return ProcessedChapter(

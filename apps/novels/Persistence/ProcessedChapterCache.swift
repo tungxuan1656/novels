@@ -40,8 +40,10 @@ protocol ProcessedChapterCaching {
     func countAll() throws -> Int
     func count(bookId: String) throws -> Int
     func allBookIds() throws -> [String]
+    func metadata(bookId: String) throws -> [ProcessedChapterMetadata]
 }
 
+// swiftlint:disable:next type_body_length
 final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
     private let handle: OpaquePointer
     private let isoFormatter: ISO8601DateFormatter
@@ -358,5 +360,42 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
             }
         }
         return ids
+    }
+
+    func metadata(bookId: String) throws -> [ProcessedChapterMetadata] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        let sql = """
+        SELECT chapter_number, mode, updated_at
+        FROM processed_chapters
+        WHERE book_id=?
+        ORDER BY chapter_number ASC, mode ASC;
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepare(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        defer { sqlite3_finalize(stmt) }
+        try bindText(stmt, index: 1, value: bookId)
+        var list: [ProcessedChapterMetadata] = []
+        while true {
+            let step = sqlite3_step(stmt)
+            if step == SQLITE_ROW {
+                let number = Int(sqlite3_column_int(stmt, 0))
+                let modeRaw = string(from: stmt, col: 1)
+                let mode = AIMode(rawValue: modeRaw) ?? .none
+                let updated = string(from: stmt, col: 2)
+                list.append(ProcessedChapterMetadata(
+                    chapterNumber: number,
+                    mode: mode,
+                    updatedAt: date(from: updated)
+                ))
+            } else if step == SQLITE_DONE {
+                break
+            } else {
+                throw SQLiteError.step(message: String(cString: sqlite3_errmsg(handle)))
+            }
+        }
+        return list
     }
 }

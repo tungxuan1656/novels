@@ -43,17 +43,24 @@ final class BilingualPipelineTests: XCTestCase {
         defer { fixture.cleanUp() }
         BilingualURLProtocol.configure(invalid: true)
         let source = String(repeating: "first ", count: 60) + "\n\n" + String(repeating: "second ", count: 60)
+        let failedRunId = UUID()
         do {
             _ = try await fixture.service.processedContent(
                 bookId: "sample",
                 chapterNumber: 1,
                 mode: .bilingual,
-                rawText: source
+                rawText: source,
+                runId: failedRunId
             )
             XCTFail("Missing pair must fail")
         } catch {
             XCTAssertEqual(try fixture.cache.countAll(), 0)
         }
+        let failedEntries = await DiagnosticsLog.shared.snapshot().filter { $0.runId == failedRunId }
+        XCTAssertTrue(failedEntries.contains { $0.event == "run.fail" })
+        XCTAssertTrue(failedEntries.contains {
+            $0.event == "chunk.fail" && $0.detail?.contains("stage=validation") == true
+        })
         BilingualURLProtocol.configure(invalid: false)
         let old = try await fixture.service.processedContent(
             bookId: "sample",
@@ -146,9 +153,11 @@ final class BilingualPipelineTests: XCTestCase {
         defer { fixture.cleanUp() }
         BilingualURLProtocol.configure(invalid: false)
         let runId = UUID()
+        let originRunId = UUID()
         let first = Task {
             try await fixture.service.processedContent(
-                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source"
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source",
+                runId: originRunId, source: "prefetch"
             )
         }
         try await waitForRequest()
@@ -175,9 +184,69 @@ final class BilingualPipelineTests: XCTestCase {
         }
         XCTAssertEqual(BilingualURLProtocol.requests().count, 1)
         XCTAssertEqual(try fixture.cache.get(bookId: "sample", chapterNumber: 1, mode: .bilingual)?.content, result)
+        let groups = LogRunBuilder.build(from: await DiagnosticsLog.shared.snapshot())
+        let joined = try XCTUnwrap(groups.first { $0.id == runId.uuidString })
+        XCTAssertEqual(joined.status, .success)
+        XCTAssertEqual(joined.chunkProgress, "1/1 đoạn")
+        XCTAssertTrue(joined.visibleEntries.contains { $0.kind == .api && $0.statusCode == 200 })
+        XCTAssertEqual(groups.first { $0.id == originRunId.uuidString }?.status, .cancelled)
     }
 
-    private func waitForRequest() async throws {
+    func testLogCoverKeepsReaderAndPrefetchWithoutDuplicateCurrentRequest() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.aiMode = .bilingual
+        fixture.settings.prefetchCount = 1
+        BilingualURLProtocol.configure(invalid: false)
+        let reader = ReaderViewModel(
+            bookId: "log-cover", repository: LogCoverRepository(), settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service
+        )
+        defer { reader.onDisappear() }
+        await reader.load()
+        try await waitForRequest()
+        XCTAssertTrue(reader.isAIProcessing)
+        reader.prepareForLog()
+        reader.onDisappear()
+        XCTAssertTrue(reader.isAIProcessing)
+        reader.onAppear()
+        await reader.load(source: .returnFromLog)
+        let deadline = Date().addingTimeInterval(3)
+        while try (reader.isAIProcessing || fixture.cache.countAll() < 2), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertNotNil(reader.currentBilingualParagraphs)
+        XCTAssertEqual(try fixture.cache.countAll(), 2)
+        XCTAssertEqual(BilingualURLProtocol.requests().count, 2)
+        XCTAssertNil(reader.aiError)
+    }
+
+    func testActualReaderExitStillCancelsCurrentRequest() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.aiMode = .bilingual
+        fixture.settings.prefetchCount = 0
+        BilingualURLProtocol.configure(invalid: false)
+        let reader = ReaderViewModel(
+            bookId: "reader-exit", repository: LogCoverRepository(), settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service
+        )
+        await reader.load()
+        try await waitForRequest()
+        reader.onDisappear()
+        XCTAssertFalse(reader.isAIProcessing)
+        let deadline = Date().addingTimeInterval(3)
+        while !(await DiagnosticsLog.shared.snapshot()).contains(where: {
+            $0.bookId == "reader-exit" && $0.errorCode == URLError.cancelled.rawValue
+        }), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertEqual(try fixture.cache.countAll(), 0)
+        XCTAssertEqual(BilingualURLProtocol.requests().count, 1)
+        XCTAssertNil(reader.aiError)
+    }
+
+    func waitForRequest() async throws {
         let deadline = Date().addingTimeInterval(3)
         while BilingualURLProtocol.requests().isEmpty, Date() < deadline {
             try await Task.sleep(for: .milliseconds(1))
@@ -189,7 +258,7 @@ final class BilingualPipelineTests: XCTestCase {
         try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }
 
-    private func makeFixture() throws -> Fixture {
+    func makeFixture() throws -> Fixture {
         let name = "BilingualPipelineTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         let store = SettingsStore(userDefaults: defaults)
@@ -205,13 +274,21 @@ final class BilingualPipelineTests: XCTestCase {
             client: AIClient(settings: store, session: session),
             settings: store
         )
-        return Fixture(service: service, cache: cache, session: session, defaults: defaults, suite: name)
+        return Fixture(
+            service: service,
+            cache: cache,
+            session: session,
+            settings: store,
+            defaults: defaults,
+            suite: name
+        )
     }
 
-    private struct Fixture {
+    struct Fixture {
         let service: AIReadingService
         let cache: SQLiteProcessedChapterCache
         let session: URLSession
+        let settings: SettingsStore
         let defaults: UserDefaults
         let suite: String
 
@@ -222,18 +299,37 @@ final class BilingualPipelineTests: XCTestCase {
     }
 }
 
-private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Sendable {
+final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var invalid = false
     private nonisolated(unsafe) static var captured: [URLRequest] = []
     private nonisolated(unsafe) static var completed: [String] = []
+    private nonisolated(unsafe) static var holdResponses = false
+    private nonisolated(unsafe) static var heldWork: [DispatchWorkItem] = []
     private var work: DispatchWorkItem?
 
-    static func configure(invalid: Bool) {
+    static func configure(invalid: Bool, holdResponses: Bool = false) {
         lock.withLock {
             self.invalid = invalid
+            self.holdResponses = holdResponses
+            for item in heldWork {
+                item.cancel()
+            }
+            heldWork = []
             captured = []
             completed = []
+        }
+    }
+
+    static func releasePendingResponses() {
+        let items: [DispatchWorkItem] = lock.withLock {
+            holdResponses = false
+            let pending = heldWork
+            heldWork = []
+            return pending
+        }
+        for item in items {
+            DispatchQueue.global().async(execute: item)
         }
     }
 
@@ -292,7 +388,8 @@ private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Se
             ["finish_reason": "stop", "message": ["content": content]],
         ]])) ?? Data()
         // swiftlint:enable trailing_comma
-        let work = DispatchWorkItem { [self] in
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !(self.work?.isCancelled ?? false) else { return }
             Self.lock.withLock { Self.completed.append(id) }
             guard let url = request.url,
                   let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
@@ -302,10 +399,37 @@ private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Se
             client?.urlProtocolDidFinishLoading(self)
         }
         self.work = work
-        DispatchQueue.global().asyncAfter(deadline: .now() + (id == "p001" ? 0.15 : 0), execute: work)
+
+        let shouldHold = Self.lock.withLock { () -> Bool in
+            if Self.holdResponses {
+                Self.heldWork.append(work)
+                return true
+            }
+            return false
+        }
+        if !shouldHold {
+            DispatchQueue.global().asyncAfter(deadline: .now() + (id == "p001" ? 0.15 : 0), execute: work)
+        }
     }
 
     override func stopLoading() {
         work?.cancel()
     }
+}
+
+private struct LogCoverRepository: BookRepository {
+    func listBooks() throws -> [Book] {
+        []
+    }
+
+    func book(slug: String) throws -> Book? {
+        Book(id: slug, name: "Fixture", author: nil, count: 2, references: ["First", "Second"])
+    }
+
+    func chapterHTML(slug: String, number: Int) throws -> String {
+        "<h1>Chapter \(number)</h1><p>Original body.</p>"
+    }
+
+    func save(validatedRoot: URL, slug: String) throws {}
+    func deleteBook(slug: String) throws {}
 }

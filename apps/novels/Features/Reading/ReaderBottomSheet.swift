@@ -97,6 +97,9 @@ struct ReaderBottomSheet: View {
             }
         }
         .preferredColorScheme(theme.preferredColorScheme)
+        .task {
+            await diagnosticsStore.observe()
+        }
     }
 
     private var themeDivider: some View {
@@ -208,16 +211,19 @@ struct ReaderBottomSheet: View {
     }
 
     private func apiLogButton(viewModel: ReaderViewModel) -> some View {
-        let hasErrors = diagnosticsStore.errorCount > 0
-        let title = hasErrors ? "Nhật ký · \(diagnosticsStore.errorCount) lỗi" : "Nhật ký"
+        let failedRuns = diagnosticsStore.failedRunCount(bookId: viewModel.bookId)
+        let hasErrors = failedRuns > 0
+        let title = hasErrors ? "Nhật ký · \(failedRuns) lần thất bại" : "Nhật ký"
         let voiceLabel = hasErrors
-            ? "Nhật ký chẩn đoán, có \(diagnosticsStore.errorCount) lỗi"
+            ? "Nhật ký chẩn đoán, có \(failedRuns) lần xử lý thất bại trong sách này"
             : "Nhật ký chẩn đoán"
-        let hint = hasErrors ? "Mở nhật ký, lọc lỗi" : "Mở nhật ký chẩn đoán"
+        let hint = hasErrors ? "Mở nhật ký, lọc các lần xử lý thất bại" : "Mở nhật ký chẩn đoán"
         let initialFilter: LogKindFilter = hasErrors ? .error : .all
         return Button {
             onClose()
-            router?.push(.apiLog(bookId: viewModel.bookId, initialFilter: initialFilter))
+            if router?.push(.apiLog(bookId: viewModel.bookId, initialFilter: initialFilter)) == true {
+                viewModel.prepareForLog()
+            }
         } label: {
             HStack(spacing: 8) {
                 ZStack(alignment: .topTrailing) {

@@ -30,7 +30,8 @@ For each chunk of chapter text (see Chunking):
    - Responses: `{"reasoning": {"effort": "medium", "summary": "auto"}}`, `{"max_output_tokens": 512}`, `{"text": {"verbosity": "medium"}}`.
    - Anthropic: `{"thinking": {"type": "adaptive"}}`, `{"output_config": {"effort": "high"}}`, `{"temperature": 0.7}`, `{"max_tokens": 512}` (override).
 3. Generate `Authorization: Bearer <trimmed AI_API_KEY>` for a non-empty key unless custom headers already contain Authorization (case-insensitive). Add valid `AI_CUSTOM_HEADERS` string entries; custom authentication wins. Native Anthropic still needs custom `x-api-key`. Anthropic family additionally injects `"anthropic-version": "2023-06-01"` when missing (case-insensitive). When merged headers lack `x-opencode-session` (case-insensitive), the app injects `x-opencode-session: novels-<bookId>-c<chapter>-<mode>` from chapter context. A user-supplied value wins verbatim. Empty context sends no header. If the JSON is invalid, ignore it.
-4. `AI_API_KEY` is a masked credential setting. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
+4. Determine invalid headers/body warnings from the same settings snapshot and JSON-object parser used for request merging, before generated headers are added. Non-empty malformed JSON or a non-object root is ignored with a length/hash-only warning. Blank input and valid empty objects are not warnings; valid header objects may contain non-string entries that are simply omitted.
+5. `AI_API_KEY` is a masked credential setting. `AI_CUSTOM_HEADERS` and `AI_EXTRA_BODY` are user-entered JSON objects. The app stores them verbatim with normal settings (`UserDefaults` via `@Observable` — see `../decisions/local-persistence.md`). No secret is hard-coded. No real secret appears in docs per `../../SECURITY.md`.
 
 ### Provider Identity and Thinking
 
@@ -142,13 +143,13 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 
 ## Retry and Failure
 
-- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2.
+- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2. Cancellation (`CancellationError` or `NSURLErrorDomain -999`) is not retryable; record it as cancellation, never an API failure.
 - **Success:** assemble in source order and save atomically to the existing TEXT column: joined plain text for rewrite, one versioned JSON object for bilingual. The reader renders text or decoded pairs, never raw JSON.
 - **Failure mapping:**
   - One chunk still failing after its 2nd attempt aborts the whole chapter: no partial cache write, toast once, render raw fallback. Manual "Xử lý lại" retries the chapter on demand.
   - No content → "no response from AI service."
   - Shape log (no raw body/prompt/auth in shape fields): `responseJsonKeys` (top keys ≤10), `choicesCount`, `contentKind` (`null`/`missing`/`empty-string`/`ok`), `hasReasoningContent`, `hasToolCalls`.
-  - Full request/response JSON is additionally retained in RAM on the api log entry for in-app inspection only (feat-019 bottom sheet viewer). Never persisted to disk, never emitted to OSLog/`debugSummary`. Log UI shows no headers block and full server URL.
+  - Full request/response JSON is additionally retained in RAM on the api log entry for in-app inspection only (feat-019 bottom sheet viewer). Never persisted to disk, never emitted to OSLog/`debugSummary`. Log UI shows no headers block; endpoint display removes URL credentials, query and fragment. Sending and outcome entries are appended separately to the 500-entry RAM ring. The UI coalesces the same request/attempt into its latest outcome; sending entries still consume ring capacity. This does not change retention or mutate recorded entries.
   - Network/server error after the single retry → show provider error or "AI processing failed."
   - Invalid headers/body JSON → the app ignores the value; this is not a failure.
   - After failure: the app writes no cache entry. Concurrent requests for the same key de-duplicate (single call, shared result). `CancellationError` (navigation/mode switch) clears the flag silently with no toast.
