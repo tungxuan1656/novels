@@ -223,7 +223,7 @@ final class BilingualSettingsTests: XCTestCase {
         XCTAssertFalse(paragraphs[0].vi.isEmpty)
         XCTAssertFalse(paragraphs[0].en.isEmpty)
         XCTAssertTrue(descriptor.placeholder.contains("Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON"))
-        XCTAssertTrue(descriptor.description.contains("yêu cầu định dạng cặp câu"))
+        XCTAssertTrue(descriptor.description.contains("App tự động thêm quy tắc JSON"))
     }
 
     // MARK: - Helpers

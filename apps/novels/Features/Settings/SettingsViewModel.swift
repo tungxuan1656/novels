@@ -202,7 +202,8 @@ enum SettingsViewModel {
             Giữ nguyên id đầu vào, mỗi id có đúng một cặp vi/en.
             Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON.
             """,
-            description: "Câu lệnh hướng dẫn văn phong cho chế độ Song ngữ (yêu cầu định dạng cặp câu)",
+            description: "Hướng dẫn cách dịch song ngữ. App tự động thêm quy tắc JSON (paragraphs/id/vi/en) "
+                + "để ghép đúng từng đoạn Việt - Anh, không thể ghi đè quy tắc này.",
             defaultValue: SettingsDefaults.defaultBilingualPrompt,
             allowsVerbatimSave: false
         ),
@@ -210,7 +211,7 @@ enum SettingsViewModel {
             key: "AUDIO_SOURCE",
             label: "Nguồn giọng đọc",
             placeholder: "apple",
-            description: "Chọn đọc bằng giọng có sẵn trên máy (miễn phí) hoặc qua máy chủ giọng đọc trực tuyến",
+            description: "Giọng trên máy miễn phí. Giọng trực tuyến cần Internet, gửi câu tới API và có thể tính phí.",
             defaultValue: AudioSource.apple.rawValue,
             allowsVerbatimSave: false
         ),
@@ -242,7 +243,7 @@ enum SettingsViewModel {
             key: "AI_MIN_CHUNK_SIZE",
             label: "Độ dài đoạn gửi đi",
             placeholder: "1300",
-            description: "Số ký tự tối thiểu mỗi lần gửi cho AI dịch (từ 500 đến 10000, mặc định 1300)",
+            description: "Giới hạn số ký tự mỗi đoạn gửi cho AI (500–10000, mặc định 1300)",
             defaultValue: "1300",
             allowsVerbatimSave: false
         ),
