@@ -103,9 +103,9 @@ struct SettingEditorView: View {
 
     @ViewBuilder
     private var thinkingChoices: some View {
-        thinkingChoice(value: "", label: "Mặc định nhà cung cấp")
+        thinkingChoice(value: "", label: "Mặc định (theo mô hình)")
         ForEach(AIThinkingEffort.allCases, id: \.rawValue) { effort in
-            thinkingChoice(value: effort.rawValue, label: effort.rawValue)
+            thinkingChoice(value: effort.rawValue, label: "\(effort.title) (\(effort.rawValue))")
         }
     }
 

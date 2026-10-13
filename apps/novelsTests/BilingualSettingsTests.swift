@@ -205,7 +205,7 @@ final class BilingualSettingsTests: XCTestCase {
     func testBilingualPromptDescriptorAndValidation() {
         let desc = SettingsViewModel.descriptor(for: DefaultsKeys.aiBilingualPrompt)
         XCTAssertEqual(desc.key, DefaultsKeys.aiBilingualPrompt)
-        XCTAssertEqual(desc.label, "Prompt song ngữ")
+        XCTAssertEqual(desc.label, "Hướng dẫn dịch song ngữ (Prompt)")
         XCTAssertEqual(desc.defaultValue, SettingsDefaults.defaultBilingualPrompt)
         XCTAssertFalse(desc.allowsVerbatimSave)
 
@@ -223,7 +223,7 @@ final class BilingualSettingsTests: XCTestCase {
         XCTAssertFalse(paragraphs[0].vi.isEmpty)
         XCTAssertFalse(paragraphs[0].en.isEmpty)
         XCTAssertTrue(descriptor.placeholder.contains("Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON"))
-        XCTAssertTrue(descriptor.description.contains("App luôn nối thêm quy tắc JSON bắt buộc"))
+        XCTAssertTrue(descriptor.description.contains("yêu cầu định dạng cặp câu"))
     }
 
     // MARK: - Helpers
