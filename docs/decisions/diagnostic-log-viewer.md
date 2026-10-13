@@ -49,3 +49,10 @@ AI rewrite via OpenAI-compatible endpoint runs silently. User needs visibility i
 - Log groups 1 row = 1 chapter × 1 processing run (`runId` per `processedContent`/`reprocess` call, threaded through chunk/api/cache entries; prefetch assigns one `runId` per chapter attempt). Manual retry = new row. Row shows run status (Success/Failure/Processing) + chunk counts; expand reveals inner events incl. retry attempts.
 - One deliberate exception to "never raw body": full request/response JSON is kept **in RAM only** on the api entry (`requestBody`/`responseBody`), shown in-app in a bottom sheet viewer. Never persisted, never in `debugSummary`/OSLog. Headers block removed from Log UI; model row removed; server shows full URL.
 - Filters removed (book/chapter pickers, kind chips, timeline/chapter segmentation). Search kept, narrowed to chapter number/status/event/detail (no requestId/host/error code).
+
+## Amendment 2026-10-13 — Reader lifetime and explanatory outcomes
+
+- Opening Log must not cancel current-chapter processing or prefetch. Only an accepted Log push preserves the reader work; normal Reader exit still cancels it. Returning to the same chapter does not restart a paid request.
+- Distinguish cancelled from failed runs. Transport cancellation is silent, never retried, and cannot overwrite a real failure in another chunk. A later terminal cache success can clear a transient retry failure.
+- Explain API and event outcomes in Vietnamese while keeping technical codes available. Failed-run summaries include the affected chunk/attempt and underlying API cause; a later semantic pairing failure remains visible rather than being replaced with a recovered API error.
+- Log opens scoped to the current book. An optional error-focused entry expands failed runs instead of filtering individual events, retaining the full timeline and later recovery. Search additionally covers human explanations and error codes, never raw request/response bodies. Retention and redaction are unchanged.

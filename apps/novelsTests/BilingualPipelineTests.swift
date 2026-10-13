@@ -177,6 +177,60 @@ final class BilingualPipelineTests: XCTestCase {
         XCTAssertEqual(try fixture.cache.get(bookId: "sample", chapterNumber: 1, mode: .bilingual)?.content, result)
     }
 
+    func testLogCoverKeepsReaderAndPrefetchWithoutDuplicateCurrentRequest() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.aiMode = .bilingual
+        fixture.settings.prefetchCount = 1
+        BilingualURLProtocol.configure(invalid: false)
+        let reader = ReaderViewModel(
+            bookId: "log-cover", repository: LogCoverRepository(), settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service
+        )
+        defer { reader.onDisappear() }
+        await reader.load()
+        try await waitForRequest()
+        XCTAssertTrue(reader.isAIProcessing)
+        reader.prepareForLog()
+        reader.onDisappear()
+        XCTAssertTrue(reader.isAIProcessing)
+        reader.onAppear()
+        await reader.load(source: .returnFromLog)
+        let deadline = Date().addingTimeInterval(3)
+        while try (reader.isAIProcessing || fixture.cache.countAll() < 2), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertNotNil(reader.currentBilingualParagraphs)
+        XCTAssertEqual(try fixture.cache.countAll(), 2)
+        XCTAssertEqual(BilingualURLProtocol.requests().count, 2)
+        XCTAssertNil(reader.aiError)
+    }
+
+    func testActualReaderExitStillCancelsCurrentRequest() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.aiMode = .bilingual
+        fixture.settings.prefetchCount = 0
+        BilingualURLProtocol.configure(invalid: false)
+        let reader = ReaderViewModel(
+            bookId: "reader-exit", repository: LogCoverRepository(), settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service
+        )
+        await reader.load()
+        try await waitForRequest()
+        reader.onDisappear()
+        XCTAssertFalse(reader.isAIProcessing)
+        let deadline = Date().addingTimeInterval(3)
+        while !(await DiagnosticsLog.shared.snapshot()).contains(where: {
+            $0.bookId == "reader-exit" && $0.errorCode == URLError.cancelled.rawValue
+        }), Date() < deadline {
+            try await Task.sleep(for: .milliseconds(1))
+        }
+        XCTAssertEqual(try fixture.cache.countAll(), 0)
+        XCTAssertEqual(BilingualURLProtocol.requests().count, 1)
+        XCTAssertNil(reader.aiError)
+    }
+
     private func waitForRequest() async throws {
         let deadline = Date().addingTimeInterval(3)
         while BilingualURLProtocol.requests().isEmpty, Date() < deadline {
@@ -205,13 +259,21 @@ final class BilingualPipelineTests: XCTestCase {
             client: AIClient(settings: store, session: session),
             settings: store
         )
-        return Fixture(service: service, cache: cache, session: session, defaults: defaults, suite: name)
+        return Fixture(
+            service: service,
+            cache: cache,
+            session: session,
+            settings: store,
+            defaults: defaults,
+            suite: name
+        )
     }
 
     private struct Fixture {
         let service: AIReadingService
         let cache: SQLiteProcessedChapterCache
         let session: URLSession
+        let settings: SettingsStore
         let defaults: UserDefaults
         let suite: String
 
@@ -308,4 +370,21 @@ private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Se
     override func stopLoading() {
         work?.cancel()
     }
+}
+
+private struct LogCoverRepository: BookRepository {
+    func listBooks() throws -> [Book] {
+        []
+    }
+
+    func book(slug: String) throws -> Book? {
+        Book(id: slug, name: "Fixture", author: nil, count: 2, references: ["First", "Second"])
+    }
+
+    func chapterHTML(slug: String, number: Int) throws -> String {
+        "<h1>Chapter \(number)</h1><p>Original body.</p>"
+    }
+
+    func save(validatedRoot: URL, slug: String) throws {}
+    func deleteBook(slug: String) throws {}
 }

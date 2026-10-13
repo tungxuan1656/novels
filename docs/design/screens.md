@@ -26,10 +26,12 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
 - In Song ngữ, appearance hint: "Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn"
 - Steppers for size and line height
-- Log button ("Nhật ký") below AI section → push Log timeline
+- Log button ("Nhật ký") below AI section → push Log timeline for the current book. "Xem lỗi" expands failed runs when errors are present without hiding other runs or sibling events; later recovery remains visible.
 Gear opens Settings.
 
 **English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google in a nested system browser sheet only after a tap. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
+
+**Diagnostic Log.** Group rows show cancelled separately from failed, with a short cause, chunk and API attempt when available. Inner rows distinguish sending, received HTTP responses, invalid output, network failure and cancellation using Vietnamese explanations; technical event/domain/code remain available. Failed-run summaries resolve wrapper events to the final API outcome, without hiding later semantic-validation errors. Search includes those explanations and error codes, not raw bodies. JSON stays in the existing RAM-only viewer.
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 

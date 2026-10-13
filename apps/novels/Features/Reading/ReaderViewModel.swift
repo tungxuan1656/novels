@@ -46,6 +46,7 @@ final class ReaderViewModel {
     private let prefetchManager: PrefetchManager
     /// Ordered disappear-cancel joined by the next `.returnFromLog` resync.
     private var disappearCancelTask: Task<Void, Never>?
+    private var preservesProcessingForLog = false
     private let processedCache: ProcessedChapterCaching
     private(set) var lastVisibleChapter: Int?
     private(set) var lastVisibleMode: AIMode?
@@ -218,6 +219,7 @@ final class ReaderViewModel {
     }
 
     func onAppear() {
+        preservesProcessingForLog = false
         let existing = settingsStore.session
         let offsetToKeep = (existing?.bookId == bookId) ? existing?.offset ?? 0 : 0
         let chapterToKeep: Int
@@ -236,9 +238,15 @@ final class ReaderViewModel {
         settingsStore.save()
     }
 
+    func prepareForLog() {
+        preservesProcessingForLog = true
+    }
+
     func onDisappear() {
         lastVisibleChapter = chapterNumber
         lastVisibleMode = aiMode
+        // Inspecting diagnostics must not cancel the work being inspected.
+        guard !preservesProcessingForLog else { return }
         // Seamless restore: do NOT clear session.onScreen here. onDisappear also
         // fires when References/TOC/Log cover Reader (push, not pop); clearing it
         // would strand relaunch on Library. Only Router.popReading /
@@ -250,7 +258,7 @@ final class ReaderViewModel {
         // before overwrite, then run cancelPrefetch() once (it writes the
         // terminal state). Joined by the next .returnFromLog resync.
         disappearCancelTask?.cancel()
-        disappearCancelTask = Task { await cancelPrefetch() }
+        disappearCancelTask = Task { await cancelPrefetch(reason: "disappear") }
     }
 
     func setAIMode(_ mode: AIMode) async {
@@ -263,7 +271,7 @@ final class ReaderViewModel {
         aiError = nil
         clearProcessedContent()
         isAIProcessing = mode != .none
-        await cancelPrefetch()
+        await cancelPrefetch(reason: "modeChange")
         guard generation == aiGeneration, mode == aiMode else { return }
         if mode == .none {
             if let html = readChapterHTML(number: chapterNumber) {
@@ -457,10 +465,10 @@ final class ReaderViewModel {
         await triggerPrefetchIfEligible()
     }
 
-    private func cancelPrefetch() async {
+    private func cancelPrefetch(reason: String = "modeChange") async {
         // Single cancel path (book/mode change, .none, disappear, explicit):
         // manager cancel + terminal write once (no poll, no epoch).
-        await prefetchManager.cancel()
+        await prefetchManager.cancel(reason: reason)
         if aiMode == .none {
             prefetchStatus = .idle
         } else {

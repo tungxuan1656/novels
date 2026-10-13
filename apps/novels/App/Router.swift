@@ -48,10 +48,12 @@ final class Router {
         push(.reading(bookId: session.bookId))
     }
 
-    func push(_ route: Route) {
+    /// Rejected pushes must not change the caller's processing lifecycle.
+    @discardableResult
+    func push(_ route: Route) -> Bool {
         guard !isPushing else {
             toast.show("Vui lòng chờ", type: .info)
-            return
+            return false
         }
         isPushing = true
         path.append(route)
@@ -71,6 +73,7 @@ final class Router {
             try? await Task.sleep(nanoseconds: 100_000_000)
             isPushing = false
         }
+        return true
     }
 
     func pop() {

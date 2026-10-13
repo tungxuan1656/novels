@@ -142,13 +142,13 @@ Read the result tolerantly (all optional, never throw on missing; decode failure
 
 ## Retry and Failure
 
-- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2.
+- **Retry:** Bounded per-chunk retry — max 2 attempts per chunk (1 initial + 1 retry of exactly the failed chunk, never the whole batch). Retry applies to transport and response-envelope/final-JSON failures (4xx, 5xx, network, timeout, decode/no-response); feature-level bilingual ID/pair validation fails without another retry. Both attempts share one `requestId`; each attempt is logged separately with `attempt` 1/2. Cancellation (`CancellationError` or `NSURLErrorDomain -999`) is not retryable; record it as cancellation, never an API failure.
 - **Success:** assemble in source order and save atomically to the existing TEXT column: joined plain text for rewrite, one versioned JSON object for bilingual. The reader renders text or decoded pairs, never raw JSON.
 - **Failure mapping:**
   - One chunk still failing after its 2nd attempt aborts the whole chapter: no partial cache write, toast once, render raw fallback. Manual "Xử lý lại" retries the chapter on demand.
   - No content → "no response from AI service."
   - Shape log (no raw body/prompt/auth in shape fields): `responseJsonKeys` (top keys ≤10), `choicesCount`, `contentKind` (`null`/`missing`/`empty-string`/`ok`), `hasReasoningContent`, `hasToolCalls`.
-  - Full request/response JSON is additionally retained in RAM on the api log entry for in-app inspection only (feat-019 bottom sheet viewer). Never persisted to disk, never emitted to OSLog/`debugSummary`. Log UI shows no headers block and full server URL.
+  - Full request/response JSON is additionally retained in RAM on the api log entry for in-app inspection only (feat-019 bottom sheet viewer). Never persisted to disk, never emitted to OSLog/`debugSummary`. Log UI shows no headers block and full server URL. A sending entry is updated in place for the same request/attempt when an outcome arrives; a cancelled late response cannot overwrite its cancellation.
   - Network/server error after the single retry → show provider error or "AI processing failed."
   - Invalid headers/body JSON → the app ignores the value; this is not a failure.
   - After failure: the app writes no cache entry. Concurrent requests for the same key de-duplicate (single call, shared result). `CancellationError` (navigation/mode switch) clears the flag silently with no toast.

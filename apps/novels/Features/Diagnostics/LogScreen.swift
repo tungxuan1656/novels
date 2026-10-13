@@ -131,8 +131,8 @@ struct LogScreen: View {
                         Text(group.title)
                             .font(.subheadline)
                             .foregroundStyle(DesignTokens.text)
-                            .lineLimit(1)
-                        Text(groupSubtitle(group))
+                            .lineLimit(2)
+                        Text(group.subtitle)
                             .font(.caption)
                             .monospacedDigit()
                             .foregroundStyle(DesignTokens.muted)
@@ -159,6 +159,12 @@ struct LogScreen: View {
             .accessibilityLabel("\(group.title), \(group.status.title)")
             .accessibilityHint(groupExpanded.contains(group.id) ? "Chạm để thu gọn" : "Chạm để xem chi tiết")
             .accessibilityAddTraits(.isButton)
+            if let issue = group.issueSummary {
+                Text(issue)
+                    .font(.caption)
+                    .foregroundStyle(group.status.color)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             if groupExpanded.contains(group.id) {
                 Divider()
                 ForEach(group.entries) { entry in
@@ -166,19 +172,6 @@ struct LogScreen: View {
                 }
             }
         }
-    }
-
-    private func groupSubtitle(_ group: LogRunGroup) -> String {
-        // Entries arrive newest-first, so the last one is the earliest — no scan per row.
-        // Count, range, and latest describe the visible entries (search hits when
-        // filtering); title, status, and progress always reflect the full run.
-        let earliest = group.entries.last?.timestamp ?? group.latest
-        let start = logGroupHourFormatter.string(from: earliest)
-        if Calendar.current.isDate(earliest, inSameDayAs: group.latest) {
-            return "\(group.entries.count) mục · \(start)–\(logGroupHourFormatter.string(from: group.latest))"
-        }
-        let range = "\(logGroupDayFormatter.string(from: earliest))–\(logGroupDayFormatter.string(from: group.latest))"
-        return "\(group.entries.count) mục · \(range)"
     }
 
     private func innerCell(_ entry: LogEntry) -> some View {
@@ -228,7 +221,9 @@ struct LogScreen: View {
                     .font(.subheadline)
                     .foregroundStyle(DesignTokens.text)
                 ScrollView {
-                    Text(entry.responseBody ?? "Không có body")
+                    Text(entry.responseBody ?? (LogEntry.isMutedCancel(entry)
+                            ? "Chưa nhận đủ phản hồi: yêu cầu đã bị hủy."
+                            : "Chưa ghi nhận phản hồi từ máy chủ."))
                         .font(.system(.footnote, design: .monospaced))
                         .foregroundStyle(DesignTokens.text)
                         .lineLimit(nil)
@@ -269,9 +264,6 @@ struct LogScreen: View {
         var scoped = store.entries
         if let bookId {
             scoped = scoped.filter { $0.bookId == bookId }
-        }
-        if initialFilter != .all {
-            scoped = scoped.filter { initialFilter.matches($0) }
         }
         return LogRunBuilder.build(from: scoped)
     }
@@ -376,6 +368,50 @@ struct LogRunGroup: Identifiable, Equatable {
     let entries: [LogEntry]
     let status: LogRunStatus
     let chunkProgress: String?
+
+    var subtitle: String {
+        // Visible entries determine the time range; status still reflects the full run.
+        let earliest = entries.last?.timestamp ?? latest
+        let start = logGroupHourFormatter.string(from: earliest)
+        if Calendar.current.isDate(earliest, inSameDayAs: latest) {
+            return "\(entries.count) mục · \(start)–\(logGroupHourFormatter.string(from: latest))"
+        }
+        let range = "\(logGroupDayFormatter.string(from: earliest))–\(logGroupDayFormatter.string(from: latest))"
+        return "\(entries.count) mục · \(range)"
+    }
+
+    var issueSummary: String? {
+        let issue: LogEntry?
+        // swiftlint:disable switch_case_alignment
+        switch status {
+            case .failed:
+                let failure = entries.first { LogEntry.isError($0) && $0.event != "prefetch.error-continue" }
+                    ?? entries.first { LogEntry.isError($0) }
+                // Use the final API outcome, not an earlier failed retry or its wrapper event.
+                let response = entries.first {
+                    $0.kind == .api && $0.requestId == failure?.requestId
+                        && ($0.statusCode != nil || $0.errorDomain != nil)
+                }
+                if failure?.event == "chunk.fail", let response, LogEntry.isError(response) {
+                    issue = response
+                } else {
+                    issue = failure
+                }
+            case .cancelled: issue = entries.first { LogEntry.isMutedCancel($0) }
+            default: return nil
+        }
+        // swiftlint:enable switch_case_alignment
+        guard let issue else { return nil }
+        var position = ""
+        if let index = issue.chunkIndex, let total = issue.chunkTotal {
+            position = "Đoạn \(index + 1)/\(total) · "
+        }
+        if issue.kind == .api {
+            position += "Lần thử \(issue.attempt) · "
+        }
+        return position + issue.diagnosticTitle
+            + (issue.diagnosticExplanation.map { ": " + $0 } ?? "")
+    }
 }
 
 enum LogRunBuilder {
@@ -482,7 +518,7 @@ enum LogRunBuilder {
     static func chunkProgress(of entries: [LogEntry]) -> String? {
         guard let total = entries.compactMap({ $0.chunkTotal }).first, total > 0 else { return nil }
         let done = Set(entries.filter { $0.event == "chunk.success" }.compactMap { $0.chunkIndex }).count
-        return "\(done)/\(total) chunk"
+        return "\(done)/\(total) đoạn"
     }
 
     static func title(chapter: Int, mode: String, entries: [LogEntry] = []) -> String {
@@ -512,7 +548,7 @@ enum LogRunBuilder {
     }
 
     /// Narrow search: chapter number, group status words, event, detail, snippet.
-    /// Never matches requestId/host/error codes.
+    /// Includes safe diagnostic labels/codes, never raw request/response bodies.
     static func matches(_ group: LogRunGroup, needle: String) -> Bool {
         let query = needle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return true }
@@ -530,7 +566,11 @@ enum LogRunBuilder {
         let query = needle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return group.entries }
         return group.entries.filter { entry in
-            (entry.event?.lowercased().contains(query) ?? false)
+            entry.diagnosticTitle.lowercased().contains(query)
+                || (entry.diagnosticExplanation?.lowercased().contains(query) ?? false)
+                || (entry.errorDomain?.lowercased().contains(query) ?? false)
+                || (entry.errorCode.map { String($0).contains(query) } ?? false)
+                || (entry.event?.lowercased().contains(query) ?? false)
                 || (entry.detail?.lowercased().contains(query) ?? false)
                 || (entry.snippet?.lowercased().contains(query) ?? false)
         }
@@ -647,6 +687,12 @@ struct LogRowView: View {
         VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
             Divider()
             detailLine(label: "Trạng thái", value: statusText)
+            if let explanation = entry.diagnosticExplanation {
+                detailLine(label: "Giải thích", value: explanation)
+            }
+            if let domain = entry.errorDomain {
+                detailLine(label: "Mã lỗi", value: domain + (entry.errorCode.map { " \($0)" } ?? ""))
+            }
             if let host = entry.host {
                 detailLine(label: "Máy chủ", value: host)
             }
@@ -730,23 +776,16 @@ struct LogRowView: View {
         if let index = entry.chunkIndex, let total = entry.chunkTotal {
             text += " · Đoạn \(index + 1)/\(total)"
         }
-        if let event = entry.event, entry.kind == .event {
-            text += " · \(event)"
+        if entry.kind == .api {
+            text += " · Lần thử \(entry.attempt)"
+        } else {
+            text += " · \(entry.diagnosticTitle)"
         }
         return text
     }
 
     private var statusText: String {
-        if let code = entry.statusCode {
-            if let domain = entry.errorDomain {
-                return "\(code) · \(domain)\(entry.errorCode.map { " \($0)" } ?? "")"
-            }
-            return "\(code)"
-        }
-        if let domain = entry.errorDomain {
-            return "\(domain)\(entry.errorCode.map { " \($0)" } ?? "")"
-        }
-        return entry.event ?? (entry.kind == .api ? "API" : "Sự kiện")
+        entry.diagnosticTitle
     }
 
     private var statusBadge: some View {
@@ -757,26 +796,23 @@ struct LogRowView: View {
     }
 
     private var badgeText: String {
-        if let code = entry.statusCode {
-            return "\(code)"
-        }
-        if let event = entry.event {
-            return shortEvent(event)
-        }
-        return entry.kind == .api ? "API" : "SK"
+        entry.diagnosticTitle
     }
 
     private var badgeColor: Color {
-        if let code = entry.statusCode {
-            if code < 300 {
-                return DesignTokens.success
-            }
-            if code < 500 {
-                return DesignTokens.warning
-            }
+        if LogEntry.isMutedCancel(entry) {
+            return DesignTokens.muted
+        }
+        if LogEntry.isError(entry) {
             return DesignTokens.error
         }
-        return LogEntry.isError(entry) ? DesignTokens.error : DesignTokens.accent
+        if let code = entry.statusCode {
+            return code < 300 ? DesignTokens.success : DesignTokens.warning
+        }
+        if ["chunk.success", "cache.save", "cache.hit"].contains(entry.event) {
+            return DesignTokens.success
+        }
+        return DesignTokens.accent
     }
 
     private var kindColor: Color {
@@ -785,10 +821,6 @@ struct LogRowView: View {
 
     private var rowVoiceLabel: String {
         "\(entry.kind == .api ? "API" : "Sự kiện"), \(positionText), \(statusText), \(entry.latencyMs) mili giây"
-    }
-
-    private func shortEvent(_ event: String) -> String {
-        String(event.prefix(16))
     }
 
     static let timeFormatter: DateFormatter = {

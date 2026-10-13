@@ -217,7 +217,9 @@ struct ReaderBottomSheet: View {
         let initialFilter: LogKindFilter = hasErrors ? .error : .all
         return Button {
             onClose()
-            router?.push(.apiLog(bookId: viewModel.bookId, initialFilter: initialFilter))
+            if router?.push(.apiLog(bookId: viewModel.bookId, initialFilter: initialFilter)) == true {
+                viewModel.prepareForLog()
+            }
         } label: {
             HStack(spacing: 8) {
                 ZStack(alignment: .topTrailing) {

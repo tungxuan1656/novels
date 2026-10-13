@@ -209,7 +209,20 @@ actor AIClient {
                 )
                 return content
             } catch {
-                if error is CancellationError {
+                let nsError = error as NSError
+                let isTransportCancellation = nsError.domain == NSURLErrorDomain
+                    && nsError.code == URLError.cancelled.rawValue
+                if error is CancellationError || isTransportCancellation {
+                    await recordApiAttempt(
+                        context: context,
+                        attempt: attemptNumber,
+                        latencyMs: latencyMs(),
+                        urlString: url.absoluteString,
+                        model: model,
+                        errorDomain: NSURLErrorDomain,
+                        errorCode: URLError.cancelled.rawValue,
+                        requestBody: requestBodyString
+                    )
                     throw CancellationError()
                 }
                 if error is DecodingError {
