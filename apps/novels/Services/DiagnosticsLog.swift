@@ -247,14 +247,30 @@ actor DiagnosticsLog {
 final class DiagnosticsStore {
     static let shared = DiagnosticsStore()
 
-    var entries: [LogEntry] = []
+    var entries: [LogEntry] = [] {
+        didSet { groupCache = nil }
+    }
+
+    private struct GroupCache {
+        let bookId: String?
+        let bookTitles: [String: String]
+        let groups: [LogRunGroup]
+    }
+
+    @ObservationIgnored private var groupCache: GroupCache?
 
     func runGroups(bookId: String?, bookTitles: [String: String] = [:]) -> [LogRunGroup] {
+        // Read the observable source even on a cache hit so SwiftUI follows new entries.
         var scoped = entries
+        if let groupCache, groupCache.bookId == bookId, groupCache.bookTitles == bookTitles {
+            return groupCache.groups
+        }
         if let bookId {
             scoped = scoped.filter { $0.bookId == bookId }
         }
-        return LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
+        let groups = LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
+        groupCache = GroupCache(bookId: bookId, bookTitles: bookTitles, groups: groups)
+        return groups
     }
 
     /// The Reader warning uses the same book-scoped outcomes as the Log filter.
@@ -266,6 +282,16 @@ final class DiagnosticsStore {
 
     func refresh() async {
         entries = await DiagnosticsLog.shared.snapshot()
+    }
+
+    func prepareForDisplay(bookId: String?, repository: BookRepository) async -> [String: String] {
+        await refresh()
+        let slugs = bookId.map { [$0] } ?? Array(Set(entries.map(\.bookId)))
+        let titles = (try? await repository.bookTitles(slugs: slugs)) ?? [:]
+        guard !Task.isCancelled else { return [:] }
+        // A run can recover while the background title read is suspended.
+        await refresh()
+        return titles
     }
 
     /// Subscribe before the initial refresh so opening a viewer cannot miss a tick.

@@ -3,6 +3,8 @@ import Foundation
 import SQLite3
 import XCTest
 
+// swiftlint:disable trailing_comma
+
 @MainActor
 final class ProcessedChapterCacheTests: XCTestCase {
     func testKeysUpsertAndBookScopedClear() throws {
@@ -116,6 +118,26 @@ final class ProcessedChapterCacheTests: XCTestCase {
         XCTAssertEqual(try cache.metadata(bookId: "book-b").count, 1)
     }
 
+    func testInventoryCountsVersionsAndDistinctChaptersWithoutMetadata() throws {
+        let cache = try SQLiteProcessedChapterCache.inMemory()
+        XCTAssertEqual(try cache.inventory(), [])
+        try cache.upsert(chapter(book: "first", number: 1, content: "one"))
+        try cache.upsert(chapter(book: "first", number: 1, content: "two", mode: .bilingual))
+        try cache.upsert(chapter(book: "first", number: 2, content: "three"))
+        try cache.upsert(chapter(book: "second", number: 1, content: "other"))
+        try cache.upsert(chapter(book: "first", number: 2, content: "replacement"))
+        XCTAssertEqual(try cache.inventory(), [
+            ProcessedBookSummary(bookId: "first", versionCount: 3, chapterCount: 2),
+            ProcessedBookSummary(bookId: "second", versionCount: 1, chapterCount: 1),
+        ])
+        try cache.clear(bookId: "first")
+        XCTAssertEqual(try cache.inventory(), [
+            ProcessedBookSummary(bookId: "second", versionCount: 1, chapterCount: 1),
+        ])
+        try cache.clearAll()
+        XCTAssertEqual(try cache.inventory(), [])
+    }
+
     private func chapter(book: String, number: Int, content: String, mode: AIMode = .rewrite) -> ProcessedChapter {
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         return ProcessedChapter(
@@ -124,3 +146,5 @@ final class ProcessedChapterCacheTests: XCTestCase {
         )
     }
 }
+
+// swiftlint:enable trailing_comma

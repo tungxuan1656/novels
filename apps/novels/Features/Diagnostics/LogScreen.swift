@@ -43,10 +43,9 @@ struct LogScreen: View {
         }
         .task {
             let repository = FileBookRepository(root: AppPaths.booksRoot())
-            if let books = try? repository.listBooks() {
-                bookTitles = Dictionary(books.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
-            }
-            await store.refresh()
+            let titles = await store.prepareForDisplay(bookId: bookId, repository: repository)
+            guard !Task.isCancelled else { return }
+            bookTitles = titles
             if !hasAppliedInitialFilter {
                 selectedStatus = initialFilter == .error && runGroups.contains { $0.status == .failed } ? .failed : nil
                 hasAppliedInitialFilter = true

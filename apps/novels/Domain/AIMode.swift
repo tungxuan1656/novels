@@ -1,6 +1,6 @@
 import Foundation
 
-enum AIMode: String, Codable, CaseIterable, Equatable, Identifiable {
+nonisolated enum AIMode: String, Codable, CaseIterable, Equatable, Identifiable, Sendable {
     case none
     case rewrite
     case bilingual

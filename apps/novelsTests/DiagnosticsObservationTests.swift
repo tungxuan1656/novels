@@ -64,6 +64,33 @@ final class DiagnosticsObservationTests: XCTestCase {
         XCTAssertEqual(nextStore.failedRunCount(bookId: start.bookId), 1)
     }
 
+    func testCachedGroupingTracksEntriesScopeTitlesAndObservation() async {
+        let first = outcome("run.start", bookId: "first")
+        let second = outcome("run.start", bookId: "second")
+        let store = DiagnosticsStore()
+        store.entries = [first, second]
+        XCTAssertEqual(store.runGroups(bookId: nil).count, 2)
+        let titles = ["first": "First title"]
+        let initial = store.runGroups(bookId: "first", bookTitles: titles)
+        XCTAssertEqual(initial.count, 1)
+        XCTAssertTrue(initial[0].title.hasPrefix("First title"))
+        XCTAssertEqual(store.runGroups(bookId: "first", bookTitles: titles), initial)
+
+        let changed = expectation(description: "Cache hit keeps tracking source entries")
+        withObservationTracking {
+            _ = store.runGroups(bookId: "first", bookTitles: titles)
+        } onChange: {
+            changed.fulfill()
+        }
+        store.entries.append(outcome("run.fail", bookId: "first", runId: first.runId))
+        await fulfillment(of: [changed], timeout: 1)
+        XCTAssertEqual(store.runGroups(bookId: "first", bookTitles: titles).first?.status, .failed)
+        XCTAssertTrue(store.runGroups(bookId: "first", bookTitles: ["first": "Renamed"])[0].title.hasPrefix("Renamed"))
+        XCTAssertEqual(store.runGroups(bookId: "second").first?.status, .processing)
+        store.entries.removeAll()
+        XCTAssertTrue(store.runGroups(bookId: "first", bookTitles: titles).isEmpty)
+    }
+
     private func waitForEntry(_ id: UUID, in store: DiagnosticsStore) async {
         let deadline = Date().addingTimeInterval(2)
         while !store.entries.contains(where: { $0.id == id }), Date() < deadline {

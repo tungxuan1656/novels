@@ -14,6 +14,7 @@ Use descriptive task slugs for new approved work; do not continue the legacy num
 
 ## Reader Diagnostics
 
+- [Navigation performance](task-navigation-performance.md).
 - [Reader cancellation and diagnostic outcomes](task-reader-diagnostics-cancellation.md).
 - [AI log and cache organization](task-ai-log-cache-organization.md).
 

@@ -3,7 +3,7 @@ import SQLite3
 
 // swiftlint:disable identifier_name
 /// Fallback for SQLite macro not imported into Swift.
-private let SQLITE_TRANSIENT = -1
+private nonisolated let SQLITE_TRANSIENT = -1
 // swiftlint:enable identifier_name
 
 enum SQLiteError: Error, LocalizedError {
@@ -31,7 +31,7 @@ enum SQLiteError: Error, LocalizedError {
     }
 }
 
-protocol ProcessedChapterCaching {
+nonisolated protocol ProcessedChapterCaching: Sendable {
     func get(bookId: String, chapterNumber: Int, mode: AIMode) throws -> ProcessedChapter?
     func batchStatus(bookId: String, mode: AIMode, numbers: [Int]) throws -> Set<Int>
     func upsert(_ pc: ProcessedChapter) throws
@@ -41,10 +41,11 @@ protocol ProcessedChapterCaching {
     func count(bookId: String) throws -> Int
     func allBookIds() throws -> [String]
     func metadata(bookId: String) throws -> [ProcessedChapterMetadata]
+    func inventory() throws -> [ProcessedBookSummary]
 }
 
 // swiftlint:disable:next type_body_length
-final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
+final nonisolated class SQLiteProcessedChapterCache: ProcessedChapterCaching, @unchecked Sendable {
     private let handle: OpaquePointer
     private let isoFormatter: ISO8601DateFormatter
     /// Serializes the single SQLite handle plus the non-thread-safe
@@ -360,6 +361,36 @@ final class SQLiteProcessedChapterCache: ProcessedChapterCaching {
             }
         }
         return ids
+    }
+
+    /// One snapshot of counts without decoding per-version timestamps or content.
+    func inventory() throws -> [ProcessedBookSummary] {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        let sql = """
+        SELECT book_id, COUNT(*), COUNT(DISTINCT chapter_number)
+        FROM processed_chapters GROUP BY book_id ORDER BY book_id;
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(handle, sql, -1, &stmt, nil) == SQLITE_OK else {
+            throw SQLiteError.prepare(message: String(cString: sqlite3_errmsg(handle)))
+        }
+        defer { sqlite3_finalize(stmt) }
+        var summaries: [ProcessedBookSummary] = []
+        while true {
+            // swiftlint:disable switch_case_alignment
+            switch sqlite3_step(stmt) {
+                case SQLITE_ROW:
+                    summaries.append(ProcessedBookSummary(
+                        bookId: string(from: stmt, col: 0),
+                        versionCount: Int(sqlite3_column_int(stmt, 1)),
+                        chapterCount: Int(sqlite3_column_int(stmt, 2))
+                    ))
+                case SQLITE_DONE: return summaries
+                default: throw SQLiteError.step(message: String(cString: sqlite3_errmsg(handle)))
+            }
+            // swiftlint:enable switch_case_alignment
+        }
     }
 
     func metadata(bookId: String) throws -> [ProcessedChapterMetadata] {

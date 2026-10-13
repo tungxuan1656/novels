@@ -1,6 +1,6 @@
 import Foundation
 
-enum SlugValidator {
+nonisolated enum SlugValidator {
     static func isValid(_ slug: String) -> Bool {
         if slug.isEmpty {
             return false

@@ -1,6 +1,6 @@
 import Foundation
 
-struct Book: Codable, Equatable {
+nonisolated struct Book: Codable, Equatable, Sendable {
     let id: String
     let name: String
     let author: String?
