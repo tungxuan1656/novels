@@ -227,29 +227,29 @@ final class AudioSpeechTests: XCTestCase {
         let error: AudioSpeechError
     }
 
-    private func makeClient() -> (AudioSpeechClient, URLSession) {
+    func makeClient() -> (AudioSpeechClient, URLSession) {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [AudioURLProtocol.self]
         let session = URLSession(configuration: config)
         return (AudioSpeechClient(session: session), session)
     }
 
-    private struct SettingsFixture {
+    struct SettingsFixture {
         let settings: SettingsStore
         let defaults: UserDefaults
         let suite: String
     }
 
-    private func makeSettings() throws -> SettingsFixture {
+    func makeSettings() throws -> SettingsFixture {
         let suite = "AudioSpeechTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         let settings = SettingsStore(userDefaults: defaults)
         settings.audioSource = .api
-        settings.audioAPIKey = "test-key"
+        settings.audioAPIKey = "test-key-\(UUID().uuidString)"
         return SettingsFixture(settings: settings, defaults: defaults, suite: suite)
     }
 
-    private func waitUntil(_ condition: () -> Bool) async throws {
+    @nonobjc func waitUntil(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(2)
         while !condition() {
             guard Date() < deadline else { return XCTFail("Timed out waiting for audio state") }
@@ -258,7 +258,7 @@ final class AudioSpeechTests: XCTestCase {
     }
 }
 
-private final nonisolated class AudioURLProtocol: URLProtocol, @unchecked Sendable {
+final nonisolated class AudioURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var status = 200
     private nonisolated(unsafe) static var mime = "audio/mpeg"

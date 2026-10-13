@@ -13,6 +13,7 @@ import Observation
 
     @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
     @ObservationIgnored private let client: AudioSpeechClient
+    @ObservationIgnored private let audioCache: NSCache<NSArray, NSData>
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
@@ -20,12 +21,24 @@ import Observation
     @ObservationIgnored private let audioSession = AVAudioSession.sharedInstance()
     @ObservationIgnored private var audioSessionIsActive = false
 
-    init(client: AudioSpeechClient = AudioSpeechClient()) {
+    private static let sessionAudioCache: NSCache<NSArray, NSData> = {
+        let cache = NSCache<NSArray, NSData>()
+        cache.totalCostLimit = 20 * 1024 * 1024
+        return cache
+    }()
+
+    // swiftlint:disable opening_brace
+    init(client: AudioSpeechClient = AudioSpeechClient(),
+         audioCache: NSCache<NSArray, NSData>? = nil)
+    {
         self.client = client
+        self.audioCache = audioCache ?? Self.sessionAudioCache
         super.init()
         synthesizer.usesApplicationAudioSession = true
         synthesizer.delegate = self
     }
+
+    // swiftlint:enable opening_brace
 
     func speak(_ sentence: String, settings: SettingsStore) {
         stop()
@@ -36,8 +49,19 @@ import Observation
         }
         let generation = generation
         let client = client
-        let apiKey = settings.audioAPIKey
-        let model = settings.audioModel
+        let apiKey = settings.audioAPIKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        let model = settings.audioModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Array equality keeps sentence/model/credential boundaries unambiguous; keys never leave RAM.
+        let cacheKey = [apiKey, model, sentence] as NSArray
+        if let cached = audioCache.object(forKey: cacheKey) {
+            do {
+                try play(cached as Data)
+            } catch {
+                audioCache.removeObject(forKey: cacheKey)
+                errorMessage = AudioSpeechError.playbackFailed.localizedDescription
+            }
+            return
+        }
         isLoading = true
         loadTask = Task { [weak self] in
             defer {
@@ -51,6 +75,7 @@ import Observation
                 try Task.checkCancellation()
                 guard let self, self.generation == generation else { return }
                 try self.play(data)
+                self.audioCache.setObject(data as NSData, forKey: cacheKey, cost: data.count)
             } catch {
                 guard let self, self.generation == generation, !Task.isCancelled else { return }
                 if let error = error as? AudioSpeechError {

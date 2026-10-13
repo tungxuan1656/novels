@@ -9,6 +9,7 @@ Use descriptive task slugs for new approved work; do not continue the legacy num
 - [Reader and English learning](task-bilingual-learning.md).
 - [Configurable sentence audio](task-audio-tts.md).
 - [Sentence audio device fixes](task-sentence-audio-device-fixes.md).
+- [Sentence audio replay and inline loading](task-audio-session-cache.md).
 - [Detailed implementation plan](plans/bilingual-reading.md).
 
 ## AI Configuration

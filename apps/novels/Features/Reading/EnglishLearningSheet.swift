@@ -8,6 +8,7 @@ struct EnglishLearningSheet: View {
     private let sentences: [EnglishSentence]
     @Environment(\.dismiss) private var dismiss
     @State private var lookup: GoogleLookup?
+    @State private var loadingSentenceID: Int?
 
     init(paragraph: BilingualParagraph, theme: ReadingTheme, speech: ReaderSpeech, settings: SettingsStore) {
         self.theme = theme
@@ -25,17 +26,13 @@ struct EnglishLearningSheet: View {
                         : "API/Google nhận câu; API có thể tính phí.")
                         .font(.footnote)
                         .foregroundStyle(theme.textMuted)
-                    if speech.isLoading {
-                        ProgressView("Đang tải audio…")
-                            .tint(theme.accentColor)
-                            .foregroundStyle(theme.textPrimary)
-                    }
                     if let errorMessage = speech.errorMessage {
                         Text(errorMessage)
                             .font(.footnote)
                             .foregroundStyle(theme.textPrimary)
                     }
                     ForEach(sentences) { sentence in
+                        let isLoading = speech.isLoading && loadingSentenceID == sentence.id
                         VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
                             Text(verbatim: sentence.text)
                                 .font(.body)
@@ -43,13 +40,25 @@ struct EnglishLearningSheet: View {
                                 .textSelection(.enabled)
                             HStack(spacing: DesignTokens.spacing16) {
                                 Button {
+                                    loadingSentenceID = sentence.id
                                     speech.speak(sentence.text, settings: settings)
                                 } label: {
-                                    Label(settings.audioSource == .apple ? "Nghe" : "Nghe · Online",
-                                          systemImage: "speaker.wave.2")
-                                        .frame(minHeight: 44)
+                                    Label {
+                                        Text(settings.audioSource == .apple ? "Nghe" : "Nghe · Online")
+                                    } icon: {
+                                        if isLoading {
+                                            ProgressView()
+                                                .controlSize(.small)
+                                                .accessibilityHidden(true)
+                                        } else {
+                                            Image(systemName: "speaker.wave.2")
+                                        }
+                                    }
+                                    .frame(minHeight: 44)
                                 }
-                                .accessibilityLabel("Nghe câu tiếng Anh")
+                                .disabled(isLoading)
+                                .accessibilityLabel(isLoading ? "Đang tải audio cho câu tiếng Anh" :
+                                    "Nghe câu tiếng Anh")
                                 Button {
                                     speech.stop()
                                     if let url = EnglishLearning.googleURL(for: sentence.text) {
