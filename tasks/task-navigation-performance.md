@@ -17,6 +17,7 @@ Fix reported hitches entering the AI Log and Cache Manager and returning from Se
 - [x] Log remains current and book-scoped without rebuilding run groups for every UI read.
 - [x] Cancellation or stale reads cannot overwrite newer state; storage failures remain visible and deletion stays scoped.
 - [x] Focused regression tests and full `./init.sh` pass; device-testing limits are disclosed.
+- [x] PR #42 follow-up: live Log runs use titles for existing books absent from the initial snapshot, with one background library scan rather than repeated per-ID validation.
 
 ## Sources
 
@@ -44,4 +45,14 @@ Fix reported hitches entering the AI Log and Cache Manager and returning from Se
 - Manual validation (2026-10-13): user reported successful testing and requested a branch and PR. Device model, OS version and frame timings were not provided.
 - Delivery: branch `perf/navigation-loading` for the requested PR. Canonical library and cache specs updated; no new dependencies or storage schema.
 - Blockers: none for the implementation handoff.
-- Next: review and merge the PR. If a hitch recurs, capture a device trace before widening the fix.
+- Next: re-review PR #42 with the title-loading repair; no merge requested.
+
+## PR #42 Review Follow-Up
+
+- Scope: restore titles for runs appearing after opening Log, including an initially empty Log, and avoid repeated folder/chapter validation when IDs differ from folder names. Reuse the existing validated background library scan; no new metadata reader or observer lifecycle.
+- Reproduction: both new live-run regressions failed before the repair (wrong title, no library scan, per-ID lookup for the initial book).
+- Focused verification: `NavigationLoadingTests` and `DiagnosticsObservationTests` pass after the repair, including the existing recovery-during-title-load test. Tests assert one off-main library scan and zero per-ID title lookups.
+- Synthetic benchmark on the Mac, not device frame timing: 24 books / 1,920 chapters, six warmed samples. Matching folder/ID: previous per-ID lookup median 12.43 ms, single background scan 11.37 ms. ID drift: 119.70 ms versus 8.91 ms. Both mappings were asserted equal; full book validation remains unchanged.
+- Full verification (2026-10-13): `./init.sh` passed SwiftFormat, strict SwiftLint (zero violations), simulator build and all 144 unit tests (zero failed or skipped) on iPhone 17 Pro / iOS 26.5. `git diff --check` passed. The new tests wait for observer readiness before appending the later run; initial readiness uses a non-run marker because assigning an unchanged snapshot does not trigger Observation.
+- Review: bounded independent current-source review found no confirmed defect in the named repair paths; it did not inspect raw Git diff or run builds/tests. Parent inspected the diff and ran the full gate. Active SourceKit probes on the four changed Swift files timed out; compiler/test results, not empty diagnostics, are the verification evidence.
+- Delivery: repair stays on `perf/navigation-loading` in PR #42. No architecture refactor, optional `refresh()` equality optimization, or device-performance claim.

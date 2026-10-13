@@ -1,5 +1,6 @@
 import Foundation
 @testable import novels
+import Observation
 import XCTest
 
 @MainActor
@@ -249,14 +250,14 @@ final class NavigationLoadingTests: XCTestCase {
         let started = expectation(description: "Title read started")
         let release = DispatchSemaphore(value: 0)
         defer { release.signal() }
-        let repository = NavigationRepository(onBook: { slug in
+        let repository = NavigationRepository(onList: {
             XCTAssertFalse(Thread.isMainThread)
             started.fulfill()
             XCTAssertEqual(release.wait(timeout: .now() + 3), .success)
-            return Book(id: slug, name: "Title", author: nil, count: 0, references: [])
+            return [Book(id: bookId, name: "Title", author: nil, count: 0, references: [])]
         })
         let store = DiagnosticsStore()
-        let pending = Task { await store.prepareForDisplay(bookId: bookId, repository: repository) }
+        let pending = Task { await store.prepareForDisplay(repository: repository) }
         await fulfillment(of: [started], timeout: 2)
         XCTAssertEqual(store.failedRunCount(bookId: bookId), 1)
         await DiagnosticsLog.shared.append(entry("run.success"))
@@ -267,14 +268,77 @@ final class NavigationLoadingTests: XCTestCase {
         XCTAssertEqual(store.runGroups(bookId: bookId, bookTitles: titles).first?.status, .success)
     }
 
-    private func library(repository: BookRepository) -> LibraryViewModel {
+    func testLogOpenedEmptyResolvesTitleForLaterRun() async {
+        await assertLiveLogTitle(includeExistingRun: false)
+    }
+
+    func testLogResolvesTitleForAnotherBooksLaterRun() async {
+        await assertLiveLogTitle(includeExistingRun: true)
+    }
+}
+
+private extension NavigationLoadingTests {
+    func assertLiveLogTitle(includeExistingRun: Bool) async {
+        await DiagnosticsLog.shared.clear()
+        let books = ["First title", "Later title"].map { title in
+            Book(id: UUID().uuidString, name: title, author: nil, count: 0, references: [])
+        }
+        let entry: (String) -> LogEntry = { bookId in
+            LogEntry(
+                sessionId: DiagnosticsLog.sessionId, bookId: bookId,
+                chapterNumber: 1, mode: "rewrite", event: "run.start", runId: UUID()
+            )
+        }
+        if includeExistingRun {
+            await DiagnosticsLog.shared.append(entry(books[0].id))
+        }
+        let scans = NavigationReadProbe()
+        let lookups = NavigationReadProbe()
+        let repository = NavigationRepository(onList: {
+            XCTAssertFalse(Thread.isMainThread)
+            _ = scans.increment()
+            return books
+        }, onBook: { slug in
+            _ = lookups.increment()
+            return books.first { $0.id == slug }
+        })
+        let store = DiagnosticsStore()
+        let titles = await store.prepareForDisplay(repository: repository)
+        XCTAssertEqual(store.entries.count, includeExistingRun ? 1 : 0)
+        // A non-run marker makes observer readiness visible without seeding another AI run.
+        await DiagnosticsLog.shared.append(LogEntry(sessionId: DiagnosticsLog.sessionId, event: "prefetch.check"))
+        let ready = expectation(description: "Observer completed its initial refresh")
+        withObservationTracking {
+            _ = store.entries
+        } onChange: {
+            ready.fulfill()
+        }
+        let observer = Task { await store.observe() }
+        await fulfillment(of: [ready], timeout: 2)
+        let later = entry(books[1].id)
+        await DiagnosticsLog.shared.append(later)
+        let deadline = Date().addingTimeInterval(2)
+        while !store.entries.contains(where: { $0.id == later.id }), Date() < deadline {
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        observer.cancel()
+        await observer.value
+        XCTAssertTrue(store.entries.contains { $0.id == later.id })
+        let group = store.runGroups(bookId: books[1].id, bookTitles: titles).first
+        XCTAssertTrue(group?.title.hasPrefix("Later title") == true)
+        XCTAssertEqual(scans.count, 1)
+        XCTAssertEqual(lookups.count, 0)
+        await DiagnosticsLog.shared.clear()
+    }
+
+    func library(repository: BookRepository) -> LibraryViewModel {
         let suite = "NavigationLoadingTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
         return LibraryViewModel(repository: repository, settingsStore: SettingsStore(userDefaults: defaults))
     }
 
-    private func chapter(book: String, number: Int, mode: AIMode = .rewrite) -> ProcessedChapter {
+    func chapter(book: String, number: Int, mode: AIMode = .rewrite) -> ProcessedChapter {
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         return ProcessedChapter(
             bookId: book, chapterNumber: number, mode: mode, content: "content",

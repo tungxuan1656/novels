@@ -24,16 +24,6 @@ extension BookRepository {
         try Task.checkCancellation()
         return books
     }
-
-    @concurrent
-    func bookTitles(slugs: [String]) async throws -> [String: String] {
-        var titles: [String: String] = [:]
-        for slug in slugs {
-            try Task.checkCancellation()
-            titles[slug] = (try? book(slug: slug))?.name ?? slug
-        }
-        return titles
-    }
 }
 
 /// FileManager operations are thread-safe; the repository has no mutable in-memory state.

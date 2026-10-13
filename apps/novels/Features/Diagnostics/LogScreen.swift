@@ -43,7 +43,7 @@ struct LogScreen: View {
         }
         .task {
             let repository = FileBookRepository(root: AppPaths.booksRoot())
-            let titles = await store.prepareForDisplay(bookId: bookId, repository: repository)
+            let titles = await store.prepareForDisplay(repository: repository)
             guard !Task.isCancelled else { return }
             bookTitles = titles
             if !hasAppliedInitialFilter {

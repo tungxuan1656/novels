@@ -284,10 +284,11 @@ final class DiagnosticsStore {
         entries = await DiagnosticsLog.shared.snapshot()
     }
 
-    func prepareForDisplay(bookId: String?, repository: BookRepository) async -> [String: String] {
+    func prepareForDisplay(repository: BookRepository) async -> [String: String] {
         await refresh()
-        let slugs = bookId.map { [$0] } ?? Array(Set(entries.map(\.bookId)))
-        let titles = (try? await repository.bookTitles(slugs: slugs)) ?? [:]
+        // Include books without runs yet; live entries reuse this single background scan.
+        let books = (try? await repository.listBooksInBackground()) ?? []
+        let titles = Dictionary(uniqueKeysWithValues: books.map { ($0.id, $0.name) })
         guard !Task.isCancelled else { return [:] }
         // A run can recover while the background title read is suspended.
         await refresh()
