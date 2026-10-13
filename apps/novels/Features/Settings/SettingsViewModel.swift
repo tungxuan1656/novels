@@ -188,7 +188,7 @@ enum SettingsViewModel {
             key: "AI_PROMPT",
             label: "Prompt",
             placeholder: "Dịch truyện sang...",
-            description: "Prompt hệ thống cho AI Rewrite (dịch, tóm tắt, viết lại)",
+            description: "Prompt hệ thống cho chế độ Dịch",
             defaultValue: SettingsDefaults.defaultPrompt,
             allowsVerbatimSave: false
         ),

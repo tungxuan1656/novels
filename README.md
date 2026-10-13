@@ -7,7 +7,7 @@
 ![SwiftFormat](https://img.shields.io/badge/SwiftFormat-required-green)
 ![License MIT](https://img.shields.io/badge/license-MIT-green)
 
-> Offline-first reader for iPhone. Download ZIP once and read offline. Optional AI rewrite uses one cache (`bookId+chapterNumber+mode`).
+> Offline-first reader for iPhone. Download ZIP once and read offline. Optional AI processing uses one cache (`bookId+chapterNumber+mode`).
 
 Novels runs on iPhone only, iOS 26.0+, with Vietnamese UI. App device family is `1`. Product scope → `docs/decisions/ios-scope.md`.
 
