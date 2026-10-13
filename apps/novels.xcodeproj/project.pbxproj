@@ -34,8 +34,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		E03100000000000000000003 /* novelsTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = novelsTests;
 			sourceTree = "<group>";
 		};
