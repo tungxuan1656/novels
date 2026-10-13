@@ -169,7 +169,7 @@ struct ReaderBottomSheet: View {
                 .font(.subheadline)
                 .foregroundStyle(theme.textPrimary)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .trailing, spacing: 8) {
                 Picker(
                     "Chế độ đọc",
                     selection: Binding(
