@@ -29,7 +29,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Log button ("Nhật ký") below AI section → push Log timeline
 Gear opens Settings.
 
-**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; "Dừng" cancels loading and stops playback. Google lookup opens a nested system browser sheet only after a tap, with a notice that the selected sentence is sent online. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
+**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google in a nested system browser sheet only after a tap. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 

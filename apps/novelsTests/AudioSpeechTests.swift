@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 @testable import novels
 import XCTest
@@ -115,6 +116,7 @@ final class AudioSpeechTests: XCTestCase {
         speech.speak("First", settings: settings)
         try await waitUntil { AudioURLProtocol.requests().count == 1 }
         XCTAssertTrue(speech.isLoading)
+        XCTAssertTrue(speech.canStop)
         speech.speak("Second", settings: settings)
         await fulfillment(of: [started], timeout: 2)
         try await waitUntil { AudioURLProtocol.stopCount() == 1 }
@@ -122,6 +124,7 @@ final class AudioSpeechTests: XCTestCase {
         XCTAssertNil(speech.errorMessage)
         speech.stop()
         XCTAssertFalse(speech.isLoading)
+        XCTAssertFalse(speech.canStop)
         await fulfillment(of: [stopped], timeout: 2)
         XCTAssertNil(speech.errorMessage)
     }
@@ -145,7 +148,69 @@ final class AudioSpeechTests: XCTestCase {
         XCTAssertNil(speech.errorMessage)
         try await waitUntil { !speech.isLoading }
         XCTAssertEqual(speech.errorMessage, AudioSpeechError.playbackFailed.localizedDescription)
+        XCTAssertFalse(speech.canStop)
         XCTAssertEqual(AudioURLProtocol.requests().count, 1)
+    }
+
+    func testAPIPlaybackUsesSilentModeCompatibleAudioSession() async throws {
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.ambient, mode: .default)
+        let header = try XCTUnwrap(Data(base64Encoded: "UklGRqQ+AABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYA+AAA="))
+        // One second of silent PCM tests playback/session policy, not audible voice quality.
+        AudioURLProtocol.configure(mime: "audio/wav", data: header + Data(repeating: 0, count: 16000))
+        let (client, session) = makeClient()
+        defer { session.invalidateAndCancel() }
+        let fixture = try makeSettings()
+        defer { fixture.defaults.removePersistentDomain(forName: fixture.suite) }
+        let speech = ReaderSpeech(client: client)
+        defer {
+            speech.stop()
+            try? audioSession.setCategory(.ambient, mode: .default)
+        }
+        XCTAssertFalse(speech.canStop)
+        speech.speak("Hello", settings: fixture.settings)
+        XCTAssertTrue(speech.canStop)
+        try await waitUntil { !speech.isLoading }
+        XCTAssertNil(speech.errorMessage)
+        XCTAssertEqual(audioSession.category, .playback)
+        XCTAssertEqual(audioSession.mode, .spokenAudio)
+        XCTAssertTrue(audioSession.categoryOptions.contains(.duckOthers))
+        XCTAssertTrue(speech.isPlaying)
+        XCTAssertTrue(speech.canStop)
+        try await waitUntil { !speech.isPlaying }
+        XCTAssertFalse(speech.canStop)
+    }
+
+    func testLateCallbacksRetainOldObjectsAndCannotStopNewPlayback() async throws {
+        let header = try XCTUnwrap(Data(base64Encoded: "UklGRqQ+AABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YYA+AAA="))
+        let audio = header + Data(repeating: 0, count: 16000)
+        AudioURLProtocol.configure(mime: "audio/wav", data: audio)
+        let (client, session) = makeClient()
+        defer { session.invalidateAndCancel() }
+        let fixture = try makeSettings()
+        defer { fixture.defaults.removePersistentDomain(forName: fixture.suite) }
+        let speech = ReaderSpeech(client: client)
+        defer { speech.stop() }
+        speech.speak("New playback", settings: fixture.settings)
+        try await waitUntil { !speech.isLoading }
+        XCTAssertTrue(speech.isPlaying)
+
+        var oldPlayer: AVAudioPlayer? = try AVAudioPlayer(data: audio)
+        weak let retainedPlayer = oldPlayer
+        try speech.audioPlayerDecodeErrorDidOccur(XCTUnwrap(oldPlayer), error: nil)
+        oldPlayer = nil
+        XCTAssertNotNil(retainedPlayer, "Retain the callback object until its identity check runs")
+
+        var oldUtterance: AVSpeechUtterance? = AVSpeechUtterance(string: "Old playback")
+        weak let retainedUtterance = oldUtterance
+        try speech.speechSynthesizer(AVSpeechSynthesizer(), didFinish: XCTUnwrap(oldUtterance))
+        oldUtterance = nil
+        XCTAssertNotNil(retainedUtterance, "An old allocation address must not identify replacement speech")
+
+        try await waitUntil { retainedPlayer == nil && retainedUtterance == nil }
+        XCTAssertTrue(speech.isPlaying)
+        XCTAssertTrue(speech.canStop)
+        XCTAssertNil(speech.errorMessage)
     }
 
     private struct InvalidRequest {

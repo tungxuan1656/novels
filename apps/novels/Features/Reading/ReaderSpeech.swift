@@ -2,17 +2,29 @@ import AVFoundation
 import Observation
 
 @MainActor
-@Observable final class ReaderSpeech {
+@Observable final class ReaderSpeech: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     private(set) var isLoading = false
+    private(set) var isPlaying = false
     private(set) var errorMessage: String?
+
+    var canStop: Bool {
+        isLoading || isPlaying
+    }
+
     @ObservationIgnored private let synthesizer = AVSpeechSynthesizer()
     @ObservationIgnored private let client: AudioSpeechClient
     @ObservationIgnored private var player: AVAudioPlayer?
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
+    @ObservationIgnored private var currentUtterance: AVSpeechUtterance?
+    @ObservationIgnored private let audioSession = AVAudioSession.sharedInstance()
+    @ObservationIgnored private var audioSessionIsActive = false
 
     init(client: AudioSpeechClient = AudioSpeechClient()) {
         self.client = client
+        super.init()
+        synthesizer.usesApplicationAudioSession = true
+        synthesizer.delegate = self
     }
 
     func speak(_ sentence: String, settings: SettingsStore) {
@@ -55,9 +67,12 @@ import Observation
         loadTask?.cancel()
         loadTask = nil
         isLoading = false
+        isPlaying = false
+        currentUtterance = nil
         synthesizer.stopSpeaking(at: .immediate)
         player?.stop()
         player = nil
+        deactivateAudioSession()
     }
 
     private func speakWithApple(_ sentence: String) {
@@ -69,16 +84,85 @@ import Observation
         }
         let utterance = AVSpeechUtterance(string: sentence)
         utterance.voice = voice
-        synthesizer.speak(utterance)
+        do {
+            try activateAudioSession()
+            currentUtterance = utterance
+            isPlaying = true
+            synthesizer.speak(utterance)
+        } catch {
+            errorMessage = AudioSpeechError.playbackFailed.localizedDescription
+        }
     }
 
     private func play(_ data: Data) throws {
         do {
             let player = try AVAudioPlayer(data: data)
-            guard player.play() else { throw AudioSpeechError.playbackFailed }
+            try activateAudioSession()
+            player.delegate = self
             self.player = player
+            guard player.play() else { throw AudioSpeechError.playbackFailed }
+            isPlaying = true
         } catch {
+            player = nil
+            deactivateAudioSession()
             throw AudioSpeechError.playbackFailed
         }
+    }
+
+    private func activateAudioSession() throws {
+        // Explicit listening should remain audible with the Ring/Silent switch on.
+        try audioSession.setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
+        try audioSession.setActive(true)
+        audioSessionIsActive = true
+    }
+
+    private func deactivateAudioSession() {
+        guard audioSessionIsActive else { return }
+        try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
+        audioSessionIsActive = false
+    }
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        let identity = RetainedPlaybackIdentity(utterance)
+        Task { @MainActor [weak self] in
+            guard let self, self.currentUtterance.map(ObjectIdentifier.init) == identity.id else { return }
+            self.stop()
+        }
+    }
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        speechSynthesizer(synthesizer, didFinish: utterance)
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        finishPlayer(player, successfully: flag)
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        finishPlayer(player, successfully: false)
+    }
+
+    private nonisolated func finishPlayer(_ player: AVAudioPlayer, successfully: Bool) {
+        let identity = RetainedPlaybackIdentity(player)
+        Task { @MainActor [weak self] in
+            guard let self, self.player.map(ObjectIdentifier.init) == identity.id else { return }
+            self.stop()
+            if !successfully {
+                self.errorMessage = AudioSpeechError.playbackFailed.localizedDescription
+            }
+        }
+    }
+}
+
+/// Retain through the actor hop; only immutable identity is exposed across threads.
+private final nonisolated class RetainedPlaybackIdentity: @unchecked Sendable {
+    private let object: NSObject
+
+    var id: ObjectIdentifier {
+        ObjectIdentifier(object)
+    }
+
+    init(_ object: NSObject) {
+        self.object = object
     }
 }

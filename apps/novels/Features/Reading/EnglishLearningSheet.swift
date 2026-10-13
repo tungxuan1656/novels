@@ -21,9 +21,8 @@ struct EnglishLearningSheet: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: DesignTokens.spacing24) {
                     Text(settings.audioSource == .apple
-                        ? "Giọng Apple dùng trên thiết bị. Google cần Internet và nhận câu bạn chọn."
-                        : "Nhấn Nghe sẽ gửi câu bạn chọn đến API audio, cần Internet và có thể tính phí. "
-                        + "Google cũng nhận câu bạn chọn khi tra cứu.")
+                        ? "Tra cứu gửi câu đến Google."
+                        : "API/Google nhận câu; API có thể tính phí.")
                         .font(.footnote)
                         .foregroundStyle(theme.textMuted)
                     if speech.isLoading {
@@ -57,7 +56,7 @@ struct EnglishLearningSheet: View {
                                         lookup = GoogleLookup(url: url)
                                     }
                                 } label: {
-                                    Label("Tra cứu Google · Online", systemImage: "magnifyingglass")
+                                    Label("Tra cứu", systemImage: "magnifyingglass")
                                         .frame(minHeight: 44)
                                 }
                                 .accessibilityLabel("Tra cứu câu trên Google, cần Internet")
@@ -77,8 +76,9 @@ struct EnglishLearningSheet: View {
                     Button("Đóng", systemImage: "xmark") { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Dừng", systemImage: "stop.fill") { speech.stop() }
-                        .accessibilityLabel("Dừng phát âm")
+                    Button("Dừng") { speech.stop() }
+                        .disabled(!speech.canStop)
+                        .accessibilityLabel("Dừng tải hoặc phát âm")
                 }
             }
             .sheet(item: $lookup) { item in
