@@ -121,9 +121,9 @@ enum SettingsViewModel {
     private static let descriptors: [String: SettingDescriptor] = [
         "BOOKS_API_URL": SettingDescriptor(
             key: "BOOKS_API_URL",
-            label: "URL Danh mục",
+            label: "Địa chỉ tải danh mục truyện",
             placeholder: "https://...",
-            description: "Endpoint Supabase get-exported-books",
+            description: "Đường dẫn máy chủ để lấy danh sách truyện",
             defaultValue: "https://iqtndkcyrsmptlrepaks.supabase.co/functions/v1/get-exported-books",
             allowsVerbatimSave: false
         ),
@@ -131,7 +131,7 @@ enum SettingsViewModel {
             key: "OPENAI_API_URL",
             label: "URL AI",
             placeholder: "http://localhost:8317/v1/chat/completions",
-            description: "URL đầy đủ: chat/completions, responses hoặc messages (ATS cho phép localhost)",
+            description: "Địa chỉ máy chủ dịch thuật AI",
             defaultValue: "http://localhost:8317/v1/chat/completions",
             allowsVerbatimSave: false
         ),
@@ -139,7 +139,7 @@ enum SettingsViewModel {
             key: "OPENAI_MODEL",
             label: "Mô hình",
             placeholder: "gpt-4o",
-            description: "Tên model, mặc định gpt-4o",
+            description: "Tên mô hình AI muốn dùng, mặc định gpt-4o",
             defaultValue: "gpt-4o",
             allowsVerbatimSave: false
         ),
@@ -147,24 +147,23 @@ enum SettingsViewModel {
             key: "AI_PROVIDER",
             label: "Nhà cung cấp",
             placeholder: "auto",
-            description: "Tự động nhận diện từ model rồi host; chọn thủ công cho proxy. URL quyết định định dạng API.",
+            description: "Tự động nhận diện theo mô hình hoặc chọn nhà cung cấp AI thủ công",
             defaultValue: "auto",
             allowsVerbatimSave: false
         ),
         "AI_API_KEY": SettingDescriptor(
             key: "AI_API_KEY",
-            label: "API key (Bearer)",
-            placeholder: "API key",
-            description: "Gửi Authorization: Bearer. Headers tùy chỉnh được ưu tiên; Anthropic dùng x-api-key riêng.",
+            label: "Khóa API",
+            placeholder: "Nhập khóa API",
+            description: "Mã bí mật xác thực tài khoản dịch AI của bạn",
             defaultValue: "",
             allowsVerbatimSave: false
         ),
         "AI_THINKING_EFFORT": SettingDescriptor(
             key: "AI_THINKING_EFFORT",
-            label: "Thinking",
+            label: "Mức độ suy luận",
             placeholder: "",
-            description: "Mặc định không gửi điều khiển; none yêu cầu tắt. Model/proxy có thể từ chối. "
-                + "MiMo chỉ bật/tắt: dùng mặc định hoặc body tùy chỉnh để bật, none để tắt; không hỗ trợ độ sâu.",
+            description: "Độ sâu suy luận trước khi dịch (tùy thuộc vào mô hình AI hỗ trợ)",
             defaultValue: "",
             allowsVerbatimSave: false
         ),
@@ -172,29 +171,29 @@ enum SettingsViewModel {
             key: "AI_CUSTOM_HEADERS",
             label: "Headers tùy chỉnh (JSON)",
             placeholder: "{\"Authorization\":\"Bearer ...\"}",
-            description: "JSON object, sai cú pháp sẽ được lưu nguyên văn nhưng bỏ qua khi gửi",
+            description: "Dữ liệu tiêu đề gửi kèm nâng cao (dành cho người am hiểu kỹ thuật)",
             defaultValue: "",
             allowsVerbatimSave: true
         ),
         "AI_EXTRA_BODY": SettingDescriptor(
             key: "AI_EXTRA_BODY",
-            label: "Body bổ sung (JSON)",
+            label: "Tham số bổ sung (JSON)",
             placeholder: "{\"temperature\":0.7}",
-            description: "JSON object trộn shallow vào body, sai sẽ bỏ qua",
+            description: "Các tham số gửi thêm cho AI (dành cho người am hiểu kỹ thuật)",
             defaultValue: "",
             allowsVerbatimSave: true
         ),
         "AI_PROMPT": SettingDescriptor(
             key: "AI_PROMPT",
-            label: "Prompt",
+            label: "Hướng dẫn dịch (Prompt)",
             placeholder: "Dịch truyện sang...",
-            description: "Prompt hệ thống cho AI Rewrite (dịch, tóm tắt, viết lại)",
+            description: "Câu lệnh hướng dẫn phong cách và xưng hô cho chế độ Dịch",
             defaultValue: SettingsDefaults.defaultPrompt,
             allowsVerbatimSave: false
         ),
         "AI_BILINGUAL_PROMPT": SettingDescriptor(
             key: "AI_BILINGUAL_PROMPT",
-            label: "Prompt song ngữ",
+            label: "Hướng dẫn dịch song ngữ (Prompt)",
             placeholder: """
             Viết lại tiếng Việt tự nhiên, giữ nguyên xưng hô, tên riêng và nội dung.
             Dịch từng đoạn sang tiếng Anh đơn giản, không thêm hoặc bớt chi tiết.
@@ -203,34 +202,32 @@ enum SettingsViewModel {
             Giữ nguyên id đầu vào, mỗi id có đúng một cặp vi/en.
             Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON.
             """,
-            description: "Prompt độc lập cho song ngữ. Đầu ra là JSON, không phải đoạn văn Việt - Anh xen kẽ. "
-                + "Giữ nguyên id đầu vào và trả đúng một cặp vi/en cho mỗi id. "
-                + "App luôn nối thêm quy tắc JSON bắt buộc, không thể ghi đè bằng prompt này.\n"
-                + "Cấu trúc: {\"paragraphs\":[{\"id\":\"p001\",\"vi\":\"...\",\"en\":\"...\"}]}",
+            description: "Hướng dẫn cách dịch song ngữ. App tự động thêm quy tắc JSON (paragraphs/id/vi/en) "
+                + "để ghép đúng từng đoạn Việt - Anh, không thể ghi đè quy tắc này.",
             defaultValue: SettingsDefaults.defaultBilingualPrompt,
             allowsVerbatimSave: false
         ),
         "AUDIO_SOURCE": SettingDescriptor(
             key: "AUDIO_SOURCE",
-            label: "Nguồn audio",
+            label: "Nguồn giọng đọc",
             placeholder: "apple",
-            description: "Apple dùng giọng trên thiết bị. API gửi câu bạn chọn qua Internet, có thể tính phí.",
+            description: "Giọng trên máy miễn phí. Giọng trực tuyến cần Internet, gửi câu tới API và có thể tính phí.",
             defaultValue: AudioSource.apple.rawValue,
             allowsVerbatimSave: false
         ),
         "AUDIO_API_KEY": SettingDescriptor(
             key: "AUDIO_API_KEY",
-            label: "API key audio",
-            placeholder: "API key",
-            description: "Bearer key riêng cho API audio, không dùng key AI. Để trống khi chưa thiết lập.",
+            label: "Khóa API giọng đọc",
+            placeholder: "Nhập khóa API",
+            description: "Mã bí mật tài khoản máy chủ giọng đọc (chỉ dùng khi chọn giọng trực tuyến)",
             defaultValue: "",
             allowsVerbatimSave: false
         ),
         "AUDIO_MODEL": SettingDescriptor(
             key: "AUDIO_MODEL",
-            label: "Model audio",
+            label: "Mô hình giọng đọc",
             placeholder: AudioSource.defaultModel,
-            description: "Tên model tại API audio. Mặc định dùng giọng William tiếng Anh (Úc).",
+            description: "Tên giọng đọc trực tuyến muốn dùng",
             defaultValue: AudioSource.defaultModel,
             allowsVerbatimSave: false
         ),
@@ -238,15 +235,15 @@ enum SettingsViewModel {
             key: "PREFETCH_COUNT",
             label: "Số chương tải trước",
             placeholder: "3",
-            description: "0..1000; ngoài khoảng không lưu (giữ giá trị cũ), khi đọc dùng 3 (BR-08)",
+            description: "Số chương tiếp theo sẽ tự động chuẩn bị trước (từ 0 đến 1000, mặc định 3)",
             defaultValue: "3",
             allowsVerbatimSave: false
         ),
         "AI_MIN_CHUNK_SIZE": SettingDescriptor(
             key: "AI_MIN_CHUNK_SIZE",
-            label: "Kích thước chunk",
+            label: "Độ dài đoạn gửi đi",
             placeholder: "1300",
-            description: "500..10000, ngoài khoảng về 1300",
+            description: "Giới hạn số ký tự mỗi đoạn gửi cho AI (500–10000, mặc định 1300)",
             defaultValue: "1300",
             allowsVerbatimSave: false
         ),

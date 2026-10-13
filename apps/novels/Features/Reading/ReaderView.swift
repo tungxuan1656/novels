@@ -135,7 +135,7 @@ struct ReaderView: View {
         .interactiveDismissDisabled(true)
         .sheet(isPresented: $showSheet) {
             ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
-                .presentationDetents([.height(640), .large])
+                .presentationDetents([.height(560), .large])
                 .preferredColorScheme(theme.preferredColorScheme)
         }
         .sheet(item: $learningParagraph, onDismiss: { speech.stop() }, content: { paragraph in
@@ -161,6 +161,7 @@ struct ReaderView: View {
                 chapterTitleView
                 BilingualReaderBody(
                     paragraphs: paragraphs, typography: settingsStore.typography, theme: theme,
+                    englishPrimary: settingsStore.bilingualEnglishPrimary,
                     onSelect: { learningParagraph = $0 }
                 )
             } else if let processed = viewModel.currentProcessedContent, !processed.isEmpty {

@@ -7,55 +7,89 @@ struct SettingsView: View {
     var body: some View {
         List {
             Section("Danh mục") {
-                row(key: "BOOKS_API_URL", label: "URL Danh mục", value: settings.booksAPIURL)
+                row(
+                    key: "BOOKS_API_URL",
+                    label: SettingsViewModel.descriptor(for: "BOOKS_API_URL").label,
+                    value: settings.booksAPIURL
+                )
             }
-            Section("AI") {
-                row(key: "OPENAI_API_URL", label: "URL AI", value: settings.openaiAPIURL)
-                row(key: "OPENAI_MODEL", label: "Mô hình", value: settings.openaiModel)
-                row(key: "AI_API_KEY", label: "API key (Bearer)", value: SettingsViewModel.apiKeyRowValue(settings))
-                row(key: "AI_PROVIDER", label: "Nhà cung cấp", value: SettingsViewModel.providerRowValue(settings))
+            Section("Dịch thuật AI") {
                 row(
-                    key: "AI_THINKING_EFFORT", label: "Thinking",
-                    value: settings.aiThinkingEffort.isEmpty ? "Mặc định nhà cung cấp" : settings.aiThinkingEffort
+                    key: "OPENAI_API_URL",
+                    label: SettingsViewModel.descriptor(for: "OPENAI_API_URL").label,
+                    value: settings.openaiAPIURL
                 )
                 row(
-                    key: "AI_CUSTOM_HEADERS",
-                    label: "Headers tùy chỉnh (JSON)",
-                    value: settings.aiCustomHeadersJSON
+                    key: "OPENAI_MODEL",
+                    label: SettingsViewModel.descriptor(for: "OPENAI_MODEL").label,
+                    value: settings.openaiModel
                 )
                 row(
-                    key: "AI_EXTRA_BODY",
-                    label: "Body bổ sung (JSON)",
-                    value: settings.aiExtraBodyJSON
+                    key: "AI_API_KEY",
+                    label: SettingsViewModel.descriptor(for: "AI_API_KEY").label,
+                    value: SettingsViewModel.apiKeyRowValue(settings)
+                )
+                row(
+                    key: "AI_PROVIDER",
+                    label: SettingsViewModel.descriptor(for: "AI_PROVIDER").label,
+                    value: SettingsViewModel.providerRowValue(settings)
+                )
+                row(
+                    key: "AI_THINKING_EFFORT",
+                    label: SettingsViewModel.descriptor(for: "AI_THINKING_EFFORT").label,
+                    value: settings.aiThinkingEffort.isEmpty
+                        ? "Mặc định (theo mô hình)"
+                        : (AIThinkingEffort.normalized(settings.aiThinkingEffort)?.title ?? settings.aiThinkingEffort)
                 )
                 row(
                     key: "AI_PROMPT",
-                    label: "Prompt",
+                    label: SettingsViewModel.descriptor(for: "AI_PROMPT").label,
                     value: settings.aiPrompt
                 )
                 row(
                     key: "AI_BILINGUAL_PROMPT",
-                    label: "Prompt song ngữ",
+                    label: SettingsViewModel.descriptor(for: "AI_BILINGUAL_PROMPT").label,
                     value: settings.aiBilingualPrompt
                 )
                 row(
                     key: "AI_MIN_CHUNK_SIZE",
-                    label: "Kích thước chunk",
+                    label: SettingsViewModel.descriptor(for: "AI_MIN_CHUNK_SIZE").label,
                     value: "\(settings.aiMinChunkSize)"
                 )
+                row(
+                    key: "AI_CUSTOM_HEADERS",
+                    label: SettingsViewModel.descriptor(for: "AI_CUSTOM_HEADERS").label,
+                    value: settings.aiCustomHeadersJSON
+                )
+                row(
+                    key: "AI_EXTRA_BODY",
+                    label: SettingsViewModel.descriptor(for: "AI_EXTRA_BODY").label,
+                    value: settings.aiExtraBodyJSON
+                )
             }
-            Section("Audio") {
-                row(key: "AUDIO_SOURCE", label: "Nguồn audio", value: settings.audioSource.title)
+            Section("Giọng đọc (Audio)") {
+                row(
+                    key: "AUDIO_SOURCE",
+                    label: SettingsViewModel.descriptor(for: "AUDIO_SOURCE").label,
+                    value: settings.audioSource.title
+                )
                 if settings.audioSource == .api {
-                    row(key: "AUDIO_API_KEY", label: "API key audio",
-                        value: SettingsViewModel.apiKeyRowValue(settings, key: "AUDIO_API_KEY"))
-                    row(key: "AUDIO_MODEL", label: "Model audio", value: settings.audioModel)
+                    row(
+                        key: "AUDIO_API_KEY",
+                        label: SettingsViewModel.descriptor(for: "AUDIO_API_KEY").label,
+                        value: SettingsViewModel.apiKeyRowValue(settings, key: "AUDIO_API_KEY")
+                    )
+                    row(
+                        key: "AUDIO_MODEL",
+                        label: SettingsViewModel.descriptor(for: "AUDIO_MODEL").label,
+                        value: settings.audioModel
+                    )
                 }
             }
             Section("Tải trước") {
                 row(
                     key: "PREFETCH_COUNT",
-                    label: "Số chương tải trước",
+                    label: SettingsViewModel.descriptor(for: "PREFETCH_COUNT").label,
                     value: SettingsViewModel.prefetchCountRowValue(settings)
                 )
             }

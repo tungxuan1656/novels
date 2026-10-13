@@ -24,6 +24,7 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
 | `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite` / `bilingual`; labels Bản gốc / Dịch / Song ngữ); unknown → `none` |
+| `bilingualEnglishPrimary` | `boolean` | `false` | App-wide bilingual appearance only; true swaps primary styling to English; Reader sheet only; no AI/cache changes |
 | `readingTheme` | `string` | `sach` | Reading theme Full 5 (`sach` / `xanhDiu` / `xanhLam` / `dem` / `amoled`); unknown → `sach`; offline-first via `SettingsStore` |
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |

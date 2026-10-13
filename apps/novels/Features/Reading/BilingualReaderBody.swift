@@ -4,21 +4,30 @@ struct BilingualReaderBody: View {
     let paragraphs: [BilingualParagraph]
     let typography: TypographySetting
     let theme: ReadingTheme
+    let englishPrimary: Bool
     let onSelect: (BilingualParagraph) -> Void
+
+    private var primaryFont: Font {
+        ReaderFontMapper.font(name: typography.font, size: typography.fontSize)
+    }
+
+    private var secondaryFont: Font {
+        .system(size: EnglishLearning.fontSize(primary: typography.fontSize))
+    }
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: typography.fontSize + typography.lineHeight) {
             ForEach(paragraphs) { paragraph in
                 VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
                     Text(verbatim: paragraph.vi)
-                        .font(ReaderFontMapper.font(name: typography.font, size: typography.fontSize))
-                        .foregroundStyle(theme.textPrimary)
+                        .font(englishPrimary ? secondaryFont : primaryFont)
+                        .foregroundStyle(englishPrimary ? theme.textMuted : theme.textPrimary)
                     Button {
                         onSelect(paragraph)
                     } label: {
                         Text(verbatim: paragraph.en)
-                            .font(.system(size: EnglishLearning.fontSize(vietnamese: typography.fontSize)))
-                            .foregroundStyle(theme.textMuted)
+                            .font(englishPrimary ? primaryFont : secondaryFont)
+                            .foregroundStyle(englishPrimary ? theme.textPrimary : theme.textMuted)
                             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                             .contentShape(Rectangle())
                     }

@@ -51,6 +51,33 @@ final class BilingualSettingsTests: XCTestCase {
         }
     }
 
+    func testEnglishPrimaryPreferencePersistsWithoutChangingModeOrTypography() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+            XCTAssertFalse(store.bilingualEnglishPrimary)
+            XCTAssertTrue(DefaultsKeys.allCurrent.contains(DefaultsKeys.bilingualEnglishPrimary))
+            let typography = store.typography
+            store.aiMode = .bilingual
+            store.bilingualEnglishPrimary.toggle()
+            store.save()
+
+            let restored = SettingsStore(userDefaults: defaults)
+            XCTAssertTrue(restored.bilingualEnglishPrimary)
+            XCTAssertEqual(restored.aiMode, .bilingual)
+            XCTAssertEqual(restored.typography.font, typography.font)
+            XCTAssertEqual(restored.typography.fontSize, typography.fontSize)
+            XCTAssertEqual(restored.typography.lineHeight, typography.lineHeight)
+
+            restored.aiMode = .none
+            restored.save()
+            let originalMode = SettingsStore(userDefaults: defaults)
+            XCTAssertTrue(originalMode.bilingualEnglishPrimary)
+            originalMode.bilingualEnglishPrimary.toggle()
+            originalMode.save()
+            XCTAssertFalse(SettingsStore(userDefaults: defaults).bilingualEnglishPrimary)
+        }
+    }
+
     func testPromptsPersistAndRemainIndependent() {
         withDefaults { defaults in
             let store = SettingsStore(userDefaults: defaults)
@@ -178,7 +205,7 @@ final class BilingualSettingsTests: XCTestCase {
     func testBilingualPromptDescriptorAndValidation() {
         let desc = SettingsViewModel.descriptor(for: DefaultsKeys.aiBilingualPrompt)
         XCTAssertEqual(desc.key, DefaultsKeys.aiBilingualPrompt)
-        XCTAssertEqual(desc.label, "Prompt song ngữ")
+        XCTAssertEqual(desc.label, "Hướng dẫn dịch song ngữ (Prompt)")
         XCTAssertEqual(desc.defaultValue, SettingsDefaults.defaultBilingualPrompt)
         XCTAssertFalse(desc.allowsVerbatimSave)
 
@@ -196,7 +223,7 @@ final class BilingualSettingsTests: XCTestCase {
         XCTAssertFalse(paragraphs[0].vi.isEmpty)
         XCTAssertFalse(paragraphs[0].en.isEmpty)
         XCTAssertTrue(descriptor.placeholder.contains("Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON"))
-        XCTAssertTrue(descriptor.description.contains("App luôn nối thêm quy tắc JSON bắt buộc"))
+        XCTAssertTrue(descriptor.description.contains("App tự động thêm quy tắc JSON"))
     }
 
     // MARK: - Helpers

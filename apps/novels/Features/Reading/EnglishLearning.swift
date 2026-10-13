@@ -7,8 +7,8 @@ nonisolated struct EnglishSentence: Identifiable, Equatable {
 }
 
 nonisolated enum EnglishLearning {
-    static func fontSize(vietnamese: Double) -> Double {
-        max(12, vietnamese - 2)
+    static func fontSize(primary: Double) -> Double {
+        max(12, primary - 2)
     }
 
     static func sentences(in paragraph: String) -> [EnglishSentence] {
