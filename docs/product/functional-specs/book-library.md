@@ -4,7 +4,7 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens Library. System scans the local book repository in file storage, reads each `book.json`, and builds the list. Invalid folders are skipped.
+1. On first load or refresh, system scans the local book repository outside UI execution. It reads each `book.json` and validates chapters. Invalid folders are skipped. Returning from Settings reuses the loaded list.
 2. System renders. If books exist, show rows with name, author, chapter count, and cover. If empty, show prompt to add via Add action.
 3. Actor taps a row. System opens a details sheet with metadata (name, author, synopsis, status, last updated) and the ordered chapter index.
 4. Actor swipes a row to delete. System shows confirm dialog. If confirmed, system removes the whole book folder from file storage and the library entry, then shows success feedback. If cancelled, no change occurs.
@@ -13,6 +13,7 @@
 ## Rules (business rules, link to business-rules.md)
 
 - Library works offline after import ([business-rules.md](../business-rules.md) BR-01).
+- Import and confirmed deletion refresh the list. Pull-to-refresh rescans local storage; an unchanged navigation return does not.
 - Delete removes the entire book folder. Other books stay unaffected ([business-rules.md](../business-rules.md) BR-10).
 - After delete, processed results for that book become unreachable ([business-rules.md](../business-rules.md) BR-10).
 - Indexing follows [domain-model.md](../domain-model.md) Invariants and [business-rules.md](../business-rules.md) Notes.

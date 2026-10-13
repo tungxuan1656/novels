@@ -3,14 +3,14 @@ import Foundation
 /// Shared by ZipValidator + ImportViewModel: strip a leading UTF-8 BOM so
 /// JSONDecoder accepts book.json saved by Windows editors. Names/content
 /// untouched — only the 3-byte signature is dropped when present.
-func stripUTF8BOM(_ data: Data) -> Data {
+nonisolated func stripUTF8BOM(_ data: Data) -> Data {
     if data.count >= 3, data[0] == 0xEF, data[1] == 0xBB, data[2] == 0xBF {
         return Data(data.dropFirst(3))
     }
     return data
 }
 
-enum ZipValidator {
+nonisolated enum ZipValidator {
     // MARK: - Hygiene helper (shared with FileManagerZIP resolver)
 
     /// Hygiene entries are OS/Finder artifacts: __MACOSX/, .DS_Store, ._ resource forks,

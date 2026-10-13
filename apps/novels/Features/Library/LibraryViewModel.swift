@@ -10,6 +10,8 @@ final class LibraryViewModel {
     var selected: Book?
     var showInfo = false
     var showDeleteConfirm: Book?
+    private var hasLoaded = false
+    private var loadGeneration = 0
     private let repository: BookRepository
     private let settingsStore: SettingsStore
     private let chapterCache: ProcessedChapterCaching?
@@ -35,13 +37,30 @@ final class LibraryViewModel {
         self.chapterCache = chapterCache
     }
 
-    func load() {
+    func invalidate() {
+        hasLoaded = false
+        loadGeneration += 1
+    }
+
+    func load(force: Bool = false) async {
+        guard force || !hasLoaded else { return }
+        loadGeneration += 1
+        let generation = loadGeneration
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if generation == loadGeneration {
+                isLoading = false
+            }
+        }
         do {
-            books = try repository.listBooks()
+            let loaded = try await repository.listBooksInBackground()
+            guard !Task.isCancelled, generation == loadGeneration else { return }
+            books = loaded
+            hasLoaded = true
         } catch {
+            guard !Task.isCancelled, generation == loadGeneration else { return }
             books = []
+            hasLoaded = false
             toast.show("Không thể tải thư viện", type: .error)
         }
     }
@@ -62,7 +81,8 @@ final class LibraryViewModel {
             toast.show("Đã xóa “\(book.name)”", type: .success)
             showDeleteConfirm = nil
             clearProcessedCache(bookId: book.id)
-            load()
+            invalidate()
+            Task { await load() }
         } catch {
             logger
                 .error(
@@ -70,7 +90,8 @@ final class LibraryViewModel {
                 )
             logDelete(bookId: book.id, result: "error: \(String(describing: error))")
             showDeleteConfirm = nil
-            load()
+            invalidate()
+            Task { await load() }
             toast.show("Không thể xóa sách", type: .error)
         }
     }

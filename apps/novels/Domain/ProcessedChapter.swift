@@ -1,6 +1,6 @@
 import Foundation
 
-struct ProcessedChapter: Equatable {
+nonisolated struct ProcessedChapter: Equatable, Sendable {
     let bookId: String
     let chapterNumber: Int
     let mode: AIMode

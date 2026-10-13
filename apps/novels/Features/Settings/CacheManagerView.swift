@@ -4,43 +4,13 @@ import SwiftUI
 struct CacheManagerView: View {
     @Environment(Router.self) private var router
 
-    private let cache: ProcessedChapterCaching?
-    private let bookRepository: BookRepository
-
-    @State private var totalVersions = 0
-    @State private var distinctChapters = 0
-    @State private var books: [BookCacheRow] = []
+    @State private var viewModel: CacheManagerViewModel
     @State private var expandedBookIds: Set<String> = []
-    @State private var bookMetadata: [String: [ProcessedChapterMetadata]] = [:]
-    @State private var isLoading = true
     @State private var showClearAllConfirm = false
-    @State private var showClearBookConfirm: BookCacheRow?
-    @State private var errorMessage: String?
-
-    struct BookCacheRow: Identifiable, Equatable {
-        let slug: String
-        let title: String
-        let versionCount: Int
-
-        var id: String {
-            slug
-        }
-    }
+    @State private var showClearBookConfirm: CacheManagerViewModel.BookCacheRow?
 
     init(cache: ProcessedChapterCaching? = nil, bookRepository: BookRepository? = nil) {
-        self.bookRepository = bookRepository ?? FileBookRepository(root: AppPaths.booksRoot())
-        if let cache {
-            self.cache = cache
-            _errorMessage = State(initialValue: nil)
-        } else {
-            do {
-                self.cache = try SQLiteProcessedChapterCache()
-                _errorMessage = State(initialValue: nil)
-            } catch {
-                self.cache = nil
-                _errorMessage = State(initialValue: "Không thể mở bộ nhớ đệm: \(error.localizedDescription)")
-            }
-        }
+        _viewModel = State(initialValue: CacheManagerViewModel(cache: cache, bookRepository: bookRepository))
     }
 
     private static let dateFormatter: DateFormatter = {
@@ -55,14 +25,14 @@ struct CacheManagerView: View {
 
     var body: some View {
         Group {
-            if cache == nil {
+            if viewModel.isUnavailable {
                 unusableCacheView
             } else {
                 List {
-                    if let errorMessage {
+                    if let errorMessage = viewModel.errorMessage {
                         errorBanner(errorMessage)
                     }
-                    if errorMessage == nil {
+                    if viewModel.errorMessage == nil {
                         countCard
                         bookSection
                     }
@@ -70,12 +40,12 @@ struct CacheManagerView: View {
                 .listSectionSpacing(DesignTokens.spacing8)
                 .scrollContentBackground(.hidden)
                 .background(DesignTokens.backgroundWhite)
-                .refreshable { await load() }
+                .refreshable { await viewModel.load() }
             }
         }
         .navigationTitle("Quản lý bộ nhớ đệm")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await load() }
+        .task { await viewModel.load() }
         .confirmationDialog(
             "Xác nhận xóa tất cả?",
             isPresented: $showClearAllConfirm,
@@ -112,7 +82,7 @@ struct CacheManagerView: View {
             Text("Hành động không thể hoàn tác. " + Self.clearWarning)
         }
         .overlay {
-            if isLoading, cache != nil {
+            if viewModel.isLoading || viewModel.isClearing {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(Color.clear)
@@ -122,7 +92,7 @@ struct CacheManagerView: View {
 
     private var unusableCacheView: some View {
         VStack(spacing: 16) {
-            Text(errorMessage ?? "Bộ nhớ đệm không khả dụng")
+            Text(viewModel.errorMessage ?? "Bộ nhớ đệm không khả dụng")
                 .foregroundStyle(DesignTokens.text)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, DesignTokens.spacing16)
@@ -164,15 +134,17 @@ struct CacheManagerView: View {
                             .accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
-                        Text(totalVersions == 0 ? "Chưa lưu bản dịch nào" : "\(totalVersions) bản dịch đã lưu")
+                        Text(viewModel
+                            .totalVersions == 0 ? "Chưa lưu bản dịch nào" :
+                            "\(viewModel.totalVersions) bản dịch đã lưu")
                             .font(.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(DesignTokens.text)
                             .lineLimit(1)
                             .minimumScaleFactor(0.9)
-                        Text(distinctChapters == 0
+                        Text(viewModel.distinctChapters == 0
                             ? "Máy giữ sẵn để mở lại nhanh hơn."
-                            : "Trên \(distinctChapters) chương khác nhau.")
+                            : "Trên \(viewModel.distinctChapters) chương khác nhau.")
                             .font(.footnote)
                             .foregroundStyle(DesignTokens.muted)
                     }
@@ -196,8 +168,8 @@ struct CacheManagerView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.error)
-                    .disabled(totalVersions == 0)
-                    .opacity(totalVersions == 0 ? 0.4 : 1)
+                    .disabled(viewModel.totalVersions == 0 || viewModel.isLoading || viewModel.isClearing)
+                    .opacity(viewModel.totalVersions == 0 ? 0.4 : 1)
                     .accessibilityIdentifier("clearAllButton")
                     .accessibilityLabel("Xóa tất cả")
                 }
@@ -210,10 +182,10 @@ struct CacheManagerView: View {
 
     private var bookSection: some View {
         Section {
-            if books.isEmpty {
+            if viewModel.books.isEmpty {
                 emptySection
             } else {
-                ForEach(books) { row in
+                ForEach(viewModel.books) { row in
                     bookRow(row)
                 }
             }
@@ -249,13 +221,16 @@ struct CacheManagerView: View {
         .listRowSeparator(.hidden)
     }
 
-    private func bookRow(_ row: BookCacheRow) -> some View {
+    private func bookRow(_ row: CacheManagerViewModel.BookCacheRow) -> some View {
         let isExpanded = expandedBookIds.contains(row.slug)
 
         return VStack(alignment: .leading, spacing: 0) {
             bookHeader(row: row, isExpanded: isExpanded)
             if isExpanded {
                 expandedDetails(slug: row.slug)
+                    .task(id: viewModel.metadataRevision) {
+                        await viewModel.loadMetadata(slug: row.slug)
+                    }
             }
         }
         .accessibilityIdentifier("cache-\(row.slug)")
@@ -263,7 +238,7 @@ struct CacheManagerView: View {
         .listRowSeparatorTint(DesignTokens.border)
     }
 
-    private func bookHeader(row: BookCacheRow, isExpanded: Bool) -> some View {
+    private func bookHeader(row: CacheManagerViewModel.BookCacheRow, isExpanded: Bool) -> some View {
         HStack(spacing: DesignTokens.spacing8) {
             Button {
                 toggleExpanded(slug: row.slug)
@@ -320,6 +295,7 @@ struct CacheManagerView: View {
                     .accessibilityHidden(true)
             }
             .buttonStyle(.plain)
+            .disabled(viewModel.isLoading || viewModel.isClearing)
             .accessibilityIdentifier("clear-\(row.slug)")
             .accessibilityLabel("Xóa \(row.title)")
             .a11yHitTarget()
@@ -330,7 +306,11 @@ struct CacheManagerView: View {
 
     @ViewBuilder
     private func expandedDetails(slug: String) -> some View {
-        if let items = bookMetadata[slug], !items.isEmpty {
+        if let message = viewModel.metadataErrors[slug] {
+            Text(message)
+                .font(.footnote)
+                .foregroundStyle(DesignTokens.error)
+        } else if let items = viewModel.bookMetadata[slug], !items.isEmpty {
             VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                 ForEach(items) { item in
                     metadataItemRow(slug: slug, item: item)
@@ -338,6 +318,10 @@ struct CacheManagerView: View {
             }
             .padding(.top, 4)
             .padding(.bottom, DesignTokens.spacing8)
+        } else if viewModel.bookMetadata[slug] == nil {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DesignTokens.spacing8)
         } else {
             Text("Không có chi tiết")
                 .font(.footnote)
@@ -377,70 +361,21 @@ struct CacheManagerView: View {
         }
     }
 
-    private func load() async {
-        guard let cache else {
-            errorMessage = errorMessage ?? "Bộ nhớ đệm không khả dụng"
-            isLoading = false
-            totalVersions = 0
-            distinctChapters = 0
-            books = []
-            return
-        }
-        isLoading = true
-        do {
-            totalVersions = try cache.countAll()
-            let ids = try cache.allBookIds()
-            books = try ids.map { slug in
-                let count = try cache.count(bookId: slug)
-                let title = (try? bookRepository.book(slug: slug))?.name ?? slug
-                return BookCacheRow(slug: slug, title: title, versionCount: count)
-            }
-            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
-
-            bookMetadata = [:]
-            var uniqueChapters = 0
-            for slug in ids {
-                let meta = try cache.metadata(bookId: slug)
-                uniqueChapters += Set(meta.map(\.chapterNumber)).count
-                bookMetadata[slug] = meta
-            }
-            distinctChapters = uniqueChapters
-            errorMessage = nil
-        } catch {
-            errorMessage = "Không thể tải bộ nhớ đệm: \(error.localizedDescription)"
-            totalVersions = 0
-            distinctChapters = 0
-            books = []
-        }
-        isLoading = false
-    }
-
     private func clearAll() async {
-        guard let cache else { return }
-        do {
-            try cache.clearAll()
-            bookMetadata.removeAll()
+        if await viewModel.clear() {
             expandedBookIds.removeAll()
-            await load()
             router.toast.show("Đã xóa tất cả", type: .success)
-        } catch {
-            errorMessage = "Xóa tất cả thất bại: \(error.localizedDescription)"
+        } else {
             router.toast.show("Lỗi: không thể xóa", type: .error)
         }
     }
 
-    private func clearBook(_ row: BookCacheRow) async {
-        guard let cache else { return }
-        do {
-            try cache.clear(bookId: row.slug)
-            bookMetadata.removeValue(forKey: row.slug)
+    private func clearBook(_ row: CacheManagerViewModel.BookCacheRow) async {
+        showClearBookConfirm = nil
+        if await viewModel.clear(bookId: row.slug) {
             expandedBookIds.remove(row.slug)
-            showClearBookConfirm = nil
-            await load()
             router.toast.show("Đã xóa \(row.title)", type: .success)
-        } catch {
-            showClearBookConfirm = nil
-            errorMessage = "Xóa \(row.title) thất bại: \(error.localizedDescription)"
+        } else {
             router.toast.show("Lỗi: không thể xóa", type: .error)
         }
     }

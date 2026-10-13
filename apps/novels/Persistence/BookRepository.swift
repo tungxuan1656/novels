@@ -8,7 +8,7 @@ enum BookRepositoryError: Error, Equatable {
     case invalidValidatedRoot
 }
 
-protocol BookRepository {
+nonisolated protocol BookRepository: Sendable {
     func listBooks() throws -> [Book]
     func book(slug: String) throws -> Book?
     func chapterHTML(slug: String, number: Int) throws -> String
@@ -16,7 +16,18 @@ protocol BookRepository {
     func deleteBook(slug: String) throws
 }
 
-struct FileBookRepository: BookRepository {
+extension BookRepository {
+    @concurrent
+    func listBooksInBackground() async throws -> [Book] {
+        try Task.checkCancellation()
+        let books = try listBooks()
+        try Task.checkCancellation()
+        return books
+    }
+}
+
+/// FileManager operations are thread-safe; the repository has no mutable in-memory state.
+nonisolated struct FileBookRepository: BookRepository, @unchecked Sendable {
     let root: URL
     let fileManager: FileManager
 

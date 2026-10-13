@@ -74,7 +74,7 @@ struct LibraryView: View {
                 .scrollContentBackground(.hidden)
                 .background(DesignTokens.backgroundWhite)
                 .refreshable {
-                    viewModel.load()
+                    await viewModel.load(force: true)
                 }
             }
         }
@@ -138,7 +138,7 @@ struct LibraryView: View {
             }
         )
         .task {
-            viewModel.load()
+            await viewModel.load()
         }
     }
 }

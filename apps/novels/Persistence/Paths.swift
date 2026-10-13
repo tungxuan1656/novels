@@ -1,6 +1,6 @@
 import Foundation
 
-enum AppPaths {
+nonisolated enum AppPaths {
     static func booksRoot(fileManager: FileManager = .default) -> URL {
         let base = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         return base.appendingPathComponent("novels/books", isDirectory: true)

@@ -80,7 +80,8 @@ struct AppRoot: View {
             downloader: URLSessionDownloader()
         )
         viewModel.onImportSuccess = { _ in
-            libraryViewModel.load()
+            libraryViewModel.invalidate()
+            Task { await libraryViewModel.load() }
         }
         return viewModel
     }
