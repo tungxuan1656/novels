@@ -1,22 +1,24 @@
 # Settings Management
 
-> Stores, restores, and sanitizes current settings for catalog, AI, prefetch, and typography. No legacy migration.
+> Stores, restores, and sanitizes current settings for catalog, AI, audio, prefetch, and typography. No legacy migration.
 
 ## Flow (ordered steps actor / system)
 
 1. On launch, system restores current settings from `UserDefaults` via `@Observable` store. Missing or invalid values are sanitized to defaults before features read them. Unknown and legacy keys are ignored.
-2. Actor opens Settings. System shows groups: catalog address, AI (URL AI, model, masked API key, Auto/manual provider, thinking, custom headers/body, unit size, Prompt system prompt), prefetch N, typography (font, size, line height).
+2. Actor opens Settings. System shows groups: catalog address, AI (URL AI, model, masked API key, Auto/manual provider, thinking, custom headers/body, unit size, separate Vietnamese and bilingual prompts), audio (Apple/API source with API-only masked key and model), prefetch N, typography (font, size, line height).
 3. Actor edits a value. System validates and saves to `UserDefaults` via the `@Observable` store. Next operation uses the new value.
 4. Invalid edits fallback to defaults on next launch without crashing. Typography restores on launch to style the reader. No network at launch.
 
 ## Rules (business rules, link to business-rules.md)
 
-- Missing or invalid current values fallback to defaults: catalog URL, AI address, model `gpt-4o`, N=3, unit size 1300, provider `auto`, empty API key, unset thinking, default `AI_PROMPT` ([business-rules.md](../business-rules.md) BR-12).
+- Missing or invalid current values fallback to defaults: catalog URL, AI address, model `gpt-4o`, N=3, unit size 1300, provider `auto`, empty API key, unset thinking, mode-specific default `AI_PROMPT` / `AI_BILINGUAL_PROMPT` ([business-rules.md](../business-rules.md) BR-12).
 - Unknown provider → `auto` ([business-rules.md](../business-rules.md) BR-12).
-- Empty prompt → default prompt ([business-rules.md](../business-rules.md) BR-12).
+- Empty prompt → its own mode-specific default prompt ([business-rules.md](../business-rules.md) BR-12).
+- Both prompts use multiline editors. The bilingual editor always explains the required `paragraphs/id/vi/en` JSON shape; an empty draft shows a matching example placeholder, not interleaved prose. The app appends immutable JSON/ID instructions to custom bilingual prompts; guidance is not saved as user input. Prompt edits do not invalidate cached chapters; use manual reprocess.
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 - Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).
+- Audio source/key/model persist independently of AI settings. Apple is default; unknown source resets to Apple and blank model to the supplied default. Hidden API fields retain their values. API key uses SecureField and never displays its value in a row; edits do not call network. See [settings schema](../../contracts/settings-schema.md).
 - AI reading mode persists app-wide via `AI_MODE` (default `none`); unknown or missing → `none`.
 
 ## States
@@ -45,8 +47,8 @@
 ## Acceptance
 
 - [ ] Launch restores current settings and replaces invalid or missing values with defaults. Unknown and legacy keys are ignored.
-- [ ] Editing catalog, AI, prefetch, or typography persists via `UserDefaults` + `@Observable` and survives restart.
-- [ ] Unknown provider or empty prompt corrects to `auto` and default `AI_PROMPT`.
+- [ ] Editing catalog, AI, audio, prefetch, or typography persists via `UserDefaults` + `@Observable` and survives restart.
+- [ ] Unknown provider or empty prompt corrects to `auto` and mode-specific defaults.
 - [ ] Existing configuration stays intact; API key is masked and custom Authorization wins.
 - [ ] Auto identifies provider without changing endpoint transport or guessing model capabilities.
 - [ ] Four explicit thinking levels and a provider-default reset are available; schema has no UI.
@@ -55,7 +57,7 @@
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (AI_PROMPT, TypographySetting)
+- Domain: [domain-model.md](../domain-model.md) (AI_PROMPT, AI_BILINGUAL_PROMPT, TypographySetting)
 - Flows: [flows.md](../flows.md) §7 Settings
 - Integrations: [integrations.md](../integrations.md) §1 Remote Book Catalog, §2 AI Processing Service
 - Rules: [business-rules.md](../business-rules.md) BR-08, BR-11, BR-12

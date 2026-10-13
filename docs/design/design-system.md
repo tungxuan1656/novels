@@ -57,8 +57,9 @@ UI scale: Title large bold (header), Heading medium (book name), Body 14-16 regu
 Reading content user set:
 
 - Family: curated serif/sans set
-- Size: 12-24 step 1
-- Line height: 1.2-2.0 step 0.1 (size × factor)
+- Size: 12-40 step 1
+- Line spacing: 1-50 points step 0.5 (additional `.lineSpacing`, not a multiplier)
+- Bilingual English: system regular, `max(12, Vietnamese size - 2)`, same line spacing, theme-muted text at full opacity. Vietnamese retains the selected family and size. No independent English appearance settings.
 
 Weights: regular body, medium for name, semi-bold for header, bold for count. Max three per screen.
 

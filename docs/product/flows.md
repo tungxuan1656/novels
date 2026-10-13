@@ -29,7 +29,7 @@ Request → User views Library → System lists books from local book repository
 
 ### 4 — Reading and Navigation
 
-Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to one optional title plus one plain body string per local-persistence.md → Renders the raw title at body size + 8 bold above a single body `Text` → Restores offset or top. Mid-chapter heading text merges into the body as plain text.
+Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to one optional title plus one plain body string per local-persistence.md → Renders the raw title at body size + 8 bold above native paragraph text → Restores offset or top. Mid-chapter heading text merges into the body as plain text.
 - Request → Next/Previous → Step within bounds. Button is disabled at ends.
 - Scroll → Saves offset per book. New chapter starts at top.
 - Request → Scroll to bottom or open index → Jump to chapter.
@@ -37,11 +37,12 @@ Request → User opens book → System marks `onScreen=true` → Loads current c
 
 ### 5 — AI Mode with Cache
 
-Request → User switches `none` ("Không") | `rewrite` ("Rewrite").
-- `none` → Raw title plus one raw body `Text` parsed from HTML in file storage, with no emphasis anywhere.
-- `rewrite` → Check processed chapter cache by `bookId + chapterNumber + "rewrite"` → Hit → Render the raw title plus the cached body as one `Text`.
-- Miss → Read the body string (the title is excluded by construction and never translated) → Split ~1300 chars (short = one) → Call AI processing service per chunk with system `AI_PROMPT`. Up to 2 attempts (1 retry) per ai-service.md. Then join, clean, and save to cache as text. Then render the raw title plus the translated body as one `Text`.
-- Failure or empty → Show error. Do not write cache.
+Request → User selects Bản gốc (`none`), Dịch (`rewrite`) or Song ngữ (`bilingual`).
+- `none` → Render raw title/body from local HTML; bypass AI and processed cache.
+- Processed modes → Check cache by book/chapter/selected mode. Dịch renders plain text; Song ngữ validates the stored version and renders ordered VI/EN pairs. Never borrow another mode.
+- Miss → Exclude title, split body into bounded chunks, and call the selected independent prompt. Rewrite joins text in order. Bilingual assigns source IDs before batching, validates every pair, restores source order, and assembles one versioned JSON payload. Only complete success writes cache. Transport retries remain per [ai-service](../contracts/ai-service.md); no semantic repair loop.
+- Failure, invalid payload or empty output → Error and raw fallback, no new cache write. Manual reprocessing affects only the selected mode and preserves old cache on failure.
+- In Song ngữ → Tap an English paragraph → Select sentence in learning sheet → configured Apple/API speech or explicit online Google browser sheet. API playback warns of transmission/possible charges and shows loading/errors; Stop cancels pending work. Speech stops on dismissal, chapter/mode change, reprocessing, backgrounding and reader exit. See [bilingual-learning](functional-specs/bilingual-learning.md).
 
 ### 6 — Prefetch Background
 
@@ -53,7 +54,7 @@ Runs only when current chapter ready, book exists, mode != `none`.
 
 ### 7 — Settings
 
-Request → User opens Settings → System shows groups: catalog, AI, download, prefetch, typography.
+Request → User opens Settings → System shows groups: catalog, AI, audio, prefetch, typography.
 - Request → Edit → Validate and persist to persistent settings store.
 - On launch → Sanitize. If values are invalid or missing, use defaults (catalog URL, AI `gpt-4o`, N=3, chunk 1300, provider `openai`).
 
@@ -75,7 +76,7 @@ Request → User opens Settings → System shows groups: catalog, AI, download, 
 - [ ] Launch resumes Reader if `onScreen=true`, else Library.
 - [ ] Catalog loading, empty, and error are visible. Import creates folder and deletes ZIP.
 - [ ] Delete needs confirm and removes folder.
-- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title above a single body `Text`. Navigation stays bounded and offset is per book.
+- [ ] Reader parses HTML to one optional title plus one plain body string and renders the title above native paragraph text. Navigation stays bounded and offset is per book.
 - [ ] AI uses cache on hit and service on miss, then saves result.
 - [ ] Prefetch skips cached, runs sequential, and cancels on change.
 - [ ] Settings persist. Invalid values fall back to defaults.

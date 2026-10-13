@@ -8,6 +8,7 @@ actor AIReadingService {
     private let settings: SettingsStore
     private var inFlight: [String: Task<String, Error>] = [:]
     private var inFlightTokens: [String: UUID] = [:]
+    private var inFlightWaiters: [String: Set<UUID>] = [:]
 
     init(cache: ProcessedChapterCaching, client: AIClient, settings: SettingsStore) {
         self.cache = cache
@@ -94,6 +95,7 @@ actor AIReadingService {
         mode: AIMode,
         prompt: String,
         chunks: [String],
+        expectedIDs: [[String]],
         cacheKey: String,
         runId: UUID
     ) async throws -> String {
@@ -105,7 +107,8 @@ actor AIReadingService {
         let capturedMode = mode.rawValue
         let capturedPrompt = prompt
         let capturedRun = runId
-        return try await withThrowingTaskGroup(of: (Int, String).self) { group in
+        let isBilingual = !expectedIDs.isEmpty
+        return try await withThrowingTaskGroup(of: (Int, String, [BilingualParagraph]).self) { group in
             for (index, chunk) in chunks.enumerated() {
                 group.addTask {
                     let requestId = UUID()
@@ -138,9 +141,13 @@ actor AIReadingService {
                         let out = try await capturedClient.complete(
                             prompt: capturedPrompt,
                             chunk: chunk,
-                            context: context
+                            context: context,
+                            outputSchema: isBilingual ? BilingualChapter.outputSchema : nil
                         )
                         let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let pairs = isBilingual ? try BilingualChapter.decodeResponse(
+                            trimmed, expectedIDs: expectedIDs[index]
+                        ) : []
                         let latencyMs = Int(Date().timeIntervalSince(chunkStart) * 1000)
                         await DiagnosticsLog.shared.append(LogEntry(
                             requestId: requestId,
@@ -158,7 +165,7 @@ actor AIReadingService {
                             detail: "keyHash=\(hash)",
                             runId: capturedRun
                         ))
-                        return (index, trimmed)
+                        return (index, trimmed, pairs)
                     } catch {
                         if error is CancellationError {
                             throw error
@@ -186,8 +193,13 @@ actor AIReadingService {
                 }
             }
             var buffer = [String?](repeating: nil, count: total)
-            for try await(index, text) in group {
+            var pairs = [[BilingualParagraph]](repeating: [], count: total)
+            for try await(index, text, paragraphs) in group {
                 buffer[index] = text
+                pairs[index] = paragraphs
+            }
+            if isBilingual {
+                return try BilingualChapter(paragraphs: pairs.flatMap { $0 }).encoded()
             }
             return buffer.compactMap { $0 }.joined(separator: "\n\n")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -208,9 +220,14 @@ actor AIReadingService {
         let chunkSize: Int = await MainActor.run { settings.aiMinChunkSize }
         let size = (500 ... 10000).contains(chunkSize) ? chunkSize : 1300
         let prompt: String = await MainActor.run {
-            AIPromptBuilder.prompt(for: mode, customPrompt: settings.aiPrompt)
+            AIPromptBuilder.prompt(
+                for: mode, customPrompt: settings.aiPrompt, bilingualPrompt: settings.aiBilingualPrompt
+            )
         }
-        let chunks = AIChunker.chunk(text: rawText, size: size)
+        let bilingualChunks = mode == .bilingual ? BilingualSourceChunker.chunks(text: rawText, size: size) : []
+        let chunks = mode == .bilingual ? try bilingualChunks.map { try $0.encoded() } :
+            AIChunker.chunk(text: rawText, size: size)
+        let expectedIDs = bilingualChunks.map { $0.paragraphs.map(\.id) }
         if chunks.isEmpty {
             throw AIClientError.noResponse
         }
@@ -228,6 +245,7 @@ actor AIReadingService {
             mode: mode,
             prompt: prompt,
             chunks: chunks,
+            expectedIDs: expectedIDs,
             cacheKey: cacheKey,
             runId: runId
         )
@@ -245,6 +263,7 @@ actor AIReadingService {
             createdAt: now,
             updatedAt: now
         )
+        try Task.checkCancellation()
         try cache.upsert(pc)
         await logCache(
             bookId: bookId,
@@ -255,6 +274,37 @@ actor AIReadingService {
             runId: runId
         )
         return joined
+    }
+
+    private func registerWaiter(cacheKey: String) -> UUID {
+        let waiter = UUID()
+        inFlightWaiters[cacheKey, default: []].insert(waiter)
+        return waiter
+    }
+
+    private func releaseWaiter(cacheKey: String, token: UUID, waiter: UUID) {
+        guard inFlightTokens[cacheKey] == token else { return }
+        inFlightWaiters[cacheKey]?.remove(waiter)
+        guard inFlightWaiters[cacheKey]?.isEmpty == true else { return }
+        // One cancelled reader must not cancel a request still used by prefetch, or vice versa.
+        inFlight[cacheKey]?.cancel()
+        inFlight[cacheKey] = nil
+        inFlightTokens[cacheKey] = nil
+        inFlightWaiters[cacheKey] = nil
+    }
+
+    private func waitForTask(
+        _ task: Task<String, Error>, cacheKey: String, token: UUID, waiter: UUID
+    ) async throws -> String {
+        defer { releaseWaiter(cacheKey: cacheKey, token: token, waiter: waiter) }
+        return try await withTaskCancellationHandler {
+            try Task.checkCancellation()
+            let result = await task.result
+            try Task.checkCancellation()
+            return try result.get()
+        } onCancel: {
+            Task { await self.releaseWaiter(cacheKey: cacheKey, token: token, waiter: waiter) }
+        }
     }
 
     func processedContent(
@@ -268,7 +318,11 @@ actor AIReadingService {
         if mode == .none {
             return rawText
         }
+        try Task.checkCancellation()
         if let cached = try? cache.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode) {
+            if mode == .bilingual {
+                _ = try BilingualChapter.decode(cached.content)
+            }
             await logCache(
                 bookId: bookId,
                 chapterNumber: chapterNumber,
@@ -280,7 +334,8 @@ actor AIReadingService {
             return cached.content
         }
         let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
-        if let existing = inFlight[cacheKey] {
+        if let existing = inFlight[cacheKey], let token = inFlightTokens[cacheKey] {
+            let waiter = registerWaiter(cacheKey: cacheKey)
             await logCache(
                 bookId: bookId,
                 chapterNumber: chapterNumber,
@@ -289,7 +344,7 @@ actor AIReadingService {
                 detail: "keyHash=\(keyHash(cacheKey))",
                 runId: run
             )
-            return try await existing.value
+            return try await waitForTask(existing, cacheKey: cacheKey, token: token, waiter: waiter)
         }
         let task = Task<String, Error> {
             try await self.runPipeline(
@@ -304,13 +359,8 @@ actor AIReadingService {
         let token = UUID()
         inFlight[cacheKey] = task
         inFlightTokens[cacheKey] = token
-        defer {
-            if inFlightTokens[cacheKey] == token {
-                inFlight[cacheKey] = nil
-                inFlightTokens[cacheKey] = nil
-            }
-        }
-        return try await task.value
+        let waiter = registerWaiter(cacheKey: cacheKey)
+        return try await waitForTask(task, cacheKey: cacheKey, token: token, waiter: waiter)
     }
 
     func reprocess(
@@ -324,12 +374,14 @@ actor AIReadingService {
         if mode == .none {
             return rawText
         }
+        try Task.checkCancellation()
         let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
         if let existing = inFlight[cacheKey] {
             // Cancel previous in-flight work before reprocessing
             existing.cancel()
             inFlight[cacheKey] = nil
             inFlightTokens[cacheKey] = nil
+            inFlightWaiters[cacheKey] = nil
         }
         let token = UUID()
         let task = Task<String, Error> {
@@ -344,12 +396,7 @@ actor AIReadingService {
         }
         inFlight[cacheKey] = task
         inFlightTokens[cacheKey] = token
-        defer {
-            if inFlightTokens[cacheKey] == token {
-                inFlight[cacheKey] = nil
-                inFlightTokens[cacheKey] = nil
-            }
-        }
-        return try await task.value
+        let waiter = registerWaiter(cacheKey: cacheKey)
+        return try await waitForTask(task, cacheKey: cacheKey, token: token, waiter: waiter)
     }
 }

@@ -14,85 +14,87 @@ struct ReaderBottomSheet: View {
     }
 
     var body: some View {
-        BottomSheetView {
-            VStack(spacing: 12) {
-                HStack {
-                    Text("Cài đặt đọc")
-                        .font(.headline)
-                        .foregroundStyle(theme.textPrimary)
-                    Spacer()
-                    Button {
-                        onClose()
-                        router?.push(.settings)
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 18))
-                            .foregroundStyle(theme.iconTint)
-                    }
-                    .accessibilityLabel("Cài đặt")
-                    .a11yHitTarget()
-                }
-                .padding(.top, 4)
-
-                themeDivider
-
-                themeSection
-                themeDivider
-
-                if let viewModel {
-                    aiModeSection(viewModel: viewModel)
-                    themeDivider
-                }
-
-                HStack {
-                    Text("Phông chữ")
-                        .font(.subheadline)
-                        .foregroundStyle(theme.textPrimary)
-                    Spacer()
-                    Picker(
-                        "Phông chữ",
-                        selection: Binding(
-                            get: { ReaderFontMapper.normalizedFontName(settingsStore.typography.font) },
-                            set: {
-                                settingsStore.typography.font = ReaderFontMapper.normalizedFontName($0)
-                                settingsStore.save()
-                            }
-                        )
-                    ) {
-                        ForEach(fonts, id: \.self) { font in
-                            Text(font).tag(font)
+        ScrollView {
+            BottomSheetView {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Cài đặt đọc")
+                            .font(.headline)
+                            .foregroundStyle(theme.textPrimary)
+                        Spacer()
+                        Button {
+                            onClose()
+                            router?.push(.settings)
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 18))
+                                .foregroundStyle(theme.iconTint)
                         }
+                        .accessibilityLabel("Cài đặt")
+                        .a11yHitTarget()
                     }
-                    .pickerStyle(.menu)
-                    .tint(theme.textPrimary)
-                    .accessibilityIdentifier("fontPicker")
+                    .padding(.top, 4)
+
+                    themeDivider
+
+                    themeSection
+                    themeDivider
+
+                    if let viewModel {
+                        aiModeSection(viewModel: viewModel)
+                        themeDivider
+                    }
+
+                    HStack {
+                        Text("Phông chữ")
+                            .font(.subheadline)
+                            .foregroundStyle(theme.textPrimary)
+                        Spacer()
+                        Picker(
+                            "Phông chữ",
+                            selection: Binding(
+                                get: { ReaderFontMapper.normalizedFontName(settingsStore.typography.font) },
+                                set: {
+                                    settingsStore.typography.font = ReaderFontMapper.normalizedFontName($0)
+                                    settingsStore.save()
+                                }
+                            )
+                        ) {
+                            ForEach(fonts, id: \.self) { font in
+                                Text(font).tag(font)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(theme.textPrimary)
+                        .accessibilityIdentifier("fontPicker")
+                    }
+                    .frame(minHeight: 36)
+
+                    stepperRow(
+                        title: "Cỡ chữ",
+                        value: Binding(
+                            get: { settingsStore.typography.fontSize },
+                            set: { clampAndSaveFontSize($0) }
+                        ),
+                        range: 12 ... 40,
+                        step: 1,
+                        format: "%.0f"
+                    )
+
+                    stepperRow(
+                        title: "Giãn dòng",
+                        value: Binding(
+                            get: { settingsStore.typography.lineHeight },
+                            set: { clampAndSaveLineHeight($0) }
+                        ),
+                        range: 1.0 ... 50,
+                        step: 0.5,
+                        format: "%.1f"
+                    )
                 }
-                .frame(minHeight: 36)
-
-                stepperRow(
-                    title: "Cỡ chữ",
-                    value: Binding(
-                        get: { settingsStore.typography.fontSize },
-                        set: { clampAndSaveFontSize($0) }
-                    ),
-                    range: 12 ... 40,
-                    step: 1,
-                    format: "%.0f"
-                )
-
-                stepperRow(
-                    title: "Giãn dòng",
-                    value: Binding(
-                        get: { settingsStore.typography.lineHeight },
-                        set: { clampAndSaveLineHeight($0) }
-                    ),
-                    range: 1.0 ... 50,
-                    step: 0.5,
-                    format: "%.1f"
-                )
+                .padding(.horizontal, DesignTokens.spacing12)
+                .padding(.bottom, DesignTokens.spacing16)
             }
-            .padding(.horizontal, DesignTokens.spacing12)
-            .padding(.bottom, DesignTokens.spacing16)
         }
         .preferredColorScheme(theme.preferredColorScheme)
     }
@@ -163,17 +165,16 @@ struct ReaderBottomSheet: View {
 
     private func aiModeSection(viewModel: ReaderViewModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("AI Rewrite")
+            Text("Chế độ đọc")
                 .font(.subheadline)
                 .foregroundStyle(theme.textPrimary)
 
-            HStack(spacing: 12) {
+            VStack(alignment: .trailing, spacing: 8) {
                 Picker(
-                    "AI Rewrite",
+                    "Chế độ đọc",
                     selection: Binding(
                         get: { viewModel.aiMode },
                         set: { newValue in
-                            viewModel.aiMode = newValue
                             Task { await viewModel.setAIMode(newValue) }
                         }
                     )
@@ -197,6 +198,11 @@ struct ReaderBottomSheet: View {
             .frame(minHeight: 40)
             .contentShape(Rectangle())
 
+            if viewModel.aiMode == .bilingual {
+                Text("Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn.")
+                    .font(.footnote)
+                    .foregroundStyle(theme.textMuted)
+            }
             apiLogButton(viewModel: viewModel)
         }
     }

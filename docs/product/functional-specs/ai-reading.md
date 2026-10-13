@@ -1,50 +1,33 @@
 # AI Reading
 
-> Offers two modes per chapter — original ("Không") and rewrite ("Rewrite") — with cache-first reuse and on-demand AI processing based on user-configured Prompt.
+Independent chapter modes: Bản gốc (`none`), Dịch (`rewrite`) and Song ngữ (`bilingual`). Detailed paired rendering/learning: [bilingual learning](bilingual-learning.md).
 
-## Flow (ordered steps actor / system)
+## Flow
 
-1. Actor opens a chapter. System checks AI mode. If mode is `none` ("Không"), show the raw title plus one raw body `Text` parsed from HTML in file storage. If mode is `rewrite` ("Rewrite"), check processed chapter cache for `bookId + chapterNumber + "rewrite"`.
-2. Cache hit → render cached text with SwiftUI.Text, no service call.
-3. Cache miss → split the body string into chunks (hint 1300), call one service request per chunk in parallel, wait for every chunk to succeed, join outputs in source order, clean, save the joined text as one cache entry, render the raw title plus the translated body as one `Text`. One failed chunk is retried once alone (max 2 attempts per chunk, every error kind, same `requestId`); the whole batch is never retried at once. The AI input is the body string by construction: the first heading sets the title and is skipped, so the title is never translated and renders raw above the body, while heading-free chapters translate exactly as before.
-4. Actor switches mode → reload same chapter via cache-first path.
-5. In Reading bottom sheet, "AI Rewrite" is shown with an inline picker ("Không", "Rewrite") and the Reprocess ("Xử lý lại") button placed right beside it in the same row.
-6. One chunk still failing after its retry aborts the chapter → toast once, render raw fallback, no cache write. Actor retries manually via "Xử lý lại". Concurrent same-key requests are de-duplicated.
+1. Original renders HTML-parsed title/body without AI or cache. Other modes check `bookId + chapterNumber + mode` in the single processed-chapter cache.
+2. Cache hit reuses only that mode. Rewrite reads plain text; bilingual validates/decode versioned pairs. Invalid bilingual cache fails explicitly rather than exposing JSON or borrowing rewrite.
+3. On miss, process body only (first heading remains raw title). Use independent `AI_PROMPT` or `AI_BILINGUAL_PROMPT`. Chunk calls run in parallel; collect in source order. Rewrite joins text; bilingual validates exact app-assigned IDs and nonempty vi/en, then serializes one chapter JSON.
+4. Save only after every chunk succeeds and cancellation check passes. Transport/envelope/final-JSON failures retry the failed chunk once; semantic pairing failures do not trigger another paid retry loop. No partial cache.
+5. Reading sheet offers Chế độ đọc with the three labels and Xử lý lại for the selected non-original mode. Switching reloads cache first. Prefetch processes only the selected mode.
+6. Failure toasts once and displays raw fallback, never another mode. Failed refresh leaves previous cache intact. Concurrent same-key work shares a single flight. Cancellation is silent and releases only that consumer; cancel the pipeline when no live consumer remains. A live shared consumer may still complete/cache. Generation guards prevent stale publication and old-flight cleanup.
 
-## Rules (business rules, link to business-rules.md)
+## Rules
 
-- Cache is the only AI cache. Check cache before any call. Key is `bookId + chapterNumber + mode` ([business-rules.md](../business-rules.md) BR-07). Upgrading to cache version 2 clears older entries once, so translations made before the heading change are never reused.
-- AI Rewrite uses single `AI_PROMPT` system prompt configured in settings ([business-rules.md](../business-rules.md) BR-03, BR-04).
-- Mode `none` bypasses cache and service. Bounded retry: max 2 attempts per failed chunk only. No cache on final failure ([integrations.md](../integrations.md) §2).
-
-## States
-
-- **AI Mode:** none ("Không") ↔ rewrite ("Rewrite") (switch anytime via inline picker, [domain-model.md](../domain-model.md) AI Mode). Persisted app-wide via `AI_MODE` in the settings store (default `none`); `ReaderViewModel` restores it on init and saves on every switch, so the choice survives restart.
-- **Processing:** idle → checking cache → processing → cached/rendered | error
-
-## Cases
-
-| Case | Result |
-|------|--------|
-| Mode `none` | Render raw title plus one raw body `Text` (parsed from HTML), no cache |
-| Cache hit | Render instantly |
-| Cache miss, success | Parallel chunk calls, join in order, save to cache and render |
-| Empty response after retry | Toast once, render raw fallback, no cache |
-| One chunk fails twice | Abort chapter, toast once, raw fallback, manual "Xử lý lại" |
-| Concurrent same key | Single call, both share result |
+- Preserve `none`/`rewrite` raw values and existing rewrite cache/settings. `bilingual` adds a mode, not a database migration. Cache version remains 2; historical version-1 invalidation is unchanged.
+- Prompts/results are independent. Changing prompts does not invalidate cache; manual reprocess applies only to the selected mode.
+- `AI_MODE` persists app-wide, default `none`. Unknown value falls back to original.
+- Structural validation does not guarantee meaning, factual accuracy or exact preservation of honorifics. No automatic language-detection repair or source mutation.
 
 ## Acceptance
 
-- [ ] Switching Không / Rewrite reloads same chapter with correct source.
-- [ ] Cached chapter renders without calling the service.
-- [ ] Uncached chapter calls one request per chunk in parallel with `AI_PROMPT`, retries only the failed chunk once, joins in order, saves text to cache, then renders the raw title plus the translated body as one `Text`.
-- [ ] Sheet shows "AI Rewrite" inline picker with options "Không" and "Rewrite", with Reprocess button right beside it.
-- [ ] Failed response after retry toasts once, renders raw fallback, and creates no entry.
+- [ ] Three modes use the correct independent source and survive restart.
+- [ ] Cached content requires zero current-chapter AI calls; original bypasses all AI/cache.
+- [ ] Uncached paired output has exactly one vi/en pair per source ID in source order, saved atomically.
+- [ ] Invalid output/version never renders as raw JSON, writes partial data or borrows another mode.
+- [ ] Reprocess/prefetch respect selected mode; failed reprocess preserves prior cache.
 
 ## Links
 
-- Domain: [domain-model.md](../domain-model.md) (ProcessedChapter, AI_PROMPT, AI Mode) — `ProcessedChapter.bookId` uses the resolved `Book.id` slug
-- Flows: [flows.md](../flows.md) §5 AI Mode with Cache
-- Integrations: [integrations.md](../integrations.md) §2 AI Processing Service
-- Rules: [business-rules.md](../business-rules.md) BR-03, BR-04, BR-05, BR-06, BR-07
-- Contracts: [ai-service](../../contracts/ai-service.md), [settings-schema](../../contracts/settings-schema.md), [local-data](../../contracts/local-data.md) (SQLite via `libsqlite3`); Decisions: [book-identity](../../decisions/book-identity.md), [local-persistence](../../decisions/local-persistence.md)
+- [Domain](../domain-model.md), [rules](../business-rules.md) BR-03..07, [flows](../flows.md) §5.
+- [Wire contract](../../contracts/ai-service.md), [settings](../../contracts/settings-schema.md), [local data](../../contracts/local-data.md).
+- [Local persistence](../../decisions/local-persistence.md), [book identity](../../decisions/book-identity.md).

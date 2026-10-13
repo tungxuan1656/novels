@@ -12,9 +12,9 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 |---|---|---|---|---|
 | **Home Library** | Browse books | Header with add and settings; row with name, author, count | Empty (add prompt), Content, Refreshing | Tap → Reading; swipe Info/Delete; add → Add Book |
 | **Add Book** | Import book | Header back; remote list; download overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → back |
-| **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above one native body `Text` (parsed from HTML), no emphasis; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
+| **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above native paragraph text or ordered VI/EN pairs; English paragraph opens sentence learning; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
-| **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
+| **Settings** | Edit config | Header; grouped list, Audio source with API-only key/model; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
 | **Log** | Diagnose AI/prefetch per chapter-run | Header; search; grouped chapter rows with status; JSON body sheet | Content, Empty, No-match | Reading sheet → Log → back |
@@ -23,10 +23,13 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 
 **Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
 - Font picker
-- Inline AI Rewrite picker ("AI Rewrite": Không / Rewrite) with Reprocess button ("Xử lý lại") positioned right beside it in the same row
+- Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
+- In Song ngữ, appearance hint: "Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn"
 - Steppers for size and line height
 - Log button ("Nhật ký") below AI section → push Log timeline
 Gear opens Settings.
+
+**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google in a nested system browser sheet only after a tap. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 

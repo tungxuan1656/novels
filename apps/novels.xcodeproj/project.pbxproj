@@ -51,7 +51,8 @@
 		E03100000000000000000004 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E2DB617C303C43F300D20F8F /* Frameworks */ = {
@@ -93,9 +94,14 @@
 				E03100000000000000000004 /* Frameworks */,
 				E03100000000000000000008 /* Resources */,
 			);
-			buildRules = ();
-			dependencies = (E03100000000000000000009 /* PBXTargetDependency */,);
-			fileSystemSynchronizedGroups = (E03100000000000000000003 /* novelsTests */,);
+			buildRules = (
+			);
+			dependencies = (
+				E03100000000000000000009 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				E03100000000000000000003 /* novelsTests */,
+			);
 			name = novelsTests;
 			productName = novelsTests;
 			productReference = E03100000000000000000002 /* novelsTests.xctest */;
@@ -164,7 +170,8 @@
 		E03100000000000000000008 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E2DB617D303C43F300D20F8F /* Resources */ = {
@@ -180,7 +187,8 @@
 		E03100000000000000000007 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		E2DB617B303C43F300D20F8F /* Sources */ = {
@@ -208,7 +216,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novelsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -225,7 +237,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
-				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@loader_path/Frameworks",);
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.tungxuan.novelsTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";

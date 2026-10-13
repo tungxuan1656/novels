@@ -17,6 +17,10 @@ import Observation
         static let aiMinChunkSize = 1300
         static let diagnosticsVerbose = false
         static let readingTheme = ReadingTheme.sach
+        static let aiBilingualPrompt = SettingsDefaults.defaultBilingualPrompt
+        static let audioSource = AudioSource.apple
+        static let audioAPIKey = ""
+        static let audioModel = AudioSource.defaultModel
     }
 
     private let userDefaults: UserDefaults
@@ -30,6 +34,7 @@ import Observation
     var aiAPIKey: String
     var aiThinkingEffort: String
     var aiPrompt: String
+    var aiBilingualPrompt: String
     var aiMinChunkSize: Int
     var prefetchCount: Int
     var aiMode: AIMode
@@ -37,6 +42,9 @@ import Observation
     var readingTheme: ReadingTheme
     var typography: TypographySetting
     var session: ReadingSession?
+    var audioSource: AudioSource
+    var audioAPIKey: String
+    var audioModel: String
 
     static let shared = SettingsStore()
 
@@ -51,6 +59,7 @@ import Observation
         aiAPIKey = ""
         aiThinkingEffort = ""
         aiPrompt = SettingsDefaults.defaultPrompt
+        aiBilingualPrompt = Defaults.aiBilingualPrompt
         aiMinChunkSize = Defaults.aiMinChunkSize
         prefetchCount = Defaults.prefetchCount
         aiMode = Defaults.aiMode
@@ -58,11 +67,15 @@ import Observation
         readingTheme = Defaults.readingTheme
         typography = .default
         session = nil
+        audioSource = Defaults.audioSource
+        audioAPIKey = Defaults.audioAPIKey
+        audioModel = Defaults.audioModel
         load()
         sanitize()
         removeLegacyKeys()
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func load() {
         if let value = userDefaults.string(forKey: DefaultsKeys.booksAPIURL) {
             booksAPIURL = value
@@ -99,12 +112,20 @@ import Observation
         if let value = userDefaults.string(forKey: DefaultsKeys.aiPrompt) {
             aiPrompt = value
         }
+        if let value = userDefaults.string(forKey: DefaultsKeys.aiBilingualPrompt) {
+            aiBilingualPrompt = value
+        }
         if let value = intValue(forKey: DefaultsKeys.prefetchCount) {
             prefetchCount = value
         }
         if let value = intValue(forKey: DefaultsKeys.aiMinChunkSize) {
             aiMinChunkSize = value
         }
+        let source = userDefaults.string(forKey: DefaultsKeys.audioSource)?
+            .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        audioSource = AudioSource(rawValue: source) ?? Defaults.audioSource
+        audioAPIKey = userDefaults.string(forKey: DefaultsKeys.audioAPIKey) ?? Defaults.audioAPIKey
+        audioModel = userDefaults.string(forKey: DefaultsKeys.audioModel) ?? Defaults.audioModel
         loadAiMode()
         loadReadingTheme()
         loadDiagnosticsTypographySession()
@@ -178,6 +199,11 @@ import Observation
         if aiPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             aiPrompt = SettingsDefaults.defaultPrompt
         }
+        if aiBilingualPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            aiBilingualPrompt = SettingsDefaults.defaultBilingualPrompt
+        }
+        audioModel = audioModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if audioModel.isEmpty { audioModel = Defaults.audioModel }
         typography.font = ReaderFontMapper.normalizedFontName(typography.font)
         if !(12 ... 40).contains(typography.fontSize) {
             typography.fontSize = TypographySetting.default.fontSize
@@ -211,6 +237,14 @@ import Observation
             return aiThinkingEffort
         case "AI_PROMPT":
             return aiPrompt
+        case "AI_BILINGUAL_PROMPT":
+            return aiBilingualPrompt
+        case "AUDIO_SOURCE":
+            return audioSource.rawValue
+        case "AUDIO_API_KEY":
+            return audioAPIKey
+        case "AUDIO_MODEL":
+            return audioModel
         case "PREFETCH_COUNT":
             return "\(prefetchCount)"
         case "AI_MIN_CHUNK_SIZE":
@@ -249,6 +283,15 @@ import Observation
             aiThinkingEffort = value
         case "AI_PROMPT":
             aiPrompt = value
+        case "AI_BILINGUAL_PROMPT":
+            aiBilingualPrompt = value
+        case "AUDIO_SOURCE":
+            audioSource = AudioSource(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+                ?? Defaults.audioSource
+        case "AUDIO_API_KEY":
+            audioAPIKey = value
+        case "AUDIO_MODEL":
+            audioModel = value
         case "PREFETCH_COUNT":
             if let intValue = SettingDescriptor.parsedPrefetchCount(value) {
                 prefetchCount = intValue
@@ -292,6 +335,10 @@ import Observation
         userDefaults.set(aiAPIKey, forKey: DefaultsKeys.aiAPIKey)
         userDefaults.set(aiThinkingEffort, forKey: DefaultsKeys.aiThinkingEffort)
         userDefaults.set(aiPrompt, forKey: DefaultsKeys.aiPrompt)
+        userDefaults.set(aiBilingualPrompt, forKey: DefaultsKeys.aiBilingualPrompt)
+        userDefaults.set(audioSource.rawValue, forKey: DefaultsKeys.audioSource)
+        userDefaults.set(audioAPIKey, forKey: DefaultsKeys.audioAPIKey)
+        userDefaults.set(audioModel, forKey: DefaultsKeys.audioModel)
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)

@@ -8,6 +8,7 @@
 |---|---|---|
 | [catalog-api.md](./catalog-api.md) | Remote Book Catalog POST wire format and failure mapping | `../../docs/product/integrations.md` §1, `../../docs/product/functional-specs/book-import.md` |
 | [ai-service.md](./ai-service.md) | Single OpenAI-compatible endpoint, chunk/retry/cache behavior | `../../docs/product/integrations.md` §2, `../../docs/product/functional-specs/ai-reading.md`, `../../docs/product/functional-specs/chapter-prefetch.md` |
+| [audio-service.md](./audio-service.md) | Selected-sentence TTS request, raw audio response, playback/cancellation boundaries | `../product/functional-specs/bilingual-learning.md`, `../../SECURITY.md` |
 | [book-package.md](./book-package.md) | ZIP producer shape (`book.json` + `chapters/chapter-N.html` at root) + sample ZIP note | `../../docs/product/domain-model.md` Invariants, `../../docs/product/functional-specs/book-import.md`, `../../docs/product/functional-specs/book-library.md` |
 | [settings-schema.md](./settings-schema.md) | Persistent keys, defaults, validation, JSON-header/body handling | `../../docs/product/functional-specs/settings-management.md`, `../../SECURITY.md` |
 | [local-data.md](./local-data.md) | Local boundaries (repository, ProcessedChapter cache, settings/session/typography) with native stores | `../../docs/product/domain-model.md`, `../../docs/product/functional-specs/book-library.md`, `../../docs/product/functional-specs/book-reader.md` |

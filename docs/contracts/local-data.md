@@ -42,6 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 ```
 
 - **Key:** `PRIMARY KEY(book_id, chapter_number, mode)` (`WITHOUT ROWID`; equivalently `UNIQUE(book_id, chapter_number, mode)`) where `book_id` is the slug (`ProcessedChapter.bookId` / resolved `Book.id` in Swift), `mode` is `AIMode.rawValue`. Upsert via `INSERT OR REPLACE` (or `ON CONFLICT DO UPDATE`). `mode = 'none'` never written.
+- **Content by mode:** `rewrite` stores legacy plain Vietnamese text; `bilingual` stores app-owned JSON `{"version":1,"paragraphs":[{"id":"p001","vi":"...","en":"..."}]}`. Decode only by mode and reject unknown version, empty languages or duplicate IDs. No schema bump, migration or rewrite invalidation; both modes coexist. `content_hash` remains SHA256 of final serialized content.
 - **Columns `created_at`/`updated_at`:** `TEXT NOT NULL` storing ISO8601 with fractional seconds (`.withInternetDateTime` + `.withFractionalSeconds`; fallback without fractional seconds on read).
 - **Queries:** `SELECT content FROM processed_chapters WHERE book_id=? AND chapter_number=? AND mode=?`; batch-check for prefetch range `WHERE book_id=? AND mode=? AND chapter_number IN (...)`; `SELECT count(*) WHERE book_id=?` for Cache Manager count.
 - **Clear:** `DELETE FROM processed_chapters` (all) or `DELETE WHERE book_id=?` on book delete leaves rows unreachable; no UserDefaults use for cache.
@@ -51,7 +52,7 @@ CREATE INDEX IF NOT EXISTS idx_processed_chapters_book ON processed_chapters(boo
 ## 3. Persistent Settings Store (plus Session & Typography)
 
 - **Store:** `UserDefaults` via `@Observable` wrapper (see `../decisions/local-persistence.md`). No `Keychain`, no `SwiftData`/`Core Data`.
-- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_API_KEY`, `AI_THINKING_EFFORT`, `AI_PROMPT`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
+- **Keys (current only):** `BOOKS_API_URL`, `OPENAI_API_URL`, `OPENAI_MODEL`, `AI_CUSTOM_HEADERS`, `AI_EXTRA_BODY`, `AI_PROVIDER`, `AI_API_KEY`, `AI_THINKING_EFFORT`, `AI_PROMPT`, `AI_BILINGUAL_PROMPT`, `AI_MIN_CHUNK_SIZE`, `PREFETCH_COUNT`, plus `font`, `fontSize`, `lineHeight` and `ReadingSession { bookId: slug, onScreen, offset }`. See `settings-schema.md`.
 - **Sanitize:** on launch offline — missing/invalid → defaults; unknown/legacy keys → ignored (no migration); `AI_CUSTOM_HEADERS`/`AI_EXTRA_BODY` invalid JSON → treated as empty, stored verbatim otherwise. See `../../docs/product/business-rules.md` BR-12.
 
 ## Dependencies

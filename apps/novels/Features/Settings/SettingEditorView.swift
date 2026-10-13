@@ -20,11 +20,17 @@ struct SettingEditorView: View {
             }
             .listRowBackground(DesignTokens.surface)
             Section("Giá trị") {
-                if descriptor.key == "AI_API_KEY" {
+                if descriptor.key == "AI_API_KEY" || descriptor.key == "AUDIO_API_KEY" {
                     SecureField(descriptor.placeholder, text: $draft)
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
-                        .accessibilityLabel("API key (Bearer)")
+                        .accessibilityLabel(descriptor.label)
+                } else if descriptor.key == "AUDIO_SOURCE" {
+                    Picker("Nguồn audio", selection: $draft) {
+                        ForEach(AudioSource.allCases, id: \.rawValue) { source in
+                            Text(source.title).tag(source.rawValue)
+                        }
+                    }
                 } else if descriptor.key == "AI_PROVIDER" {
                     Picker("Nhà cung cấp", selection: $draft) {
                         ForEach(AIProvider.allCases, id: \.rawValue) { provider in
@@ -36,6 +42,7 @@ struct SettingEditorView: View {
                 } else if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
                     || descriptor.key == "AI_PROMPT"
+                    || descriptor.key == "AI_BILINGUAL_PROMPT"
                 // swiftlint:disable:next opening_brace
                 {
                     TextEditor(text: $draft)
@@ -43,6 +50,18 @@ struct SettingEditorView: View {
                         .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
+                        .accessibilityLabel(descriptor.label)
+                        .overlay(alignment: .topLeading) {
+                            if draft.isEmpty {
+                                Text(descriptor.placeholder)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(DesignTokens.muted)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                        }
                 } else {
                     TextField(descriptor.placeholder, text: $draft)
                         .font(.caption.monospaced())

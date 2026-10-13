@@ -8,9 +8,9 @@
 - **Stack:** SwiftUI, Foundation, Observation, system SQLite3. `apps/novels.xcodeproj`, shared scheme `novels`, app module `novels`, unit-test target `novelsTests`. No SwiftPM or Node workspace.
 - **Toolchain:** Xcode 26+ with Swift 6.2-capable compiler; `SWIFT_VERSION=5.0` is the language mode, not the compiler version. Verification uses iPhone 17 Pro/iOS 26.5. SDK version is separate from the deployment floor. See `docs/decisions/ios-scope.md`.
 - **Quality tools:** SwiftLint and SwiftFormat are required. Configuration: `.swiftlint.yml`, `.swiftformat`, `.githooks/pre-commit`; setup: `scripts/setup.sh`. Setup installs Homebrew versions, not pinned versions.
-- **Integrations:** Catalog listing and ZIP download, plus configurable AI endpoints supporting Chat Completions, Responses, and Anthropic messages. Network is needed for catalog/import and uncached AI, not local reading. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
+- **Integrations:** Catalog listing and ZIP download, plus configurable AI endpoints supporting Chat Completions, Responses, and Anthropic messages. Explicit Google sentence lookup uses a system browser sheet. Network is needed for catalog/import, uncached AI, optional API sentence audio and Google lookup, not local reading or installed system English speech. See `docs/contracts/catalog-api.md` and `docs/contracts/ai-service.md`.
 - **Stores:** Books in `Application Support/novels/books/<slug>/` via FileManager and Codable; processed chapters in `cache/processed_chapters.sqlite` via SQLite3. Settings, session, and typography use UserDefaults with an `@Observable` store. No Keychain. See `docs/contracts/local-data.md` and `docs/contracts/settings-schema.md`.
-- **Rendering:** Foundation parses HTML into an optional title and a plain body string. Reader splits the body into paragraph chunks for SwiftUI `Text`; no spans, emphasis, or WebKit.
+- **Rendering:** Foundation parses HTML into an optional title and a plain body string. Reader splits plain bodies into paragraph chunks for SwiftUI `Text`. Bilingual payloads decode once into stable-ID VI/EN rows; English taps open on-demand sentence learning. No reader WebKit or per-word controls.
 - **File handling:** Local ZIP extraction supports stored/deflated entries, hygiene filtering, data descriptors, and single-wrapper flattening. Root validation, traversal, CRC, and expansion limits remain enforced. See `docs/contracts/book-package.md`.
 - **Security:** ATS has an insecure-HTTP exception for localhost and its subdomains; it does not restrict ports. `http://localhost:8317` is the default AI endpoint, not an ATS port rule. No React Native packages or migration. See `SECURITY.md`.
 
@@ -22,11 +22,11 @@ All paths below exist in the app. This is not a proposed layout.
 |---|---|
 | `apps/novels/NovelsApp.swift`, `apps/novels/App/` | Entry point, dependency composition in `AppRoot`, navigation and session restore in `Router` |
 | `apps/novels/Features/Library/`, `apps/novels/Features/Import/` | Local library, book info/delete, catalog and ZIP import view models and screens |
-| `apps/novels/Features/Reading/` | Reader view/model, body splitter, references, controls, scroll offset and typography |
+| `apps/novels/Features/Reading/` | Reader view/model, body splitter, references, controls, scroll offset, typography, bilingual rows, Apple/API speech coordination and Google browser sheet |
 | `apps/novels/Features/Settings/`, `apps/novels/Features/Diagnostics/` | Settings editors, cache management, in-session diagnostic viewer |
 | `apps/novels/Domain/`, `apps/novels/Models/` | Book/chapter/session/settings types, HTML parser, slug validation, hashing and exported-book model |
 | `apps/novels/Persistence/` | `FileBookRepository`, paths/defaults, ZIP extraction/root validation, `SettingsStore`, `SQLiteProcessedChapterCache` |
-| `apps/novels/Services/` | `CatalogService`, `AIClient`, request/response helpers, `AIReadingService`, `PrefetchManager`, diagnostic logging |
+| `apps/novels/Services/` | `CatalogService`, `AIClient`, `AudioSpeechClient`, request/response helpers, `AIReadingService`, `PrefetchManager`, diagnostic logging |
 | `apps/novels/SharedUI/`, `apps/novels/Shared/`, `apps/novels/Resources/` | Sheets, loading/toast UI, accessibility helpers, design tokens and bundled fonts |
 | `apps/novelsTests/` | Separate ZIP ingestion, processed-cache, and AI response unit suites; no UI-test target |
 
@@ -47,8 +47,9 @@ This is one app module; the folders are responsibility boundaries, not separate 
 - **Import:** `ImportViewModel` loads catalog, downloads a ZIP to temporary storage, extracts, resolves the canonical root, and validates it. `FileBookRepository` imports by slug and refreshes Library. See `docs/contracts/book-package.md` and `docs/decisions/book-identity.md`.
 - **Library:** `LibraryViewModel` scans local books through the repository. Confirmed deletion removes the slug folder and related state. See `docs/product/functional-specs/book-library.md`.
 - **Reader:** `ReaderViewModel` loads source HTML or processed text. `HtmlParser` extracts title/body; `ReaderBodySplitter` prepares paragraph chunks for `ReaderView`. Navigation and scrolling persist per-book position through `SettingsStore`.
-- **AI:** Mode `none` uses source text; `rewrite` checks SQLite by slug, chapter, and mode. On a miss, `AIReadingService` de-duplicates work and processes chunks in parallel. `AIClient` makes at most two attempts per chunk. Results join in order; only a complete successful result enters cache. See `docs/contracts/ai-service.md`.
+- **AI:** Mode `none` uses source text; independent `rewrite` and `bilingual` check SQLite by slug, chapter, and selected mode. On a miss, `AIReadingService` de-duplicates work and processes chunks in parallel. `AIClient` makes at most two attempts per chunk. Rewrite joins ordered text. Bilingual validates source IDs and nonempty VI/EN pairs, then serializes one versioned chapter; only a complete successful result enters cache. See `docs/contracts/ai-service.md`.
 - **Prefetch:** `PrefetchManager` batch-checks cache, then processes chapters sequentially through the same AI pipeline. Same-book/mode navigation reconciles the FIFO queue; book/mode changes or explicit cancellation end it. An unsuccessful chapter can be requeued once. See `docs/product/functional-specs/chapter-prefetch.md`.
+- **Sentence speech:** `ReaderSpeech` owns local synthesis or cancellable `AudioSpeechClient` requests and in-memory AVAudioPlayer playback. Explicit taps only; independent source/key/model settings. See `docs/contracts/audio-service.md`.
 - **Settings:** `SettingsStore` sanitizes persisted values, uses defaults for invalid values, and stores validated edits in UserDefaults. See `docs/contracts/settings-schema.md`.
 
 ## 5. Verification and Routes
