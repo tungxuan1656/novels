@@ -37,6 +37,7 @@ actor AIClient {
             modelRaw: String,
             headers: [String: String],
             extra: [String: Any],
+            invalidPayloads: [(event: String, value: String)],
             apiKey: String,
             options: AIRequestOptions,
             verbose: Bool
@@ -46,6 +47,10 @@ actor AIClient {
                 modelRaw: settings.openaiModel,
                 headers: settings.effectiveHeaders(),
                 extra: settings.effectiveExtraBody(),
+                invalidPayloads: [
+                    ("invalid.headers", settings.aiCustomHeadersJSON.trimmingCharacters(in: .whitespacesAndNewlines)),
+                    ("invalid.body", settings.aiExtraBodyJSON.trimmingCharacters(in: .whitespacesAndNewlines)),
+                ].filter { !$0.1.isEmpty && SettingsStore.jsonObject(from: $0.1) == nil },
                 apiKey: settings.aiAPIKey,
                 options: AIRequestOptions(
                     provider: AIProvider.normalized(settings.aiProvider) ?? .auto,
@@ -75,7 +80,7 @@ actor AIClient {
         guard let url = URL(string: urlString) else {
             throw AIClientError.httpError(0, "bad url")
         }
-        await logInvalidPayloadEvents(headers: headers, extra: extra, context: context)
+        await logInvalidPayloadEvents(payloads: settingsSnapshot.invalidPayloads, context: context)
         let chunkHash = DiagnosticsRedactor.hashPrefix(chunk)
         try Task.checkCancellation()
         // S3: serialize the request body once up front. Invalid extraBody types
@@ -413,17 +418,10 @@ actor AIClient {
     }
 
     private func logInvalidPayloadEvents(
-        headers: [String: String],
-        extra: [String: Any],
+        payloads: [(event: String, value: String)],
         context: AIDiagnosticsContext
     ) async {
-        let headersTrimmed: String = await MainActor.run {
-            settings.aiCustomHeadersJSON.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        let bodyTrimmed: String = await MainActor.run {
-            settings.aiExtraBodyJSON.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        if !headersTrimmed.isEmpty, headers.isEmpty {
+        for payload in payloads {
             await DiagnosticsLog.shared.append(LogEntry(
                 requestId: context.requestId,
                 sessionId: DiagnosticsLog.sessionId,
@@ -433,23 +431,8 @@ actor AIClient {
                 mode: context.mode,
                 chunkIndex: context.chunkIndex,
                 chunkTotal: context.chunkTotal,
-                event: "invalid.headers",
-                detail: "len=\(headersTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(headersTrimmed))",
-                runId: context.runId
-            ))
-        }
-        if !bodyTrimmed.isEmpty, extra.isEmpty {
-            await DiagnosticsLog.shared.append(LogEntry(
-                requestId: context.requestId,
-                sessionId: DiagnosticsLog.sessionId,
-                kind: .event,
-                bookId: context.bookId,
-                chapterNumber: context.chapterNumber,
-                mode: context.mode,
-                chunkIndex: context.chunkIndex,
-                chunkTotal: context.chunkTotal,
-                event: "invalid.body",
-                detail: "len=\(bodyTrimmed.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(bodyTrimmed))",
+                event: payload.event,
+                detail: "len=\(payload.value.utf8.count) hash=\(DiagnosticsRedactor.hashPrefix(payload.value))",
                 runId: context.runId
             ))
         }

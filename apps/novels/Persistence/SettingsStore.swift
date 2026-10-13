@@ -362,12 +362,7 @@ import Observation
     }
 
     func effectiveHeaders() -> [String: String] {
-        let trimmed = aiCustomHeadersJSON.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              let data = trimmed.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data),
-              let dict = obj as? [String: Any]
-        else {
+        guard let dict = Self.jsonObject(from: aiCustomHeadersJSON) else {
             return [:]
         }
         var result: [String: String] = [:]
@@ -380,15 +375,16 @@ import Observation
     }
 
     func effectiveExtraBody() -> [String: Any] {
-        let trimmed = aiExtraBodyJSON.trimmingCharacters(in: .whitespacesAndNewlines)
+        Self.jsonObject(from: aiExtraBodyJSON) ?? [:]
+    }
+
+    nonisolated static func jsonObject(from raw: String) -> [String: Any]? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
               let data = trimmed.data(using: .utf8),
-              let obj = try? JSONSerialization.jsonObject(with: data),
-              let dict = obj as? [String: Any]
-        else {
-            return [:]
-        }
-        return dict
+              let object = try? JSONSerialization.jsonObject(with: data)
+        else { return nil }
+        return object as? [String: Any]
     }
 
     private func intValue(forKey key: String) -> Int? {

@@ -176,7 +176,7 @@ final class AIClientConfigurationTests: XCTestCase {
     }
 }
 
-private final nonisolated class AIConfigurationURLProtocol: URLProtocol, @unchecked Sendable {
+final nonisolated class AIConfigurationURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var status = 200
     private nonisolated(unsafe) static var response = "{}"

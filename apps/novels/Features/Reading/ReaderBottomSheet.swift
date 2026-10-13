@@ -97,6 +97,9 @@ struct ReaderBottomSheet: View {
             }
         }
         .preferredColorScheme(theme.preferredColorScheme)
+        .task {
+            await diagnosticsStore.observe()
+        }
     }
 
     private var themeDivider: some View {

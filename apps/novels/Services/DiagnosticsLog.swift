@@ -268,6 +268,7 @@ final class DiagnosticsStore {
         entries = await DiagnosticsLog.shared.snapshot()
     }
 
+    /// Subscribe before the initial refresh so opening a viewer cannot miss a tick.
     /// Realtime follow with MainActor-side debounce: rapid ticks coalesce
     /// into one refresh 250ms after the last tick. The final pending refresh
     /// is flushed before exit, and cancellation finishes only this observer's
@@ -275,6 +276,7 @@ final class DiagnosticsStore {
     func observe() async {
         let subscription = await DiagnosticsLog.shared.subscribe()
         await withTaskCancellationHandler {
+            await refresh()
             var pending: Task<Void, Never>?
             for await _ in subscription.stream {
                 pending?.cancel()
