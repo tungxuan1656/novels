@@ -167,6 +167,76 @@ final class AILogTimelineTests: XCTestCase {
         XCTAssertTrue(group.issueSummary?.contains("bộ nhớ đệm") == true)
     }
 
+    @MainActor
+    func testRecoveredRetryDoesNotWarnOrHideSuccessfulRun() throws {
+        let store = DiagnosticsStore()
+        let runId = UUID()
+        let requestId = UUID()
+        store.entries = [
+            event("run.start", runId: runId, time: 0),
+            api(runId: runId, requestId: requestId, attempt: 1, time: 1, status: 503),
+            api(runId: runId, requestId: requestId, attempt: 2, time: 2, status: 200),
+            event("run.success", runId: runId, time: 3),
+        ]
+        XCTAssertEqual(store.failedRunCount(bookId: "book"), 0)
+        let group = try XCTUnwrap(store.runGroups(bookId: "book").first)
+        XCTAssertEqual(group.status, .success)
+        XCTAssertEqual(group.visibleEntries.compactMap(\.statusCode), [503, 200])
+    }
+
+    @MainActor
+    func testOtherBookFailureDoesNotWarnForCurrentBook() {
+        let store = DiagnosticsStore()
+        let local = UUID()
+        let other = UUID()
+        store.entries = [
+            event("run.start", runId: local, time: 0), event("run.success", runId: local, time: 1),
+            LogEntry(sessionId: UUID(), bookId: "other-book", chapterNumber: 1, mode: "bilingual",
+                     event: "run.start", runId: other),
+            LogEntry(sessionId: UUID(), kind: .api, bookId: "other-book", chapterNumber: 1, mode: "bilingual",
+                     statusCode: 503, runId: other),
+            LogEntry(sessionId: UUID(), bookId: "other-book", chapterNumber: 1, mode: "bilingual",
+                     errorDomain: NSURLErrorDomain, errorCode: URLError.timedOut.rawValue,
+                     event: "run.fail", runId: other),
+        ]
+        XCTAssertEqual(store.failedRunCount(bookId: "book"), 0)
+        XCTAssertEqual(store.failedRunCount(bookId: "other-book"), 1)
+        XCTAssertEqual(store.runGroups(bookId: "book").map(\.id), [local.uuidString])
+    }
+
+    func testConfigurationWarningsCanBeSearchedAndInspectedWithoutFailingRun() throws {
+        let runId = UUID()
+        let warnings = ["invalid.headers", "invalid.body"].map {
+            event($0, runId: runId, time: 1, detail: "len=17 hash=fixture")
+        }
+        let group = try XCTUnwrap(LogRunBuilder.build(from: [
+            event("run.start", runId: runId, time: 0), event("run.success", runId: runId, time: 2),
+        ] + warnings).first)
+        XCTAssertEqual(group.status, .success)
+        for warning in warnings {
+            XCTAssertTrue(try LogRunBuilder.matches(group, needle: XCTUnwrap(warning.event)))
+            XCTAssertTrue(group.visibleEntries.contains { $0.id == warning.id })
+            XCTAssertTrue(warning.diagnosticTitle.contains("JSON"))
+            XCTAssertTrue(warning.diagnosticExplanation?.contains("bỏ qua") == true)
+            XCTAssertFalse(LogEntry.isError(warning))
+        }
+    }
+
+    func testSharedRunKeepsOriginConfigurationWarnings() throws {
+        let origin = UUID()
+        let joined = UUID()
+        let warning = event("invalid.body", runId: origin, time: 1)
+        let groups = LogRunBuilder.build(from: [
+            event("run.start", runId: origin, time: 0), warning,
+            event("run.start", runId: joined, time: 0.5),
+            event("dedup.shared", runId: joined, time: 0.6, detail: "originRunId=\(origin.uuidString)"),
+            event("run.success", runId: joined, time: 2),
+        ])
+        let group = try XCTUnwrap(groups.first { $0.id == joined.uuidString })
+        XCTAssertTrue(LogRunBuilder.matches(group, needle: "invalid.body"))
+        XCTAssertTrue(group.visibleEntries.contains { $0.id == warning.id })
+    }
+
     private func chunkFailure(runId: UUID) -> LogEntry {
         LogEntry(
             timestamp: Date(timeIntervalSince1970: 2), sessionId: UUID(),

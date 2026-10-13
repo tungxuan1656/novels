@@ -1,6 +1,6 @@
 # AI Log and Cache Organization
 
-- Status: done
+- Status: active
 - Owner: Codex
 - Required to start: none
 - Required to integrate/release: none
@@ -30,6 +30,16 @@ Implement the approved split: an AI-processing timeline and the existing SQLite-
 2. Implement AI run presentation and independently owned cache inventory with focused tests and canonical documentation.
 3. Review, run full verification, and record handoff.
 
+## PR #41 Follow-up
+
+User-approved scope: repair the reviewed warning/filter mismatch and hidden configuration events; retain pending AI jobs during cache deletion and explain possible repopulation. Correct the append-only log contract without changing retention.
+
+- [x] Book-scoped failed-run counts drive both the Reader warning and initial Log filter; recovered retries do not count as failed runs.
+- [x] Invalid headers/body warnings are searchable and inspectable, including shared request context.
+- [x] Cache deletion confirmations explain that pending AI work continues; deterministic tests cover all/per-book deletion before response release.
+- [x] The contract describes presentation-only attempt coalescing over the append-only 500-entry ring.
+- [ ] Full verification passes and the follow-up commit is pushed to the existing PR branch.
+
 ## Verification and Handoff
 
 - Baseline: clean worktree; `./init.sh` passed (iPhone 17 Pro, iOS 26.5), `/tmp/novels-ai-log-baseline.log`.
@@ -42,4 +52,8 @@ Implement the approved split: an AI-processing timeline and the existing SQLite-
 - Coverage limits: no live provider request, physical-device UI inspection, or iOS 26.0 runtime check. Logs remain RAM-only (500 entries); cache is the existing SQLite store without schema migration.
 - Blockers: none.
 - Publication verification: `./init.sh` passed again before commit/PR, `/tmp/novels-ai-log-pr-verify.log` (iPhone 17 Pro / iOS 26.5 Simulator). Branch `task/history-refactor` includes the preceding reader-cancellation repair and this redesign.
-- Handoff: verified implementation on branch `task/history-refactor`, approved for publication as a PR into `main`. Device/provider smoke testing remains a follow-up coverage limit.
+- Handoff: verified implementation on branch `task/history-refactor`, published as PR #41 into `main`. Device/provider smoke testing remains a follow-up coverage limit.
+- PR #41 follow-up red evidence: `/tmp/novels-pr41-followup-red.log` reproduced recovered-retry warning, book-scope, and hidden configuration-warning regressions before repair.
+- PR #41 follow-up verification: `./init.sh` passed format, strict lint, build, and 119/119 unit tests (0 failed/skipped), iPhone 17 Pro / iOS 26.5 Simulator, `/tmp/novels-pr41-followup-full.log`. Deterministic URLProtocol gates verified all/per-book deletion finishes before the pending response is released and cache is recreated afterward.
+- PR #41 follow-up review: an independent read-only review of connected code/tests and the supplied complete diff found no findings. Build/tests were rerun by the parent, not the reviewer. Active LSP reported no actionable new errors; `git diff --check` passed.
+- PR #41 follow-up next action: commit and push the verified repairs to the existing PR branch, then record publication. Native Reader -> Log -> Cache -> Reader navigation, physical-device, live-provider, and iOS 26.0 runtime behavior remain unverified.

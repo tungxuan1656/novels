@@ -40,6 +40,8 @@ extension LogEntry {
         }
         // swiftlint:disable switch_case_alignment
         switch event {
+            case "invalid.headers": return "Headers JSON không hợp lệ"
+            case "invalid.body": return "Body JSON không hợp lệ"
             case "run.start": return "Bắt đầu xử lý chương"
             case "run.success": return "Đã xử lý chương"
             case "run.fail": return "Xử lý chương thất bại"
@@ -61,6 +63,12 @@ extension LogEntry {
     }
 
     var diagnosticExplanation: String? {
+        if event == "invalid.headers" {
+            return "Headers JSON tùy chỉnh đã bị bỏ qua. Kiểm tra cấu hình API; yêu cầu vẫn dùng các headers còn lại."
+        }
+        if event == "invalid.body" {
+            return "Body JSON tùy chỉnh đã bị bỏ qua. Kiểm tra cấu hình API; yêu cầu vẫn được gửi với body tiêu chuẩn."
+        }
         if LogEntry.isMutedCancel(self) {
             if let reason = LogEntry.cancelReason(of: self) {
                 // swiftlint:disable switch_case_alignment

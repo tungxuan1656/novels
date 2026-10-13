@@ -208,12 +208,13 @@ struct ReaderBottomSheet: View {
     }
 
     private func apiLogButton(viewModel: ReaderViewModel) -> some View {
-        let hasErrors = diagnosticsStore.errorCount > 0
-        let title = hasErrors ? "Nhật ký · \(diagnosticsStore.errorCount) lỗi" : "Nhật ký"
+        let failedRuns = diagnosticsStore.failedRunCount(bookId: viewModel.bookId)
+        let hasErrors = failedRuns > 0
+        let title = hasErrors ? "Nhật ký · \(failedRuns) lần thất bại" : "Nhật ký"
         let voiceLabel = hasErrors
-            ? "Nhật ký chẩn đoán, có \(diagnosticsStore.errorCount) lỗi"
+            ? "Nhật ký chẩn đoán, có \(failedRuns) lần xử lý thất bại trong sách này"
             : "Nhật ký chẩn đoán"
-        let hint = hasErrors ? "Mở nhật ký, lọc lỗi" : "Mở nhật ký chẩn đoán"
+        let hint = hasErrors ? "Mở nhật ký, lọc các lần xử lý thất bại" : "Mở nhật ký chẩn đoán"
         let initialFilter: LogKindFilter = hasErrors ? .error : .all
         return Button {
             onClose()

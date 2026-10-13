@@ -246,7 +246,7 @@ final class BilingualPipelineTests: XCTestCase {
         XCTAssertNil(reader.aiError)
     }
 
-    private func waitForRequest() async throws {
+    func waitForRequest() async throws {
         let deadline = Date().addingTimeInterval(3)
         while BilingualURLProtocol.requests().isEmpty, Date() < deadline {
             try await Task.sleep(for: .milliseconds(1))
@@ -258,7 +258,7 @@ final class BilingualPipelineTests: XCTestCase {
         try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
     }
 
-    private func makeFixture() throws -> Fixture {
+    func makeFixture() throws -> Fixture {
         let name = "BilingualPipelineTests-\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         let store = SettingsStore(userDefaults: defaults)
@@ -284,7 +284,7 @@ final class BilingualPipelineTests: XCTestCase {
         )
     }
 
-    private struct Fixture {
+    struct Fixture {
         let service: AIReadingService
         let cache: SQLiteProcessedChapterCache
         let session: URLSession
@@ -299,18 +299,37 @@ final class BilingualPipelineTests: XCTestCase {
     }
 }
 
-private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Sendable {
+final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Sendable {
     private static let lock = NSLock()
     private nonisolated(unsafe) static var invalid = false
     private nonisolated(unsafe) static var captured: [URLRequest] = []
     private nonisolated(unsafe) static var completed: [String] = []
+    private nonisolated(unsafe) static var holdResponses = false
+    private nonisolated(unsafe) static var heldWork: [DispatchWorkItem] = []
     private var work: DispatchWorkItem?
 
-    static func configure(invalid: Bool) {
+    static func configure(invalid: Bool, holdResponses: Bool = false) {
         lock.withLock {
             self.invalid = invalid
+            self.holdResponses = holdResponses
+            for item in heldWork {
+                item.cancel()
+            }
+            heldWork = []
             captured = []
             completed = []
+        }
+    }
+
+    static func releasePendingResponses() {
+        let items: [DispatchWorkItem] = lock.withLock {
+            holdResponses = false
+            let pending = heldWork
+            heldWork = []
+            return pending
+        }
+        for item in items {
+            DispatchQueue.global().async(execute: item)
         }
     }
 
@@ -369,7 +388,8 @@ private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Se
             ["finish_reason": "stop", "message": ["content": content]],
         ]])) ?? Data()
         // swiftlint:enable trailing_comma
-        let work = DispatchWorkItem { [self] in
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !(self.work?.isCancelled ?? false) else { return }
             Self.lock.withLock { Self.completed.append(id) }
             guard let url = request.url,
                   let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)
@@ -379,7 +399,17 @@ private final nonisolated class BilingualURLProtocol: URLProtocol, @unchecked Se
             client?.urlProtocolDidFinishLoading(self)
         }
         self.work = work
-        DispatchQueue.global().asyncAfter(deadline: .now() + (id == "p001" ? 0.15 : 0), execute: work)
+
+        let shouldHold = Self.lock.withLock { () -> Bool in
+            if Self.holdResponses {
+                Self.heldWork.append(work)
+                return true
+            }
+            return false
+        }
+        if !shouldHold {
+            DispatchQueue.global().asyncAfter(deadline: .now() + (id == "p001" ? 0.15 : 0), execute: work)
+        }
     }
 
     override func stopLoading() {

@@ -249,11 +249,17 @@ final class DiagnosticsStore {
 
     var entries: [LogEntry] = []
 
-    /// Rows the error filter would list. Same definition as `LogKindFilter.error`
-    /// (`LogEntry.isError`): HTTP status >= 400, error domain/code present, or
-    /// fail/error/timeout/cancel markers; muted cancels are excluded.
-    var errorCount: Int {
-        entries.filter(LogEntry.isError).count
+    func runGroups(bookId: String?, bookTitles: [String: String] = [:]) -> [LogRunGroup] {
+        var scoped = entries
+        if let bookId {
+            scoped = scoped.filter { $0.bookId == bookId }
+        }
+        return LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
+    }
+
+    /// The Reader warning uses the same book-scoped outcomes as the Log filter.
+    func failedRunCount(bookId: String) -> Int {
+        runGroups(bookId: bookId).filter { $0.status == .failed }.count
     }
 
     init() {}

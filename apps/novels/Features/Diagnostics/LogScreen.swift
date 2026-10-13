@@ -16,6 +16,7 @@ struct LogScreen: View {
     @State private var savedExpanded: Set<String> = []
     @State private var innerExpanded: Set<UUID> = []
     @State private var selectedJSONEntry: LogEntry?
+    @State private var hasAppliedInitialFilter = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     init(bookId: String? = nil, store: DiagnosticsStore = .shared, initialFilter: LogKindFilter = .all) {
         self.bookId = bookId
@@ -46,9 +47,13 @@ struct LogScreen: View {
                 bookTitles = Dictionary(books.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
             }
             await store.refresh()
+            if !hasAppliedInitialFilter {
+                selectedStatus = initialFilter == .error && runGroups.contains { $0.status == .failed } ? .failed : nil
+                hasAppliedInitialFilter = true
+            }
             // Search owns expansion while a query is active; auto-expand only on entry.
             if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if initialFilter == .error {
+                if selectedStatus == .failed {
                     groupExpanded = Set(filteredGroups.filter { $0.status == .failed }.map { $0.id })
                 } else if groupExpanded.isEmpty, let newest = runGroups.first {
                     groupExpanded = [newest.id]
@@ -297,11 +302,7 @@ struct LogScreen: View {
     }
 
     private var runGroups: [LogRunGroup] {
-        var scoped = store.entries
-        if let bookId {
-            scoped = scoped.filter { $0.bookId == bookId }
-        }
-        return LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
+        store.runGroups(bookId: bookId, bookTitles: bookTitles)
     }
 
     private var filteredGroups: [LogRunGroup] {
@@ -405,6 +406,7 @@ struct LogRunGroup: Identifiable, Equatable {
                 return seenAttempts.insert("\(entry.requestId.uuidString):\(entry.attempt)").inserted
             }
             return ["chunk.success", "chunk.fail", "dedup.shared", "run.cancel", "run.fail"].contains(entry.event)
+                || ["invalid.headers", "invalid.body"].contains(entry.event)
         }.reversed()
     }
 
@@ -475,7 +477,8 @@ enum LogRunBuilder {
             if let token, let origin = buckets[String(token.dropFirst("originRunId=".count))] {
                 let terminal = bucket.first { ["run.success", "run.fail", "run.cancel"].contains($0.event) }
                 related += origin.filter { entry in
-                    (entry.kind == .api || entry.event?.hasPrefix("chunk.") == true)
+                    (entry.kind == .api || entry.event?.hasPrefix("chunk.") == true
+                        || ["invalid.headers", "invalid.body"].contains(entry.event))
                         && entry.timestamp <= (terminal?.timestamp ?? .distantFuture)
                 }
             }

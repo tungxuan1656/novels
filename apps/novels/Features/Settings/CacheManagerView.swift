@@ -50,6 +50,9 @@ struct CacheManagerView: View {
         return formatter
     }()
 
+    private static let clearWarning =
+        "Xử lý AI và tải trước không bị dừng; bản dịch có thể được lưu lại sau khi xóa."
+
     var body: some View {
         Group {
             if cache == nil {
@@ -83,7 +86,7 @@ struct CacheManagerView: View {
             }
             Button("Hủy", role: .cancel) {}
         } message: {
-            Text("Hành động không thể hoàn tác.")
+            Text("Hành động không thể hoàn tác. " + Self.clearWarning)
         }
         .confirmationDialog(
             "Xóa cache cho \(showClearBookConfirm?.title ?? "")?",
@@ -106,7 +109,7 @@ struct CacheManagerView: View {
                 showClearBookConfirm = nil
             }
         } message: {
-            Text("Hành động không thể hoàn tác.")
+            Text("Hành động không thể hoàn tác. " + Self.clearWarning)
         }
         .overlay {
             if isLoading, cache != nil {
@@ -174,7 +177,7 @@ struct CacheManagerView: View {
                             .foregroundStyle(DesignTokens.muted)
                     }
                 }
-                Text("Xóa để giải phóng dung lượng, truyện gốc không bị ảnh hưởng.")
+                Text("Xóa để giải phóng dung lượng, truyện gốc không bị ảnh hưởng. " + Self.clearWarning)
                     .font(.footnote)
                     .foregroundStyle(DesignTokens.muted)
                     .fixedSize(horizontal: false, vertical: true)
