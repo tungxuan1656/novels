@@ -195,8 +195,18 @@ enum SettingsViewModel {
         "AI_BILINGUAL_PROMPT": SettingDescriptor(
             key: "AI_BILINGUAL_PROMPT",
             label: "Prompt song ngữ",
-            placeholder: "Dịch truyện sang song ngữ...",
-            description: "Prompt hệ thống cho đọc song ngữ (tiếng Việt và tiếng Anh)",
+            placeholder: """
+            Viết lại tiếng Việt tự nhiên, giữ nguyên xưng hô, tên riêng và nội dung.
+            Dịch từng đoạn sang tiếng Anh đơn giản, không thêm hoặc bớt chi tiết.
+            Chỉ trả về JSON:
+            {"paragraphs":[{"id":"p001","vi":"Nội dung tiếng Việt","en":"English text"}]}
+            Giữ nguyên id đầu vào, mỗi id có đúng một cặp vi/en.
+            Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON.
+            """,
+            description: "Prompt độc lập cho song ngữ. Đầu ra là JSON, không phải đoạn văn Việt - Anh xen kẽ. "
+                + "Giữ nguyên id đầu vào và trả đúng một cặp vi/en cho mỗi id. "
+                + "App luôn nối thêm quy tắc JSON bắt buộc, không thể ghi đè bằng prompt này.\n"
+                + "Cấu trúc: {\"paragraphs\":[{\"id\":\"p001\",\"vi\":\"...\",\"en\":\"...\"}]}",
             defaultValue: SettingsDefaults.defaultBilingualPrompt,
             allowsVerbatimSave: false
         ),

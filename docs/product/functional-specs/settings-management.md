@@ -14,6 +14,7 @@
 - Missing or invalid current values fallback to defaults: catalog URL, AI address, model `gpt-4o`, N=3, unit size 1300, provider `auto`, empty API key, unset thinking, mode-specific default `AI_PROMPT` / `AI_BILINGUAL_PROMPT` ([business-rules.md](../business-rules.md) BR-12).
 - Unknown provider → `auto` ([business-rules.md](../business-rules.md) BR-12).
 - Empty prompt → its own mode-specific default prompt ([business-rules.md](../business-rules.md) BR-12).
+- Both prompts use multiline editors. The bilingual editor always explains the required `paragraphs/id/vi/en` JSON shape; an empty draft shows a matching example placeholder, not interleaved prose. The app appends immutable JSON/ID instructions to custom bilingual prompts; guidance is not saved as user input. Prompt edits do not invalidate cached chapters; use manual reprocess.
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 - Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).

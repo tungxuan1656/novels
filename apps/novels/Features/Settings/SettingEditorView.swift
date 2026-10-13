@@ -42,6 +42,7 @@ struct SettingEditorView: View {
                 } else if descriptor.key == "AI_CUSTOM_HEADERS"
                     || descriptor.key == "AI_EXTRA_BODY"
                     || descriptor.key == "AI_PROMPT"
+                    || descriptor.key == "AI_BILINGUAL_PROMPT"
                 // swiftlint:disable:next opening_brace
                 {
                     TextEditor(text: $draft)
@@ -49,6 +50,18 @@ struct SettingEditorView: View {
                         .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
+                        .accessibilityLabel(descriptor.label)
+                        .overlay(alignment: .topLeading) {
+                            if draft.isEmpty {
+                                Text(descriptor.placeholder)
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(DesignTokens.muted)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 8)
+                                    .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
+                            }
+                        }
                 } else {
                     TextField(descriptor.placeholder, text: $draft)
                         .font(.caption.monospaced())

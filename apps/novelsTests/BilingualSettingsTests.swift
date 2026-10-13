@@ -188,6 +188,17 @@ final class BilingualSettingsTests: XCTestCase {
         XCTAssertNil(desc.validate("Valid custom bilingual prompt"))
     }
 
+    func testBilingualPromptPlaceholderMatchesResponseContract() throws {
+        let descriptor = SettingsViewModel.descriptor(for: DefaultsKeys.aiBilingualPrompt)
+        let example = try XCTUnwrap(descriptor.placeholder.split(separator: "\n").first { $0.hasPrefix("{") })
+        let paragraphs = try BilingualChapter.decodeResponse(String(example), expectedIDs: ["p001"])
+        XCTAssertEqual(paragraphs.count, 1)
+        XCTAssertFalse(paragraphs[0].vi.isEmpty)
+        XCTAssertFalse(paragraphs[0].en.isEmpty)
+        XCTAssertTrue(descriptor.placeholder.contains("Không trả về các đoạn văn Việt - Anh xen kẽ ngoài JSON"))
+        XCTAssertTrue(descriptor.description.contains("App luôn nối thêm quy tắc JSON bắt buộc"))
+    }
+
     // MARK: - Helpers
 
     private func withDefaults(_ check: (UserDefaults) -> Void) {
