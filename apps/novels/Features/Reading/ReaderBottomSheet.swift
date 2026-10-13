@@ -50,16 +50,13 @@ struct ReaderBottomSheet: View {
                             .font(.subheadline)
                             .foregroundStyle(theme.textPrimary)
                         Spacer()
-                        Picker(
-                            "Phông chữ",
-                            selection: Binding(
-                                get: { ReaderFontMapper.normalizedFontName(settingsStore.typography.font) },
-                                set: {
-                                    settingsStore.typography.font = ReaderFontMapper.normalizedFontName($0)
-                                    settingsStore.save()
-                                }
-                            )
-                        ) {
+                        Picker("Phông chữ", selection: Binding(
+                            get: { ReaderFontMapper.normalizedFontName(settingsStore.typography.font) },
+                            set: {
+                                settingsStore.typography.font = ReaderFontMapper.normalizedFontName($0)
+                                settingsStore.save()
+                            }
+                        )) {
                             ForEach(fonts, id: \.self) { font in
                                 Text(font).tag(font)
                             }
@@ -168,38 +165,38 @@ struct ReaderBottomSheet: View {
 
     private func aiModeSection(viewModel: ReaderViewModel) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Chế độ đọc")
-                .font(.subheadline)
-                .foregroundStyle(theme.textPrimary)
-
-            VStack(alignment: .trailing, spacing: 8) {
-                Picker(
-                    "Chế độ đọc",
-                    selection: Binding(
-                        get: { viewModel.aiMode },
-                        set: { newValue in
-                            Task { await viewModel.setAIMode(newValue) }
-                        }
-                    )
-                ) {
-                    ForEach(AIMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .accessibilityIdentifier("aiModePicker")
-
+            HStack {
+                Text("Chế độ đọc")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.textPrimary)
+                Spacer()
                 Button("Xử lý lại") {
                     Task { await viewModel.reprocess() }
                 }
                 .buttonStyle(.borderless)
+                .font(.caption)
                 .disabled(viewModel.aiMode == .none || viewModel.isAIProcessing)
                 .opacity(viewModel.aiMode == .none || viewModel.isAIProcessing ? 0.4 : 1)
                 .accessibilityIdentifier("reprocessButton")
             }
-            .frame(minHeight: 40)
-            .contentShape(Rectangle())
+
+            Picker(
+                "Chế độ đọc",
+                selection: Binding(
+                    get: { viewModel.aiMode },
+                    set: { newValue in
+                        Task { await viewModel.setAIMode(newValue) }
+                    }
+                )
+            ) {
+                ForEach(AIMode.allCases) { mode in
+                    Text(mode.title).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityIdentifier("aiModePicker")
+            .frame(minHeight: 36)
 
             if viewModel.aiMode == .bilingual {
                 bilingualLanguageSection
@@ -209,31 +206,33 @@ struct ReaderBottomSheet: View {
     }
 
     private var bilingualLanguageSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(settingsStore
-                .bilingualEnglishPrimary ? "Tiếng Anh chính · Tiếng Việt phụ" : "Tiếng Việt chính · Tiếng Anh phụ")
+        HStack {
+            Text("Ngôn ngữ chính: \(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")")
                 .font(.subheadline)
                 .foregroundStyle(theme.textPrimary)
+
+            Spacer()
 
             Button {
                 settingsStore.bilingualEnglishPrimary.toggle()
                 settingsStore.save()
             } label: {
-                Label("Đổi ngôn ngữ chính", systemImage: "arrow.left.arrow.right")
-                    .font(.subheadline)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.accentColor)
+                    .frame(width: 32, height: 32)
+                    .background(theme.chipBackground)
+                    .clipShape(Circle())
             }
             .buttonStyle(.plain)
-            .foregroundStyle(theme.accentColor)
-            .background(theme.chipBackground, in: RoundedRectangle(cornerRadius: 8))
+            .a11yHitTarget()
             .accessibilityIdentifier("swapBilingualLanguageButton")
-            .accessibilityValue(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh chính" : "Tiếng Việt chính")
-
-            Text("Ngôn ngữ phụ dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn. Chạm tiếng Anh để nghe hoặc tra cứu.")
-                .font(.footnote)
-                .foregroundStyle(theme.textMuted)
+            .accessibilityLabel("Đổi ngôn ngữ chính")
+            .accessibilityValue(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")
+            .accessibilityHint("Hoán đổi ngôn ngữ chính và phụ")
         }
+        .frame(minHeight: 36)
+        .contentShape(Rectangle())
     }
 
     private func apiLogButton(viewModel: ReaderViewModel) -> some View {
