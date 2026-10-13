@@ -161,6 +161,7 @@ struct ReaderView: View {
                 chapterTitleView
                 BilingualReaderBody(
                     paragraphs: paragraphs, typography: settingsStore.typography, theme: theme,
+                    englishPrimary: settingsStore.bilingualEnglishPrimary,
                     onSelect: { learningParagraph = $0 }
                 )
             } else if let processed = viewModel.currentProcessedContent, !processed.isEmpty {

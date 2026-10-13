@@ -51,6 +51,33 @@ final class BilingualSettingsTests: XCTestCase {
         }
     }
 
+    func testEnglishPrimaryPreferencePersistsWithoutChangingModeOrTypography() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+            XCTAssertFalse(store.bilingualEnglishPrimary)
+            XCTAssertTrue(DefaultsKeys.allCurrent.contains(DefaultsKeys.bilingualEnglishPrimary))
+            let typography = store.typography
+            store.aiMode = .bilingual
+            store.bilingualEnglishPrimary.toggle()
+            store.save()
+
+            let restored = SettingsStore(userDefaults: defaults)
+            XCTAssertTrue(restored.bilingualEnglishPrimary)
+            XCTAssertEqual(restored.aiMode, .bilingual)
+            XCTAssertEqual(restored.typography.font, typography.font)
+            XCTAssertEqual(restored.typography.fontSize, typography.fontSize)
+            XCTAssertEqual(restored.typography.lineHeight, typography.lineHeight)
+
+            restored.aiMode = .none
+            restored.save()
+            let originalMode = SettingsStore(userDefaults: defaults)
+            XCTAssertTrue(originalMode.bilingualEnglishPrimary)
+            originalMode.bilingualEnglishPrimary.toggle()
+            originalMode.save()
+            XCTAssertFalse(SettingsStore(userDefaults: defaults).bilingualEnglishPrimary)
+        }
+    }
+
     func testPromptsPersistAndRemainIndependent() {
         withDefaults { defaults in
             let store = SettingsStore(userDefaults: defaults)

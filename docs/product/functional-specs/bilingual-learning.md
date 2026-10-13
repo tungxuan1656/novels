@@ -16,8 +16,10 @@
 
 ## Rendering and Learning
 
-- Each VI paragraph precedes its EN counterpart. VI uses current typography. EN uses system regular, size `max(12, viSize - 2)`, the same added point line spacing, and theme muted color at full opacity. No separate English typography settings or VI-only filter within bilingual mode.
-- Reading settings explain: `Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn.` Appearance changes stay local without AI calls.
+- Each VI paragraph precedes its EN counterpart; switching the primary language does not reorder content or change paragraph IDs.
+- The primary language uses current reading typography and theme primary color. The secondary language uses system regular, size `max(12, primarySize - 2)`, and theme muted color at full opacity. Both retain the same line spacing. No independent per-language typography settings or VI-only filter.
+- In Song ngữ, the reading sheet shows the current primary/secondary languages and a `Đổi ngôn ngữ chính` button. It swaps both styles immediately; tapping again restores them. Vietnamese is primary by default. The app-wide preference survives chapter/book/mode changes and restart.
+- The hint explains secondary styling and English learning. Appearance changes stay local without AI calls, reprocessing, or cache changes.
 - Tap an English paragraph to open a learning sheet. Split sentences locally only on opening; each offers configured Apple/API speech and `Tra cứu`. No per-word views, dictionary, automatic lookup or saved audio files. Tokenization is heuristic.
 - Speech defaults to AVSpeechSynthesizer and an available English voice. Settings can select API audio with its own key/model. Tapping Nghe sends the chosen sentence only on a cache miss, with online/cost notice and error feedback. Loading replaces the tapped button’s speaker icon, not a separate row; other sentence buttons remain available. Successful API audio is reused in the app session without another request. Stop/dismissal retains audio; killing the app drops it. Memory-pressure eviction can require another download. Changing sentence/model/key uses a separate entry. No automatic retries, persisted audio or implicit Apple fallback. Explicit listening plays even in Silent mode. The visible `Dừng` text button is disabled when neither loading nor playing. Completion releases playback state and the audio session. New speech stops old speech; stop also cancels pending API work on chapter/mode/content change, reader disappearance, sheet dismissal, Google lookup, source change or backgrounding. Missing English voices show a download hint. See [audio contract](../../contracts/audio-service.md); device/provider playback remains a release check.
 - Google opens encoded HTTPS Search in SFSafariViewController in a sheet, sending only the selected sentence plus a Vietnamese explanation request. Keep the privacy notice short: `Tra cứu gửi câu đến Google.` for Apple; `API/Google nhận câu; API có thể tính phí.` for API. Lookup requires internet; VoiceOver announces that requirement. No scraping, guaranteed AI Overview, whole-chapter upload or custom browser session.
@@ -28,6 +30,7 @@
 - Out-of-order chunk responses yield one ordered chapter; malformed/missing pairs never yield partial cache.
 - Switching/reprocessing never publishes stale content from another chapter/mode.
 - Content stays readable in five themes at typography bounds; learning preserves reading gestures.
+- Swapping the primary language persists without changing AI mode or typography; English remains tappable with either style.
 - Cached reading and installed Apple speech work offline. API speech needs internet on a session-cache miss; explicit Google lookup always needs internet.
 - Repeated listening reuses retained API audio with no loading/network; only the tapped uncached sentence shows an inline spinner.
 

@@ -15,7 +15,7 @@
 - Raw and cached reading is offline after import. Uncached AI and explicit Google sentence lookup need network ([business-rules.md](../business-rules.md) BR-01).
 - Chapters are 1-based and clamped to 1..total ([domain-model.md](../domain-model.md) Invariants).
 - Offset is saved per book and restored only for the same book ([business-rules.md](../business-rules.md) BR-09).
-- Song ngữ renders typed VI/EN pairs with derived English styling; an English paragraph opens sentence learning. Speech and Google lookup follow [bilingual-learning](bilingual-learning.md).
+- Song ngữ renders typed VI/EN pairs with switchable primary/secondary styling; an English paragraph opens sentence learning. Speech and Google lookup follow [bilingual-learning](bilingual-learning.md).
 - Typography persists and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 - Opening the diagnostic Log covers Reading without cancelling current-chapter AI or prefetch. Returning to the same chapter keeps that work/result without another current-chapter request. Actual Reader exit and chapter/mode changes retain their cancellation rules.
 

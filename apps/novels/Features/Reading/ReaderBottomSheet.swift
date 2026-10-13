@@ -202,11 +202,37 @@ struct ReaderBottomSheet: View {
             .contentShape(Rectangle())
 
             if viewModel.aiMode == .bilingual {
-                Text("Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn.")
-                    .font(.footnote)
-                    .foregroundStyle(theme.textMuted)
+                bilingualLanguageSection
             }
             apiLogButton(viewModel: viewModel)
+        }
+    }
+
+    private var bilingualLanguageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(settingsStore
+                .bilingualEnglishPrimary ? "Tiếng Anh chính · Tiếng Việt phụ" : "Tiếng Việt chính · Tiếng Anh phụ")
+                .font(.subheadline)
+                .foregroundStyle(theme.textPrimary)
+
+            Button {
+                settingsStore.bilingualEnglishPrimary.toggle()
+                settingsStore.save()
+            } label: {
+                Label("Đổi ngôn ngữ chính", systemImage: "arrow.left.arrow.right")
+                    .font(.subheadline)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(theme.accentColor)
+            .background(theme.chipBackground, in: RoundedRectangle(cornerRadius: 8))
+            .accessibilityIdentifier("swapBilingualLanguageButton")
+            .accessibilityValue(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh chính" : "Tiếng Việt chính")
+
+            Text("Ngôn ngữ phụ dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn. Chạm tiếng Anh để nghe hoặc tra cứu.")
+                .font(.footnote)
+                .foregroundStyle(theme.textMuted)
         }
     }
 

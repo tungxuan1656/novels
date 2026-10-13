@@ -38,6 +38,7 @@ import Observation
     var aiMinChunkSize: Int
     var prefetchCount: Int
     var aiMode: AIMode
+    var bilingualEnglishPrimary = false
     var diagnosticsVerbose: Bool
     var readingTheme: ReadingTheme
     var typography: TypographySetting
@@ -132,6 +133,7 @@ import Observation
     }
 
     private func loadDiagnosticsTypographySession() {
+        bilingualEnglishPrimary = userDefaults.bool(forKey: DefaultsKeys.bilingualEnglishPrimary)
         if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
             diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
         }
@@ -342,6 +344,7 @@ import Observation
         userDefaults.set(aiMinChunkSize, forKey: DefaultsKeys.aiMinChunkSize)
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)
+        userDefaults.set(bilingualEnglishPrimary, forKey: DefaultsKeys.bilingualEnglishPrimary)
         userDefaults.set(readingTheme.rawValue, forKey: DefaultsKeys.readingTheme)
         userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)

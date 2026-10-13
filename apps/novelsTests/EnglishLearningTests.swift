@@ -5,9 +5,9 @@ import XCTest
 @MainActor
 final class EnglishLearningTests: XCTestCase {
     func testDerivedFontSizeUsesReadableMinimum() {
-        XCTAssertEqual(EnglishLearning.fontSize(vietnamese: 12), 12)
-        XCTAssertEqual(EnglishLearning.fontSize(vietnamese: 16), 14)
-        XCTAssertEqual(EnglishLearning.fontSize(vietnamese: 40), 38)
+        XCTAssertEqual(EnglishLearning.fontSize(primary: 12), 12)
+        XCTAssertEqual(EnglishLearning.fontSize(primary: 16), 14)
+        XCTAssertEqual(EnglishLearning.fontSize(primary: 40), 38)
     }
 
     func testSentenceExtractionPreservesQuotesNamesAndPunctuation() {

@@ -24,7 +24,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 **Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
 - Font picker
 - Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
-- In Song ngữ, appearance hint: "Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn"
+- In Song ngữ, show primary/secondary language status and a full-width `Đổi ngôn ngữ chính` button with swap icon. A hint explains secondary styling and tapping English for learning; see [bilingual learning](../product/functional-specs/bilingual-learning.md).
 - Steppers for size and line height
 - Log button ("Nhật ký") below AI section → push Log timeline for the current book. "Xem lỗi" selects failed runs when errors are present. Filters select whole runs and never strip sibling requests or retries.
 Gear opens Settings.

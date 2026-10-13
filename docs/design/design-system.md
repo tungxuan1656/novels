@@ -59,7 +59,7 @@ Reading content user set:
 - Family: curated serif/sans set
 - Size: 12-40 step 1
 - Line spacing: 1-50 points step 0.5 (additional `.lineSpacing`, not a multiplier)
-- Bilingual English: system regular, `max(12, Vietnamese size - 2)`, same line spacing, theme-muted text at full opacity. Vietnamese retains the selected family and size. No independent English appearance settings.
+- Bilingual primary language: selected reading family/size and primary text color. Secondary: system regular, `max(12, primary size - 2)`, theme-muted text at full opacity. Both use the same line spacing. See [bilingual learning](../product/functional-specs/bilingual-learning.md) for switching behavior.
 
 Weights: regular body, medium for name, semi-bold for header, bold for count. Max three per screen.
 
