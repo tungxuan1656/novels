@@ -8,6 +8,7 @@ actor AIReadingService {
     private let settings: SettingsStore
     private var inFlight: [String: Task<String, Error>] = [:]
     private var inFlightTokens: [String: UUID] = [:]
+    private var inFlightRunIds: [String: UUID] = [:]
     private var inFlightWaiters: [String: Set<UUID>] = [:]
 
     init(cache: ProcessedChapterCaching, client: AIClient, settings: SettingsStore) {
@@ -137,6 +138,7 @@ actor AIReadingService {
                         requestId: requestId,
                         runId: capturedRun
                     )
+                    var receivedResponse = false
                     do {
                         let out = try await capturedClient.complete(
                             prompt: capturedPrompt,
@@ -144,6 +146,7 @@ actor AIReadingService {
                             context: context,
                             outputSchema: isBilingual ? BilingualChapter.outputSchema : nil
                         )
+                        receivedResponse = true
                         let trimmed = out.trimmingCharacters(in: .whitespacesAndNewlines)
                         let pairs = isBilingual ? try BilingualChapter.decodeResponse(
                             trimmed, expectedIDs: expectedIDs[index]
@@ -185,7 +188,7 @@ actor AIReadingService {
                             errorDomain: nsError.domain,
                             errorCode: nsError.code,
                             event: "chunk.fail",
-                            detail: "keyHash=\(hash)",
+                            detail: "stage=\(receivedResponse ? "validation" : "request") keyHash=\(hash)",
                             runId: capturedRun
                         ))
                         throw error
@@ -290,6 +293,7 @@ actor AIReadingService {
         inFlight[cacheKey]?.cancel()
         inFlight[cacheKey] = nil
         inFlightTokens[cacheKey] = nil
+        inFlightRunIds[cacheKey] = nil
         inFlightWaiters[cacheKey] = nil
     }
 
@@ -312,55 +316,13 @@ actor AIReadingService {
         chapterNumber: Int,
         mode: AIMode,
         rawText: String,
-        runId: UUID? = nil
+        runId: UUID? = nil,
+        source: String = "reader"
     ) async throws -> String {
-        let run = runId ?? UUID()
-        if mode == .none {
-            return rawText
-        }
-        try Task.checkCancellation()
-        if let cached = try? cache.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode) {
-            if mode == .bilingual {
-                _ = try BilingualChapter.decode(cached.content)
-            }
-            await logCache(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                event: "cache.hit",
-                detail: "keyHash=\(keyHash(key(bookId: bookId, chapter: chapterNumber, mode: mode)))",
-                runId: run
-            )
-            return cached.content
-        }
-        let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
-        if let existing = inFlight[cacheKey], let token = inFlightTokens[cacheKey] {
-            let waiter = registerWaiter(cacheKey: cacheKey)
-            await logCache(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                event: "dedup.shared",
-                detail: "keyHash=\(keyHash(cacheKey))",
-                runId: run
-            )
-            return try await waitForTask(existing, cacheKey: cacheKey, token: token, waiter: waiter)
-        }
-        let task = Task<String, Error> {
-            try await self.runPipeline(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                rawText: rawText,
-                cacheKey: cacheKey,
-                runId: run
-            )
-        }
-        let token = UUID()
-        inFlight[cacheKey] = task
-        inFlightTokens[cacheKey] = token
-        let waiter = registerWaiter(cacheKey: cacheKey)
-        return try await waitForTask(task, cacheKey: cacheKey, token: token, waiter: waiter)
+        try await process(
+            bookId: bookId, chapterNumber: chapterNumber, mode: mode, rawText: rawText,
+            runId: runId ?? UUID(), source: source, refresh: false
+        )
     }
 
     func reprocess(
@@ -370,33 +332,86 @@ actor AIReadingService {
         rawText: String,
         runId: UUID? = nil
     ) async throws -> String {
-        let run = runId ?? UUID()
-        if mode == .none {
-            return rawText
-        }
+        try await process(
+            bookId: bookId, chapterNumber: chapterNumber, mode: mode, rawText: rawText,
+            runId: runId ?? UUID(), source: "manual", refresh: true
+        )
+    }
+
+    // swiftlint:disable:next function_parameter_count function_body_length
+    private func process(
+        bookId: String, chapterNumber: Int, mode: AIMode, rawText: String,
+        runId: UUID, source: String, refresh: Bool
+    ) async throws -> String {
+        guard mode != .none else { return rawText }
         try Task.checkCancellation()
-        let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
-        if let existing = inFlight[cacheKey] {
-            // Cancel previous in-flight work before reprocessing
-            existing.cancel()
-            inFlight[cacheKey] = nil
-            inFlightTokens[cacheKey] = nil
-            inFlightWaiters[cacheKey] = nil
-        }
-        let token = UUID()
-        let task = Task<String, Error> {
-            try await self.runPipeline(
-                bookId: bookId,
-                chapterNumber: chapterNumber,
-                mode: mode,
-                rawText: rawText,
-                cacheKey: cacheKey,
-                runId: run
+        await logCache(
+            bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+            event: "run.start", detail: "source=\(source)", runId: runId
+        )
+        do {
+            if !refresh, let cached = try? cache.get(bookId: bookId, chapterNumber: chapterNumber, mode: mode) {
+                if mode == .bilingual {
+                    _ = try BilingualChapter.decode(cached.content)
+                }
+                await logCache(
+                    bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+                    event: "cache.hit",
+                    detail: "keyHash=\(keyHash(key(bookId: bookId, chapter: chapterNumber, mode: mode)))",
+                    runId: runId
+                )
+                return cached.content
+            }
+            let cacheKey = key(bookId: bookId, chapter: chapterNumber, mode: mode)
+            if refresh, let existing = inFlight[cacheKey] {
+                existing.cancel()
+                inFlight[cacheKey] = nil
+                inFlightTokens[cacheKey] = nil
+                inFlightRunIds[cacheKey] = nil
+                inFlightWaiters[cacheKey] = nil
+            }
+            let task: Task<String, Error>
+            let token: UUID
+            let originRunId = inFlightRunIds[cacheKey]
+            if let existing = inFlight[cacheKey], let existingToken = inFlightTokens[cacheKey] {
+                task = existing
+                token = existingToken
+            } else {
+                task = Task {
+                    try await self.runPipeline(
+                        bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+                        rawText: rawText, cacheKey: cacheKey, runId: runId
+                    )
+                }
+                token = UUID()
+                inFlight[cacheKey] = task
+                inFlightTokens[cacheKey] = token
+                inFlightRunIds[cacheKey] = runId
+            }
+            let waiter = registerWaiter(cacheKey: cacheKey)
+            if let originRunId {
+                await logCache(
+                    bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+                    event: "dedup.shared",
+                    detail: "keyHash=\(keyHash(cacheKey)) originRunId=\(originRunId.uuidString)", runId: runId
+                )
+            }
+            let content = try await waitForTask(task, cacheKey: cacheKey, token: token, waiter: waiter)
+            await logCache(
+                bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+                event: "run.success", detail: "source=\(source)", runId: runId
             )
+            return content
+        } catch {
+            let cancelled = error is CancellationError
+            let nsError = error as NSError
+            await DiagnosticsLog.shared.append(LogEntry(
+                sessionId: DiagnosticsLog.sessionId, bookId: bookId, chapterNumber: chapterNumber,
+                mode: mode.rawValue, errorDomain: cancelled ? nil : nsError.domain,
+                errorCode: cancelled ? nil : nsError.code, event: cancelled ? "run.cancel" : "run.fail",
+                detail: "source=\(source)", runId: runId
+            ))
+            throw error
         }
-        inFlight[cacheKey] = task
-        inFlightTokens[cacheKey] = token
-        let waiter = registerWaiter(cacheKey: cacheKey)
-        return try await waitForTask(task, cacheKey: cacheKey, token: token, waiter: waiter)
     }
 }

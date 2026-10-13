@@ -1,9 +1,21 @@
 import Foundation
 
 extension LogEntry {
+    var diagnosticEndpoint: String? {
+        guard let host, var endpoint = URLComponents(string: host) else { return nil }
+        endpoint.user = nil
+        endpoint.password = nil
+        endpoint.query = nil
+        endpoint.fragment = nil
+        return endpoint.string
+    }
+
     var diagnosticTitle: String {
         if LogEntry.isMutedCancel(self) {
             return "Đã hủy"
+        }
+        if errorDomain?.hasSuffix(".SQLiteError") == true {
+            return "Lỗi bộ nhớ đệm"
         }
         if kind == .api {
             if errorDomain == "AIClientError.invalidStructuredOutput" {
@@ -28,6 +40,10 @@ extension LogEntry {
         }
         // swiftlint:disable switch_case_alignment
         switch event {
+            case "run.start": return "Bắt đầu xử lý chương"
+            case "run.success": return "Đã xử lý chương"
+            case "run.fail": return "Xử lý chương thất bại"
+            case "run.cancel": return "Đã hủy xử lý chương"
             case "chunk.start": return "Bắt đầu xử lý đoạn"
             case "chunk.success": return "Đã xử lý đoạn"
             case "chunk.fail": return "Xử lý đoạn thất bại"
@@ -58,13 +74,18 @@ extension LogEntry {
             }
             return "Yêu cầu bị hủy trước khi hoàn tất, không tự thử lại. Máy chủ có thể vẫn tiếp tục xử lý."
         }
+        if errorDomain?.hasSuffix(".SQLiteError") == true {
+            return "Không thể đọc hoặc lưu bộ nhớ đệm cục bộ; đây không phải lỗi máy chủ AI."
+        }
         if errorDomain == "AIClientError.invalidStructuredOutput" {
             return "Đã nhận phản hồi nhưng JSON đầu ra thiếu, bị từ chối, chưa hoàn tất hoặc không đúng định dạng."
         }
         if errorDomain == "AIClientError.noResponse" {
             return "Đã nhận phản hồi nhưng không tìm thấy nội dung AI có thể sử dụng."
         }
-        if event == "chunk.fail", errorDomain?.contains("Bilingual") == true {
+        let isBilingualValidation = errorDomain?.contains("Bilingual") == true
+            || (mode == "bilingual" && detail?.contains("stage=validation") == true)
+        if event == "chunk.fail", isBilingualValidation {
             return "Đầu ra song ngữ không hợp lệ: kiểm tra ID đoạn và nội dung của cả hai ngôn ngữ."
         }
         if let statusCode, statusCode >= 400 {

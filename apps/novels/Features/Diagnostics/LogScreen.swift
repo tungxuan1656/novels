@@ -2,14 +2,16 @@ import SwiftUI
 
 // swiftlint:disable file_length
 
-/// LogScreen — Diagnostic Log Viewer (feat-019, UI scope).
-/// Groups entries by chapter-run (runId); entries without runId go to "Phiên chung".
-/// Contract LogEntry/LogKind/DiagnosticsStore owned by another lane: reference only, never redefine.
+// AI-processing runs backed by the session-only diagnostics ring.
+// swiftlint:disable:next type_body_length
 struct LogScreen: View {
     let bookId: String?
     let initialFilter: LogKindFilter
     @State private var store: DiagnosticsStore
     @State private var query = ""
+    @State private var selectedStatus: LogRunStatus?
+    @State private var selectedMode: AIMode?
+    @State private var bookTitles: [String: String] = [:]
     @State private var groupExpanded: Set<String> = []
     @State private var savedExpanded: Set<String> = []
     @State private var innerExpanded: Set<UUID> = []
@@ -19,18 +21,30 @@ struct LogScreen: View {
         self.bookId = bookId
         _store = State(initialValue: store)
         self.initialFilter = initialFilter
+        _selectedStatus = State(initialValue: initialFilter == .error ? .failed : nil)
     }
 
     var body: some View {
         VStack(spacing: 0) {
             searchField
+            filters
             Divider()
             contentList
         }
         .background(DesignTokens.backgroundWhite)
-        .navigationTitle("Nhật ký")
+        .navigationTitle("Nhật ký AI")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            NavigationLink(value: Router.Route.cacheManager) {
+                Image(systemName: "internaldrive")
+            }
+            .accessibilityLabel("Quản lý bộ nhớ đệm")
+        }
         .task {
+            let repository = FileBookRepository(root: AppPaths.booksRoot())
+            if let books = try? repository.listBooks() {
+                bookTitles = Dictionary(books.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+            }
             await store.refresh()
             // Search owns expansion while a query is active; auto-expand only on entry.
             if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -86,6 +100,28 @@ struct LogScreen: View {
         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusMedium))
         .padding(.horizontal, DesignTokens.sidePadding)
         .padding(.vertical, DesignTokens.spacing8)
+    }
+
+    private var filters: some View {
+        HStack {
+            Picker("Trạng thái", selection: $selectedStatus) {
+                Text("Mọi trạng thái").tag(LogRunStatus?.none)
+                ForEach(LogRunStatus.allCases, id: \.self) { status in
+                    Text(status.title).tag(Optional(status))
+                }
+            }
+            .accessibilityIdentifier("logFilter-status")
+            Spacer()
+            Picker("Chế độ AI", selection: $selectedMode) {
+                Text("Mọi chế độ").tag(AIMode?.none)
+                Text(AIMode.rewrite.title).tag(Optional(AIMode.rewrite))
+                Text(AIMode.bilingual.title).tag(Optional(AIMode.bilingual))
+            }
+            .accessibilityIdentifier("logFilter-mode")
+        }
+        .font(.caption)
+        .padding(.horizontal, DesignTokens.sidePadding)
+        .padding(.bottom, DesignTokens.spacing8)
     }
 
     @ViewBuilder
@@ -167,7 +203,7 @@ struct LogScreen: View {
             }
             if groupExpanded.contains(group.id) {
                 Divider()
-                ForEach(group.entries) { entry in
+                ForEach(group.visibleEntries) { entry in
                     innerCell(entry)
                 }
             }
@@ -239,7 +275,7 @@ struct LogScreen: View {
     }
 
     private var emptyState: some View {
-        let isBlank = store.entries.isEmpty
+        let isBlank = runGroups.isEmpty
         return VStack(spacing: DesignTokens.spacing8) {
             Image(systemName: "doc.text.magnifyingglass")
                 .font(.system(size: 28))
@@ -249,8 +285,8 @@ struct LogScreen: View {
                 .font(.headline)
                 .foregroundStyle(DesignTokens.text)
             Text(isBlank
-                ? "Mở sách và dùng AI Rewrite để tạo mục chẩn đoán mới."
-                : "Thử đổi từ khóa khác.")
+                ? "Các lần xử lý AI sẽ xuất hiện ở đây. Bản đã lưu nằm trong Quản lý bộ nhớ đệm."
+                : "Thử đổi trạng thái, chế độ hoặc từ khóa.")
                 .font(.caption)
                 .foregroundStyle(DesignTokens.muted)
                 .multilineTextAlignment(.center)
@@ -265,26 +301,15 @@ struct LogScreen: View {
         if let bookId {
             scoped = scoped.filter { $0.bookId == bookId }
         }
-        return LogRunBuilder.build(from: scoped)
+        return LogRunBuilder.build(from: scoped, bookTitles: bookTitles)
     }
 
     private var filteredGroups: [LogRunGroup] {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !needle.isEmpty else { return runGroups }
-        return runGroups.compactMap { group in
-            guard LogRunBuilder.matches(group, needle: needle) else { return nil }
-            let hits = LogRunBuilder.matchedEntries(group, needle: needle)
-            guard !hits.isEmpty else { return group }
-            // Search narrows the visible scope: entries and latest describe the
-            // hits, while title/status/progress still reflect the full run.
-            return LogRunGroup(
-                id: group.id,
-                title: group.title,
-                latest: hits.first?.timestamp ?? group.latest,
-                entries: hits,
-                status: group.status,
-                chunkProgress: group.chunkProgress
-            )
+        return runGroups.filter { group in
+            (selectedStatus == nil || group.status == selectedStatus)
+                && (selectedMode == nil || group.entries.first?.mode == selectedMode?.rawValue)
+                && LogRunBuilder.matches(group, needle: needle)
         }
     }
 
@@ -319,13 +344,6 @@ struct LogScreen: View {
     }
 }
 
-private let logGroupHourFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "vi_VN")
-    formatter.dateFormat = "HH:mm:ss"
-    return formatter
-}()
-
 private let logGroupDayFormatter: DateFormatter = {
     let formatter = DateFormatter()
     formatter.locale = Locale(identifier: "vi_VN")
@@ -335,7 +353,7 @@ private let logGroupDayFormatter: DateFormatter = {
 
 // MARK: - Run grouping (UI-only, feat-019)
 
-enum LogRunStatus: String, Equatable {
+enum LogRunStatus: String, Equatable, CaseIterable {
     case failed, success, processing, cancelled
 
     var title: String {
@@ -370,14 +388,24 @@ struct LogRunGroup: Identifiable, Equatable {
     let chunkProgress: String?
 
     var subtitle: String {
-        // Visible entries determine the time range; status still reflects the full run.
-        let earliest = entries.last?.timestamp ?? latest
-        let start = logGroupHourFormatter.string(from: earliest)
-        if Calendar.current.isDate(earliest, inSameDayAs: latest) {
-            return "\(entries.count) mục · \(start)–\(logGroupHourFormatter.string(from: latest))"
-        }
-        let range = "\(logGroupDayFormatter.string(from: earliest))–\(logGroupDayFormatter.string(from: latest))"
-        return "\(entries.count) mục · \(range)"
+        let startEntry = entries.first { $0.event == "run.start" }
+        let earliest = startEntry?.timestamp ?? entries.last?.timestamp ?? latest
+        let source = startEntry?.detail ?? ""
+        let origin = source.contains("source=prefetch") ? "Tải trước"
+            : source.contains("source=manual") ? "Thủ công" : "Màn hình đọc"
+        let duration = String(format: "%.1f giây", max(0, latest.timeIntervalSince(earliest)))
+        return "\(origin) · \(logGroupDayFormatter.string(from: earliest)) · \(duration)"
+    }
+
+    var visibleEntries: [LogEntry] {
+        var seenAttempts: Set<String> = []
+        return entries.filter { entry in
+            if entry.kind == .api {
+                // Keep the final outcome for each attempt, with its JSON and latency.
+                return seenAttempts.insert("\(entry.requestId.uuidString):\(entry.attempt)").inserted
+            }
+            return ["chunk.success", "chunk.fail", "dedup.shared", "run.cancel", "run.fail"].contains(entry.event)
+        }.reversed()
     }
 
     var issueSummary: String? {
@@ -385,8 +413,12 @@ struct LogRunGroup: Identifiable, Equatable {
         // swiftlint:disable switch_case_alignment
         switch status {
             case .failed:
-                let failure = entries.first { LogEntry.isError($0) && $0.event != "prefetch.error-continue" }
-                    ?? entries.first { LogEntry.isError($0) }
+                let terminal = entries.first { ["run.success", "run.fail", "run.cancel"].contains($0.event) }
+                let failure = LogRunBuilder.unresolvedChunkFailure(
+                    in: entries, runId: terminal?.event == "run.cancel" ? terminal?.runId : nil
+                )
+                    ?? entries.first { $0.event == "run.fail" }
+                    ?? entries.first { LogEntry.isError($0) && $0.event != "prefetch.error-continue" }
                 // Use the final API outcome, not an earlier failed retry or its wrapper event.
                 let response = entries.first {
                     $0.kind == .api && $0.requestId == failure?.requestId
@@ -415,15 +447,13 @@ struct LogRunGroup: Identifiable, Equatable {
 }
 
 enum LogRunBuilder {
-    static let commonGroupId = "common"
-    static let commonGroupTitle = "Phiên chung"
-
-    static func build(from entries: [LogEntry]) -> [LogRunGroup] {
+    static func build(from entries: [LogEntry], bookTitles: [String: String] = [:]) -> [LogRunGroup] {
         let sorted = entries.sorted { $0.timestamp > $1.timestamp }
         var order: [String] = []
         var buckets: [String: [LogEntry]] = [:]
         for entry in sorted {
-            let key = entry.runId?.uuidString ?? commonGroupId
+            guard let runId = entry.runId else { continue }
+            let key = runId.uuidString
             if buckets[key] == nil {
                 order.append(key)
                 buckets[key] = []
@@ -433,21 +463,39 @@ enum LogRunBuilder {
         var groups: [LogRunGroup] = []
         for key in order {
             guard let bucket = buckets[key], !bucket.isEmpty else { continue }
-            groups.append(makeGroup(id: key, entries: bucket))
-        }
-        return groups.sorted {
-            if $0.id == commonGroupId {
-                return false
+            // Cache-only reads are inventory activity, not AI-processing runs.
+            guard !bucket.contains(where: { $0.event == "cache.hit" }),
+                  bucket.contains(where: { $0.kind == .api || $0.event == "cache.miss"
+                          || $0.event == "dedup.shared" || $0.event == "run.start"
+                  })
+            else { continue }
+            var related = bucket
+            let shared = bucket.first { $0.event == "dedup.shared" }
+            let token = shared?.detail?.split(separator: " ").first { $0.hasPrefix("originRunId=") }
+            if let token, let origin = buckets[String(token.dropFirst("originRunId=".count))] {
+                let terminal = bucket.first { ["run.success", "run.fail", "run.cancel"].contains($0.event) }
+                related += origin.filter { entry in
+                    (entry.kind == .api || entry.event?.hasPrefix("chunk.") == true)
+                        && entry.timestamp <= (terminal?.timestamp ?? .distantFuture)
+                }
             }
-            if $1.id == commonGroupId {
-                return true
-            }
-            return $0.latest > $1.latest
+            groups.append(makeGroup(id: key, entries: related, bookTitles: bookTitles))
         }
+        return groups.sorted { $0.latest > $1.latest }
     }
 
     static func status(of entries: [LogEntry]) -> LogRunStatus {
         let sorted = entries.sorted { $0.timestamp > $1.timestamp }
+        if let terminal = sorted.first(where: { ["run.success", "run.fail", "run.cancel"].contains($0.event) }) {
+            if terminal.event == "run.success" {
+                return .success
+            }
+            if terminal.event == "run.cancel" {
+                // Borrowed origin failures do not belong to a cancelled shared consumer.
+                return unresolvedChunkFailure(in: sorted, runId: terminal.runId) == nil ? .cancelled : .failed
+            }
+            return .failed
+        }
         let newestError = sorted.first(where: LogEntry.isError)?.timestamp
         var newestSuccess: Date?
         for entry in sorted where entry.event == "cache.save" || entry.event == "cache.hit" || isAllCachedSkip(entry) {
@@ -490,6 +538,16 @@ enum LogRunBuilder {
         return .processing
     }
 
+    static func unresolvedChunkFailure(in entries: [LogEntry], runId: UUID?) -> LogEntry? {
+        entries.first { failure in
+            failure.event == "chunk.fail" && (runId == nil || failure.runId == runId)
+                && !entries.contains {
+                    $0.event == "chunk.success" && $0.requestId == failure.requestId
+                        && $0.timestamp > failure.timestamp
+                }
+        }
+    }
+
     /// Extracts `keyHash=<token>` from a cache-event detail for origin joining.
     static func keyHash(of entry: LogEntry) -> String? {
         guard let detail = entry.detail,
@@ -497,15 +555,6 @@ enum LogRunBuilder {
         else { return nil }
         let token = detail[range.upperBound...].prefix(while: { !$0.isWhitespace })
         return token.isEmpty ? nil : String(token)
-    }
-
-    /// `dedup.shared` is terminal only when joined with its origin `cache.save`
-    /// in the same group (equal `keyHash`); a lone share with no origin stays non-terminal.
-    static func isJoinedDedupSuccess(_ entries: [LogEntry]) -> Bool {
-        let sharedHashes = Set(entries.filter { $0.event == "dedup.shared" }.compactMap(keyHash(of:)))
-        guard !sharedHashes.isEmpty else { return false }
-        let savedHashes = Set(entries.filter { $0.event == "cache.save" }.compactMap(keyHash(of:)))
-        return !sharedHashes.isDisjoint(with: savedHashes)
     }
 
     /// `prefetch.skip` with nothing left to fetch is terminal success; other skip
@@ -521,30 +570,9 @@ enum LogRunBuilder {
         return "\(done)/\(total) đoạn"
     }
 
-    static func title(chapter: Int, mode: String, entries: [LogEntry] = []) -> String {
-        let base = "\(mode.prefix(1).uppercased() + mode.dropFirst()) · Ch \(chapter)"
-        guard !entries.isEmpty, let suffix = sourceSuffix(of: entries) else { return base }
-        return "\(base) · \(suffix)"
-    }
-
-    /// Origin suffix so two runs of the same chapter never share a title:
-    /// "Cache" (hit/save) > "Dùng chung" (joined share) > "API done/total".
-    /// A lone share with no joined origin falls through to the API branch.
-    static func sourceSuffix(of entries: [LogEntry]) -> String? {
-        if entries.contains(where: { $0.event == "cache.hit" || $0.event == "cache.save" }) {
-            return "Cache"
-        }
-        if isJoinedDedupSuccess(entries) {
-            return "Dùng chung"
-        }
-        if let total = entries.compactMap({ $0.chunkTotal }).first, total > 0 {
-            let done = Set(entries.filter { $0.event == "chunk.success" }.compactMap { $0.chunkIndex }).count
-            return "API \(done)/\(total)"
-        }
-        if entries.contains(where: { $0.kind == .api }) {
-            return "API"
-        }
-        return nil
+    static func title(chapter: Int, mode: String) -> String {
+        let label = AIMode(rawValue: mode)?.title ?? mode
+        return "Chương \(chapter) · \(label)"
     }
 
     /// Narrow search: chapter number, group status words, event, detail, snippet.
@@ -561,7 +589,7 @@ enum LogRunBuilder {
         return !matchedEntries(group, needle: needle).isEmpty
     }
 
-    /// Intra-group hits for burst search: only matching entries expand inline.
+    /// Matching a run never strips the surrounding request/retry context.
     static func matchedEntries(_ group: LogRunGroup, needle: String) -> [LogEntry] {
         let query = needle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !query.isEmpty else { return group.entries }
@@ -576,16 +604,16 @@ enum LogRunBuilder {
         }
     }
 
-    private static func makeGroup(id: String, entries: [LogEntry]) -> LogRunGroup {
+    private static func makeGroup(id: String, entries: [LogEntry], bookTitles: [String: String]) -> LogRunGroup {
         let sorted = entries.sorted { $0.timestamp > $1.timestamp }
         let latest = sorted.first?.timestamp ?? .distantPast
         let title: String
-        if id == commonGroupId {
-            title = commonGroupTitle
-        } else if let representative = sorted.last {
-            title = self.title(chapter: representative.chapterNumber, mode: representative.mode, entries: sorted)
+        if let representative = sorted.last {
+            let book = bookTitles[representative.bookId] ?? representative.bookId
+            let chapter = self.title(chapter: representative.chapterNumber, mode: representative.mode)
+            title = book.isEmpty ? chapter : "\(book) · \(chapter)"
         } else {
-            title = commonGroupTitle
+            title = "Xử lý AI"
         }
         return LogRunGroup(
             id: id,
@@ -677,8 +705,10 @@ struct LogRowView: View {
             Spacer(minLength: DesignTokens.spacing8)
             VStack(alignment: .trailing, spacing: 4) {
                 statusBadge
-                Text("\(entry.latencyMs) ms")
-                    .font(.caption).monospacedDigit().foregroundStyle(DesignTokens.muted)
+                if entry.kind == .api, entry.statusCode != nil || entry.errorDomain != nil {
+                    Text("\(entry.latencyMs) ms")
+                        .font(.caption).monospacedDigit().foregroundStyle(DesignTokens.muted)
+                }
             }
         }
     }
@@ -693,8 +723,11 @@ struct LogRowView: View {
             if let domain = entry.errorDomain {
                 detailLine(label: "Mã lỗi", value: domain + (entry.errorCode.map { " \($0)" } ?? ""))
             }
-            if let host = entry.host {
-                detailLine(label: "Máy chủ", value: host)
+            if let endpoint = entry.diagnosticEndpoint {
+                detailLine(label: "Endpoint", value: endpoint)
+            }
+            if let model = entry.model {
+                detailLine(label: "Model", value: model)
             }
             if let event = entry.event {
                 detailLine(label: "Sự kiện", value: event)

@@ -1,56 +1,68 @@
 import SwiftUI
 
+// swiftlint:disable:next type_body_length
 struct CacheManagerView: View {
     @Environment(Router.self) private var router
 
     private let cache: ProcessedChapterCaching?
+    private let bookRepository: BookRepository
 
-    @State private var total = 0
-    @State private var rows: [(slug: String, count: Int)] = []
+    @State private var totalVersions = 0
+    @State private var distinctChapters = 0
+    @State private var books: [BookCacheRow] = []
+    @State private var expandedBookIds: Set<String> = []
+    @State private var bookMetadata: [String: [ProcessedChapterMetadata]] = [:]
     @State private var isLoading = true
     @State private var showClearAllConfirm = false
-    @State private var showClearBookConfirm: String?
-    @State private var initError: String?
+    @State private var showClearBookConfirm: BookCacheRow?
+    @State private var errorMessage: String?
 
-    init(cache: ProcessedChapterCaching? = nil) {
-        if let cache {
-            self.cache = cache
-            _initError = State(initialValue: nil)
-        } else if let prod = try? SQLiteProcessedChapterCache() {
-            self.cache = prod
-            _initError = State(initialValue: nil)
-        } else if let mem = try? SQLiteProcessedChapterCache.inMemory() {
-            self.cache = mem
-            _initError = State(initialValue: nil)
-        } else {
-            self.cache = nil
-            _initError = State(initialValue: "Bộ nhớ đệm không khả dụng")
+    struct BookCacheRow: Identifiable, Equatable {
+        let slug: String
+        let title: String
+        let versionCount: Int
+
+        var id: String {
+            slug
         }
     }
+
+    init(cache: ProcessedChapterCaching? = nil, bookRepository: BookRepository? = nil) {
+        self.bookRepository = bookRepository ?? FileBookRepository(root: AppPaths.booksRoot())
+        if let cache {
+            self.cache = cache
+            _errorMessage = State(initialValue: nil)
+        } else {
+            do {
+                self.cache = try SQLiteProcessedChapterCache()
+                _errorMessage = State(initialValue: nil)
+            } catch {
+                self.cache = nil
+                _errorMessage = State(initialValue: "Không thể mở bộ nhớ đệm: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "vi_VN")
+        formatter.dateFormat = "HH:mm dd/MM/yyyy"
+        return formatter
+    }()
 
     var body: some View {
         Group {
             if cache == nil {
-                VStack(spacing: 16) {
-                    Text(initError ?? "Bộ nhớ đệm không khả dụng")
-                        .foregroundStyle(DesignTokens.text)
-                        .multilineTextAlignment(.center)
-                    Button("Thử lại") {
-                        Task { await load() }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignTokens.accent)
-                    .frame(minHeight: 44)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier("retryCacheButton")
-                    .accessibilityLabel("Thử lại")
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(DesignTokens.backgroundWhite)
+                unusableCacheView
             } else {
                 List {
-                    countCard
-                    bookSection
+                    if let errorMessage {
+                        errorBanner(errorMessage)
+                    }
+                    if errorMessage == nil {
+                        countCard
+                        bookSection
+                    }
                 }
                 .listSectionSpacing(DesignTokens.spacing8)
                 .scrollContentBackground(.hidden)
@@ -74,7 +86,7 @@ struct CacheManagerView: View {
             Text("Hành động không thể hoàn tác.")
         }
         .confirmationDialog(
-            "Xóa cache cho \(showClearBookConfirm ?? "")?",
+            "Xóa cache cho \(showClearBookConfirm?.title ?? "")?",
             isPresented: Binding(
                 get: { showClearBookConfirm != nil },
                 set: {
@@ -86,8 +98,8 @@ struct CacheManagerView: View {
             titleVisibility: .visible
         ) {
             Button("Xóa", role: .destructive) {
-                if let slug = showClearBookConfirm {
-                    Task { await clearBook(slug) }
+                if let row = showClearBookConfirm {
+                    Task { await clearBook(row) }
                 }
             }
             Button("Hủy", role: .cancel) {
@@ -105,6 +117,36 @@ struct CacheManagerView: View {
         }
     }
 
+    private var unusableCacheView: some View {
+        VStack(spacing: 16) {
+            Text(errorMessage ?? "Bộ nhớ đệm không khả dụng")
+                .foregroundStyle(DesignTokens.text)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DesignTokens.spacing16)
+            Text("Quay lại và mở lại màn hình để thử kết nối bộ nhớ đệm.")
+                .font(.footnote)
+                .foregroundStyle(DesignTokens.muted)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(DesignTokens.backgroundWhite)
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        Section {
+            HStack(spacing: DesignTokens.spacing12) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(DesignTokens.error)
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(DesignTokens.error)
+            }
+            .padding(.vertical, DesignTokens.spacing8)
+            .listRowBackground(DesignTokens.surface)
+            .listRowSeparator(.hidden)
+        }
+    }
+
     private var countCard: some View {
         Section {
             VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
@@ -119,13 +161,15 @@ struct CacheManagerView: View {
                             .accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
-                        Text(total == 0 ? "Chưa lưu chương nào" : "\(total) chương đã lưu")
+                        Text(totalVersions == 0 ? "Chưa lưu bản dịch nào" : "\(totalVersions) bản dịch đã lưu")
                             .font(.title3)
                             .fontWeight(.bold)
                             .foregroundStyle(DesignTokens.text)
                             .lineLimit(1)
                             .minimumScaleFactor(0.9)
-                        Text("Máy giữ sẵn để mở lại nhanh hơn.")
+                        Text(distinctChapters == 0
+                            ? "Máy giữ sẵn để mở lại nhanh hơn."
+                            : "Trên \(distinctChapters) chương khác nhau.")
                             .font(.footnote)
                             .foregroundStyle(DesignTokens.muted)
                     }
@@ -149,8 +193,8 @@ struct CacheManagerView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignTokens.error)
-                    .disabled(total == 0)
-                    .opacity(total == 0 ? 0.4 : 1)
+                    .disabled(totalVersions == 0)
+                    .opacity(totalVersions == 0 ? 0.4 : 1)
                     .accessibilityIdentifier("clearAllButton")
                     .accessibilityLabel("Xóa tất cả")
                 }
@@ -163,69 +207,11 @@ struct CacheManagerView: View {
 
     private var bookSection: some View {
         Section {
-            if rows.isEmpty {
-                HStack {
-                    Spacer(minLength: 0)
-                    VStack(spacing: DesignTokens.spacing8) {
-                        Image(systemName: "tray")
-                            .font(.title2)
-                            .foregroundStyle(DesignTokens.muted)
-                            .accessibilityHidden(true)
-                        Text("Chưa có dữ liệu đệm")
-                            .font(.subheadline)
-                            .foregroundStyle(DesignTokens.muted)
-                        Text("Các chương đã xử lý sẽ hiện ở đây.")
-                            .font(.footnote)
-                            .foregroundStyle(DesignTokens.muted)
-                    }
-                    .multilineTextAlignment(.center)
-                    .padding(.vertical, DesignTokens.spacing16)
-                    Spacer(minLength: 0)
-                }
-                .listRowBackground(DesignTokens.surface)
-                .listRowSeparator(.hidden)
+            if books.isEmpty {
+                emptySection
             } else {
-                ForEach(rows, id: \.slug) { row in
-                    HStack(spacing: DesignTokens.spacing8) {
-                        Text(row.slug)
-                            .font(.body)
-                            .foregroundStyle(DesignTokens.text)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer(minLength: DesignTokens.spacing8)
-                        Text("\(row.count)")
-                            .font(.footnote)
-                            .fontWeight(.medium)
-                            .foregroundStyle(DesignTokens.muted)
-                            .lineLimit(1)
-                            .fixedSize(horizontal: true, vertical: false)
-                            .frame(minWidth: 32)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(DesignTokens.muted.opacity(0.2), in: Capsule())
-                            .accessibilityLabel("\(row.count) chương")
-                        Button(role: .destructive) {
-                            showClearBookConfirm = row.slug
-                        } label: {
-                            Image(systemName: "trash")
-                                .font(.body)
-                                .foregroundStyle(DesignTokens.error)
-                                .frame(minWidth: 44, minHeight: 44)
-                                .background(DesignTokens.error.opacity(0.2), in: Capsule())
-                                .overlay(Capsule().stroke(DesignTokens.error.opacity(0.5), lineWidth: 1))
-                                .contentShape(Rectangle())
-                                .accessibilityHidden(true)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("clear-\(row.slug)")
-                        .accessibilityLabel("Xóa \(row.slug)")
-                        .a11yHitTarget()
-                    }
-                    .frame(minHeight: 48)
-                    .contentShape(Rectangle())
-                    .accessibilityIdentifier("cache-\(row.slug)")
-                    .listRowBackground(DesignTokens.surface)
-                    .listRowSeparatorTint(DesignTokens.border)
+                ForEach(books) { row in
+                    bookRow(row)
                 }
             }
         } header: {
@@ -237,42 +223,222 @@ struct CacheManagerView: View {
         }
     }
 
+    private var emptySection: some View {
+        HStack {
+            Spacer(minLength: 0)
+            VStack(spacing: DesignTokens.spacing8) {
+                Image(systemName: "tray")
+                    .font(.title2)
+                    .foregroundStyle(DesignTokens.muted)
+                    .accessibilityHidden(true)
+                Text("Chưa có dữ liệu đệm")
+                    .font(.subheadline)
+                    .foregroundStyle(DesignTokens.muted)
+                Text("Các chương đã xử lý sẽ hiện ở đây.")
+                    .font(.footnote)
+                    .foregroundStyle(DesignTokens.muted)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.vertical, DesignTokens.spacing16)
+            Spacer(minLength: 0)
+        }
+        .listRowBackground(DesignTokens.surface)
+        .listRowSeparator(.hidden)
+    }
+
+    private func bookRow(_ row: BookCacheRow) -> some View {
+        let isExpanded = expandedBookIds.contains(row.slug)
+
+        return VStack(alignment: .leading, spacing: 0) {
+            bookHeader(row: row, isExpanded: isExpanded)
+            if isExpanded {
+                expandedDetails(slug: row.slug)
+            }
+        }
+        .accessibilityIdentifier("cache-\(row.slug)")
+        .listRowBackground(DesignTokens.surface)
+        .listRowSeparatorTint(DesignTokens.border)
+    }
+
+    private func bookHeader(row: BookCacheRow, isExpanded: Bool) -> some View {
+        HStack(spacing: DesignTokens.spacing8) {
+            Button {
+                toggleExpanded(slug: row.slug)
+            } label: {
+                HStack(spacing: DesignTokens.spacing8) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(DesignTokens.muted)
+                        .frame(width: 16)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(row.title)
+                            .font(.body)
+                            .fontWeight(.medium)
+                            .foregroundStyle(DesignTokens.text)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        if row.title != row.slug {
+                            Text(row.slug)
+                                .font(.caption2)
+                                .foregroundStyle(DesignTokens.muted)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .a11yHitTarget()
+            .accessibilityLabel("\(row.title), \(row.versionCount) bản lưu")
+            .accessibilityHint(isExpanded ? "Thu gọn chi tiết chương" : "Xem các chương đã lưu")
+
+            Spacer(minLength: DesignTokens.spacing8)
+
+            Text("\(row.versionCount) bản")
+                .font(.footnote)
+                .fontWeight(.medium)
+                .foregroundStyle(DesignTokens.muted)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(DesignTokens.muted.opacity(0.15), in: Capsule())
+                .accessibilityLabel("\(row.versionCount) bản lưu")
+
+            Button(role: .destructive) {
+                showClearBookConfirm = row
+            } label: {
+                Image(systemName: "trash")
+                    .font(.body)
+                    .foregroundStyle(DesignTokens.error)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .background(DesignTokens.error.opacity(0.2), in: Capsule())
+                    .overlay(Capsule().stroke(DesignTokens.error.opacity(0.5), lineWidth: 1))
+                    .contentShape(Rectangle())
+                    .accessibilityHidden(true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("clear-\(row.slug)")
+            .accessibilityLabel("Xóa \(row.title)")
+            .a11yHitTarget()
+        }
+        .frame(minHeight: 48)
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func expandedDetails(slug: String) -> some View {
+        if let items = bookMetadata[slug], !items.isEmpty {
+            VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
+                ForEach(items) { item in
+                    metadataItemRow(slug: slug, item: item)
+                }
+            }
+            .padding(.top, 4)
+            .padding(.bottom, DesignTokens.spacing8)
+        } else {
+            Text("Không có chi tiết")
+                .font(.footnote)
+                .foregroundStyle(DesignTokens.muted)
+                .padding(.leading, 24)
+                .padding(.vertical, 4)
+        }
+    }
+
+    private func metadataItemRow(slug: String, item: ProcessedChapterMetadata) -> some View {
+        HStack(alignment: .center, spacing: DesignTokens.spacing8) {
+            Text("Chương \(item.chapterNumber)")
+                .font(.subheadline)
+                .foregroundStyle(DesignTokens.text)
+            Text(item.mode.title)
+                .font(.caption2)
+                .fontWeight(.medium)
+                .foregroundStyle(DesignTokens.accent)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(DesignTokens.accent.opacity(0.12), in: Capsule())
+            Spacer()
+            Text(Self.dateFormatter.string(from: item.updatedAt))
+                .font(.caption2)
+                .foregroundStyle(DesignTokens.muted)
+        }
+        .padding(.vertical, 4)
+        .padding(.leading, 24)
+        .accessibilityIdentifier("item-\(slug)-\(item.id)")
+    }
+
+    private func toggleExpanded(slug: String) {
+        if expandedBookIds.contains(slug) {
+            expandedBookIds.remove(slug)
+        } else {
+            expandedBookIds.insert(slug)
+        }
+    }
+
     private func load() async {
         guard let cache else {
-            initError = "Bộ nhớ đệm không khả dụng"
+            errorMessage = errorMessage ?? "Bộ nhớ đệm không khả dụng"
             isLoading = false
-            total = 0
-            rows = []
+            totalVersions = 0
+            distinctChapters = 0
+            books = []
             return
         }
         isLoading = true
         do {
-            total = try cache.countAll()
+            totalVersions = try cache.countAll()
             let ids = try cache.allBookIds()
-            rows = try ids.map { slug in
-                try (slug, cache.count(bookId: slug))
+            books = try ids.map { slug in
+                let count = try cache.count(bookId: slug)
+                let title = (try? bookRepository.book(slug: slug))?.name ?? slug
+                return BookCacheRow(slug: slug, title: title, versionCount: count)
             }
-            .sorted { $0.slug < $1.slug }
-            initError = nil
+            .sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+
+            bookMetadata = [:]
+            var uniqueChapters = 0
+            for slug in ids {
+                let meta = try cache.metadata(bookId: slug)
+                uniqueChapters += Set(meta.map(\.chapterNumber)).count
+                bookMetadata[slug] = meta
+            }
+            distinctChapters = uniqueChapters
+            errorMessage = nil
         } catch {
-            total = 0
-            rows = []
+            errorMessage = "Không thể tải bộ nhớ đệm: \(error.localizedDescription)"
+            totalVersions = 0
+            distinctChapters = 0
+            books = []
         }
         isLoading = false
     }
 
     private func clearAll() async {
         guard let cache else { return }
-        do { try cache.clearAll() } catch {}
-        await load()
-        router.toast.show("Đã xóa tất cả", type: .success)
+        do {
+            try cache.clearAll()
+            bookMetadata.removeAll()
+            expandedBookIds.removeAll()
+            await load()
+            router.toast.show("Đã xóa tất cả", type: .success)
+        } catch {
+            errorMessage = "Xóa tất cả thất bại: \(error.localizedDescription)"
+            router.toast.show("Lỗi: không thể xóa", type: .error)
+        }
     }
 
-    private func clearBook(_ slug: String) async {
+    private func clearBook(_ row: BookCacheRow) async {
         guard let cache else { return }
-        do { try cache.clear(bookId: slug) } catch {}
-        showClearBookConfirm = nil
-        await load()
-        router.toast.show("Đã xóa \(slug)", type: .success)
+        do {
+            try cache.clear(bookId: row.slug)
+            bookMetadata.removeValue(forKey: row.slug)
+            expandedBookIds.remove(row.slug)
+            showClearBookConfirm = nil
+            await load()
+            router.toast.show("Đã xóa \(row.title)", type: .success)
+        } catch {
+            showClearBookConfirm = nil
+            errorMessage = "Xóa \(row.title) thất bại: \(error.localizedDescription)"
+            router.toast.show("Lỗi: không thể xóa", type: .error)
+        }
     }
 }

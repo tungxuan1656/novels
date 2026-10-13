@@ -167,6 +167,9 @@ extension LogEntry {
     }
 
     static func isMutedCancel(_ entry: LogEntry) -> Bool {
+        if entry.event == "run.cancel" {
+            return true
+        }
         if entry.errorDomain == NSURLErrorDomain, entry.errorCode == URLError.cancelled.rawValue {
             return true
         }

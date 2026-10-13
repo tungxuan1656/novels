@@ -284,7 +284,8 @@ actor PrefetchManager {
                         chapterNumber: number,
                         mode: mode,
                         rawText: raw,
-                        runId: runId
+                        runId: runId,
+                        source: "prefetch"
                     )
                     if Date().timeIntervalSince(itemStart) > Self.perChapterBudget {
                         await self.logPrefetch(

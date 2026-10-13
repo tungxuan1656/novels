@@ -43,17 +43,24 @@ final class BilingualPipelineTests: XCTestCase {
         defer { fixture.cleanUp() }
         BilingualURLProtocol.configure(invalid: true)
         let source = String(repeating: "first ", count: 60) + "\n\n" + String(repeating: "second ", count: 60)
+        let failedRunId = UUID()
         do {
             _ = try await fixture.service.processedContent(
                 bookId: "sample",
                 chapterNumber: 1,
                 mode: .bilingual,
-                rawText: source
+                rawText: source,
+                runId: failedRunId
             )
             XCTFail("Missing pair must fail")
         } catch {
             XCTAssertEqual(try fixture.cache.countAll(), 0)
         }
+        let failedEntries = await DiagnosticsLog.shared.snapshot().filter { $0.runId == failedRunId }
+        XCTAssertTrue(failedEntries.contains { $0.event == "run.fail" })
+        XCTAssertTrue(failedEntries.contains {
+            $0.event == "chunk.fail" && $0.detail?.contains("stage=validation") == true
+        })
         BilingualURLProtocol.configure(invalid: false)
         let old = try await fixture.service.processedContent(
             bookId: "sample",
@@ -146,9 +153,11 @@ final class BilingualPipelineTests: XCTestCase {
         defer { fixture.cleanUp() }
         BilingualURLProtocol.configure(invalid: false)
         let runId = UUID()
+        let originRunId = UUID()
         let first = Task {
             try await fixture.service.processedContent(
-                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source"
+                bookId: "sample", chapterNumber: 1, mode: .bilingual, rawText: "source",
+                runId: originRunId, source: "prefetch"
             )
         }
         try await waitForRequest()
@@ -175,6 +184,12 @@ final class BilingualPipelineTests: XCTestCase {
         }
         XCTAssertEqual(BilingualURLProtocol.requests().count, 1)
         XCTAssertEqual(try fixture.cache.get(bookId: "sample", chapterNumber: 1, mode: .bilingual)?.content, result)
+        let groups = LogRunBuilder.build(from: await DiagnosticsLog.shared.snapshot())
+        let joined = try XCTUnwrap(groups.first { $0.id == runId.uuidString })
+        XCTAssertEqual(joined.status, .success)
+        XCTAssertEqual(joined.chunkProgress, "1/1 đoạn")
+        XCTAssertTrue(joined.visibleEntries.contains { $0.kind == .api && $0.statusCode == 200 })
+        XCTAssertEqual(groups.first { $0.id == originRunId.uuidString }?.status, .cancelled)
     }
 
     func testLogCoverKeepsReaderAndPrefetchWithoutDuplicateCurrentRequest() async throws {

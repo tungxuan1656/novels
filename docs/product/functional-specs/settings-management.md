@@ -20,6 +20,7 @@
 - Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).
 - Audio source/key/model persist independently of AI settings. Apple is default; unknown source resets to Apple and blank model to the supplied default. Hidden API fields retain their values. API key uses SecureField and never displays its value in a row; edits do not call network. See [settings schema](../../contracts/settings-schema.md).
 - AI reading mode persists app-wide via `AI_MODE` (default `none`); unknown or missing → `none`.
+- Cache Manager reads saved SQLite metadata by book/chapter/mode with update times, showing saved-version and distinct-chapter counts. Book titles resolve from the local repository with slug fallback. It does not use the session diagnostics ring as inventory. Keep confirmed per-book/all deletion and explicit storage errors; no individual-version deletion or new store.
 
 ## States
 

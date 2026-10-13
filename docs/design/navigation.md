@@ -12,7 +12,8 @@ Home Library --> Add Book
 Home Library --> Reading (bookId)
 Home Library --> Settings
 Reading --> References
-Reading --> Log (diagnostic timeline, in-session only)
+Reading --> Log (AI-processing timeline, in-session only)
+Log --> Cache Manager
 Reading --> Settings (via sheet shortcut)
 Reading --English paragraph--> English Learning sheet
 English Learning --explicit lookup--> Google browser sheet
@@ -46,6 +47,7 @@ Abstract stack:
 - **Reading:** requires `bookId: string`. Chapter comes from book state, not URL. Offset is per book.
 - **References:** reads `bookId` from active session. No param.
 - **Setting Editor:** requires `settingKey`, `label`, `placeholder`. Optional `description`, `multiple=true` for multi-line.
+- **Log:** optional `bookId` scopes runs; optional error-focused entry initially selects failed runs.
 - Others have no params. Missing required param shows toast and stays on current screen.
 
 ## 5. Navigation Rules
