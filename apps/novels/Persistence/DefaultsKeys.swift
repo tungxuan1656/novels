@@ -21,6 +21,9 @@ enum DefaultsKeys {
     static let readingTheme = "readingTheme"
     static let readingSession = "ReadingSession"
     static let diagnosticsVerbose = "DIAGNOSTICS_VERBOSE"
+    static let audioSource = "AUDIO_SOURCE"
+    static let audioAPIKey = "AUDIO_API_KEY"
+    static let audioModel = "AUDIO_MODEL"
 
     static let allCurrent: [String] = [
         booksAPIURL,
@@ -41,6 +44,9 @@ enum DefaultsKeys {
         lineHeight,
         readingTheme,
         readingSession,
-        diagnosticsVerbose
+        diagnosticsVerbose,
+        audioSource,
+        audioAPIKey,
+        audioModel
     ]
 }

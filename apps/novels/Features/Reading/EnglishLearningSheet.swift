@@ -4,14 +4,15 @@ import SwiftUI
 struct EnglishLearningSheet: View {
     let theme: ReadingTheme
     let speech: ReaderSpeech
+    let settings: SettingsStore
     private let sentences: [EnglishSentence]
     @Environment(\.dismiss) private var dismiss
     @State private var lookup: GoogleLookup?
-    @State private var speechError: String?
 
-    init(paragraph: BilingualParagraph, theme: ReadingTheme, speech: ReaderSpeech) {
+    init(paragraph: BilingualParagraph, theme: ReadingTheme, speech: ReaderSpeech, settings: SettingsStore) {
         self.theme = theme
         self.speech = speech
+        self.settings = settings
         sentences = EnglishLearning.sentences(in: paragraph.en)
     }
 
@@ -19,12 +20,19 @@ struct EnglishLearningSheet: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: DesignTokens.spacing24) {
-                    Text("Chọn câu để nghe hoặc tra cứu. Giọng đọc dùng trên thiết bị; "
-                        + "Google cần Internet và nhận câu bạn chọn.")
+                    Text(settings.audioSource == .apple
+                        ? "Giọng Apple dùng trên thiết bị. Google cần Internet và nhận câu bạn chọn."
+                        : "Nhấn Nghe sẽ gửi câu bạn chọn đến API audio, cần Internet và có thể tính phí. "
+                        + "Google cũng nhận câu bạn chọn khi tra cứu.")
                         .font(.footnote)
                         .foregroundStyle(theme.textMuted)
-                    if let speechError {
-                        Text(speechError)
+                    if speech.isLoading {
+                        ProgressView("Đang tải audio…")
+                            .tint(theme.accentColor)
+                            .foregroundStyle(theme.textPrimary)
+                    }
+                    if let errorMessage = speech.errorMessage {
+                        Text(errorMessage)
                             .font(.footnote)
                             .foregroundStyle(theme.textPrimary)
                     }
@@ -36,10 +44,10 @@ struct EnglishLearningSheet: View {
                                 .textSelection(.enabled)
                             HStack(spacing: DesignTokens.spacing16) {
                                 Button {
-                                    speechError = speech.speak(sentence.text) ? nil :
-                                        "Chưa có giọng tiếng Anh. Hãy tải giọng đọc trong Cài đặt iOS."
+                                    speech.speak(sentence.text, settings: settings)
                                 } label: {
-                                    Label("Nghe", systemImage: "speaker.wave.2")
+                                    Label(settings.audioSource == .apple ? "Nghe" : "Nghe · Online",
+                                          systemImage: "speaker.wave.2")
                                         .frame(minHeight: 44)
                                 }
                                 .accessibilityLabel("Nghe câu tiếng Anh")
@@ -79,6 +87,8 @@ struct EnglishLearningSheet: View {
             }
         }
         .preferredColorScheme(theme.preferredColorScheme)
+        .onChange(of: settings.audioSource) { speech.stop() }
+        .onDisappear { speech.stop() }
     }
 }
 

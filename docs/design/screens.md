@@ -14,7 +14,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 | **Add Book** | Import book | Header back; remote list; download overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → back |
 | **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above native paragraph text or ordered VI/EN pairs; English paragraph opens sentence learning; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
-| **Settings** | Edit config | Header; grouped list; cards for data | Content | Row → Editor; Data → Cache |
+| **Settings** | Edit config | Header; grouped list, Audio source with API-only key/model; cards for data | Content | Row → Editor; Data → Cache |
 | **Cache Manager** | Clear AI cache | Header; count card; clear button; note | Content, Processing | Clear → confirm → toast |
 | **Setting Editor** | Edit one value | Header; description; input; Clear/Save | Content, Error, Success | Save → validate → back |
 | **Log** | Diagnose AI/prefetch per chapter-run | Header; search; grouped chapter rows with status; JSON body sheet | Content, Empty, No-match | Reading sheet → Log → back |
@@ -29,7 +29,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Log button ("Nhật ký") below AI section → push Log timeline
 Gear opens Settings.
 
-**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses system English speech; "Dừng" stops it. Google lookup opens a nested system browser sheet only after a tap, with a notice that the selected sentence is sent online. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
+**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; "Dừng" cancels loading and stops playback. Google lookup opens a nested system browser sheet only after a tap, with a notice that the selected sentence is sent online. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
 
 **Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
 

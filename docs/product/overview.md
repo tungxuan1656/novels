@@ -6,7 +6,7 @@
 
 ## Purpose
 
-Novels lets one reader download books once and read offline. Optional AI provides independent Vietnamese translation and aligned Vietnamese/English reading through configurable providers. Cached reading stays offline; catalog, uncached AI and explicit Google sentence lookup need network. English pronunciation uses installed iOS voices.
+Novels lets one reader download books once and read offline. Optional AI provides independent Vietnamese translation and aligned Vietnamese/English reading through configurable providers. Cached reading stays offline; catalog, uncached AI, optional API sentence audio and explicit Google sentence lookup need network. English pronunciation defaults to installed iOS voices, with configurable API audio.
 
 ## Personas
 
@@ -15,7 +15,7 @@ Novels lets one reader download books once and read offline. Optional AI provide
 
 ## Scope
 
-**In:** discover via catalog, import ZIP, browse library, read HTML with navigation and offset, switch Bản gốc / Dịch / Song ngữ with independent processed cache entries, learn English sentences with system speech and explicit Google lookup, prefetch next chapters, keep settings and typography.
+**In:** discover via catalog, import ZIP, browse library, read HTML with navigation and offset, switch Bản gốc / Dịch / Song ngữ with independent processed cache entries, learn English sentences with Apple/API speech and explicit Google lookup, prefetch next chapters, keep settings and typography.
 
 **Out:** no multi-user, no cloud sync, no account, no online reading without import, no second AI cache.
 
@@ -27,7 +27,7 @@ Novels lets one reader download books once and read offline. Optional AI provide
 - **AI Reading** — Bản gốc (`none`) bypasses AI; Dịch (`rewrite`) and Song ngữ (`bilingual`) use independent prompts/results and check cache first. [ai-reading](./functional-specs/ai-reading.md)
 - **English Learning** — paired paragraphs, sentence speech and explicit online Google lookup. [bilingual-learning](./functional-specs/bilingual-learning.md)
 - **Prefetch** — next N=3 sequential, cancellable. [chapter-prefetch](./functional-specs/chapter-prefetch.md)
-- **Settings** — catalog, AI, prefetch, typography; sanitize on launch. [settings-management](./functional-specs/settings-management.md)
+- **Settings** — catalog, AI, sentence audio, prefetch, typography; sanitize on launch. [settings-management](./functional-specs/settings-management.md)
 
 ## Flows
 

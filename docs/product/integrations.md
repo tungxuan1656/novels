@@ -44,7 +44,7 @@
 
 ## 3. English Learning
 
-Sentence pronunciation uses `AVSpeechSynthesizer` and an installed English voice; unavailable voices show a download hint. No API MP3 service or dictionary integration.
+Sentence pronunciation defaults to `AVSpeechSynthesizer` and an installed English voice; unavailable voices show a download hint. Optional API audio uses an independent key/model and returns in-memory audio for a user-selected sentence. The sheet warns of online transmission/possible charges, exposes loading/errors and cancels stale work without retries or implicit fallback. No audio cache or dictionary integration. Wire details: [audio-service](../contracts/audio-service.md).
 
 Explicit sentence lookup opens `https://www.google.com/search` in `SFSafariViewController`, using URL-encoded selected text plus a Vietnamese explanation request. The sheet warns that Google receives that sentence. Network, results and AI Overviews are not guaranteed; the app does not scrape or store responses. Local reading remains independent. See [bilingual-learning](functional-specs/bilingual-learning.md).
 

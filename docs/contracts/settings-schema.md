@@ -18,6 +18,9 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `AI_EXTRA_BODY` | `string` (JSON object) | `""` / empty | User-entered JSON merged into AI body; invalid JSON → ignored |
 | `AI_PROMPT` | `string` | `Dịch truyện sang tiếng Việt tự nhiên, giữ nguyên xưng hô (ta, ngươi, huynh, đệ...), bảo tồn 100% nội dung và văn phong.` | System prompt for AI rewrite; missing/empty → reset to default |
 | `AI_BILINGUAL_PROMPT` | `string` | `SettingsDefaults.defaultBilingualPrompt` (preserve Vietnamese content/honorifics, add simple faithful English) | Independent editable prompt for bilingual; missing/blank → own default; app appends immutable JSON/ID protocol |
+| `AUDIO_SOURCE` | `string` | `apple` | `apple` / `api`; unknown → `apple`; independent of AI mode/provider |
+| `AUDIO_API_KEY` | `string` | `""` | Separate masked key, SecureField editor, UserDefaults; API sends trimmed Bearer key |
+| `AUDIO_MODEL` | `string` | `edge-tts/en-AU-WilliamMultilingualNeural` | Trim; missing/blank → default; API editor blocks blank save |
 | `AI_MIN_CHUNK_SIZE` | `number` (string-stored) | `1300` | Chunk hint in characters |
 | `PREFETCH_COUNT` | `number` (string-stored) | `3` | Allowed `0..1000`, else `3` on read (BR-08) |
 | `AI_MODE` | `string` | `none` | App-wide AI reading mode (`none` / `rewrite` / `bilingual`; labels Bản gốc / Dịch / Song ngữ); unknown → `none` |
@@ -25,7 +28,7 @@ All keys are strings (or string-stored numbers/JSON) in `UserDefaults`. Sanitiza
 | `DIAGNOSTICS_VERBOSE` | `boolean` | `false` | Opt-in snippet detail for Log timeline (body ≤100/200 chars, host+path); secrets stay `<redacted>`, prompt never raw |
 | Typography: `font`, `fontSize`, `lineHeight` | mixed | per `../../docs/product/business-rules.md` BR-11 | Persisted, applies to every render; missing → defaults |
 
-UI groups: catalog address, AI (URL AI/model/API key/provider/thinking/headers/body/chunk/rewrite prompt/bilingual prompt), prefetch N, typography (font/size/line height), reading theme (`Màu nền` in Reader sheet, not in Settings list) — see `settings-management.md` Flow step 2.
+UI groups: catalog address, AI (URL AI/model/API key/provider/thinking/headers/body/chunk/rewrite prompt/bilingual prompt), audio (Apple/API source, API-only key/model), prefetch N, typography (font/size/line height), reading theme (`Màu nền` in Reader sheet, not in Settings list) — see `settings-management.md` Flow step 2.
 
 ## Validation Rules
 
@@ -33,6 +36,7 @@ UI groups: catalog address, AI (URL AI/model/API key/provider/thinking/headers/b
 - **Headers/Body:** must be valid JSON object when non-empty; invalid → treated as empty, request proceeds without merge. No throw.
 - **Provider:** trim and lowercase; accept the families above. Auto resolves model identity, then provider host, then OpenAI-compatible fallback. See `ai-service.md`.
 - **API key:** allow empty; trim when sending, never display its value in the Settings row.
+- **Audio:** source normalizes whitespace/case; missing/unknown → Apple. Model trims and uses its own default when blank. Key may be empty in settings, but API playback rejects empty/embedded-newline keys before network. API fields are hidden, not erased, while Apple is selected. No network on edit/launch. See `audio-service.md`.
 - **Thinking:** trim and lowercase; empty means provider default, not none. Invalid values sanitize to empty. Unsupported model values are not rewritten.
 - **Prompts:** each uses its own default when blank. `AI_PROMPT` remains independent from `AI_BILINGUAL_PROMPT`; changing either does not invalidate cache (manual reprocess only).
 - **Prefetch N parsing (one shared trim rule):** trim surrounding whitespace, then `Int`, then finite-`Double` truncation — so `" 20"`, `"20 "`, `"20.0"`/`"20.9"`→`20`, `"1e3"`→`1000`, `"+20"`→`20`. Shared by editor validation, `setValue`, and `intValue` for `PREFETCH_COUNT` only (chunk size still parses strict `Int`). Nothing numeric (or non-finite like `nan`/`inf`) → parse failure.
@@ -58,7 +62,7 @@ There is no legacy migration. Unknown keys — including any `COPILOT`/`DEEPSEEK
 
 ## Avoid
 
-- Store credentials only in `AI_API_KEY` or custom JSON settings; never log or document their values.
+- Store credentials only in `AI_API_KEY`, `AUDIO_API_KEY` or custom JSON settings; never log or document their values.
 - Do not add migration for old keys.
 - Do not use `Keychain` for these keys.
 

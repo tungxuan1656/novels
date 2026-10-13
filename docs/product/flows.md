@@ -42,7 +42,7 @@ Request → User selects Bản gốc (`none`), Dịch (`rewrite`) or Song ngữ 
 - Processed modes → Check cache by book/chapter/selected mode. Dịch renders plain text; Song ngữ validates the stored version and renders ordered VI/EN pairs. Never borrow another mode.
 - Miss → Exclude title, split body into bounded chunks, and call the selected independent prompt. Rewrite joins text in order. Bilingual assigns source IDs before batching, validates every pair, restores source order, and assembles one versioned JSON payload. Only complete success writes cache. Transport retries remain per [ai-service](../contracts/ai-service.md); no semantic repair loop.
 - Failure, invalid payload or empty output → Error and raw fallback, no new cache write. Manual reprocessing affects only the selected mode and preserves old cache on failure.
-- In Song ngữ → Tap an English paragraph → Select sentence in learning sheet → local speech or explicit online Google browser sheet. Speech stops on dismissal, chapter/mode change, reprocessing, backgrounding and reader exit. See [bilingual-learning](functional-specs/bilingual-learning.md).
+- In Song ngữ → Tap an English paragraph → Select sentence in learning sheet → configured Apple/API speech or explicit online Google browser sheet. API playback warns of transmission/possible charges and shows loading/errors; Stop cancels pending work. Speech stops on dismissal, chapter/mode change, reprocessing, backgrounding and reader exit. See [bilingual-learning](functional-specs/bilingual-learning.md).
 
 ### 6 — Prefetch Background
 
@@ -54,7 +54,7 @@ Runs only when current chapter ready, book exists, mode != `none`.
 
 ### 7 — Settings
 
-Request → User opens Settings → System shows groups: catalog, AI, download, prefetch, typography.
+Request → User opens Settings → System shows groups: catalog, AI, audio, prefetch, typography.
 - Request → Edit → Validate and persist to persistent settings store.
 - On launch → Sanitize. If values are invalid or missing, use defaults (catalog URL, AI `gpt-4o`, N=3, chunk 1300, provider `openai`).
 

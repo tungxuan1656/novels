@@ -67,3 +67,11 @@
 - **Context:** Plain interleaved model output can omit, repeat or reorder translations; English should not disrupt Vietnamese-only reading.
 - **Decision:** Keep Bản gốc / Dịch / Song ngữ independent. Bilingual uses app-assigned IDs, validated VI/EN JSON pairs and a mode-specific prompt in the existing cache. English appearance derives from Vietnamese settings. A paragraph opens on-demand sentence speech and explicit Google lookup in a system browser sheet. See [bilingual-learning](functional-specs/bilingual-learning.md).
 - **Consequence:** No old rewrite-cache deletion or borrowed translations; manual reprocess is the recovery path. Shape checks cannot guarantee semantic fidelity. Installed speech stays local; Google receives the chosen sentence only after a user action and requires network. No per-word dictionary, language-detection migration, separate English styling group or API MP3 pipeline.
+
+### D8 — Optional Configurable Sentence Audio
+
+- **Date:** 2026-10-13
+- **Status:** Accepted by user before implementation
+- **Context:** Readers can prefer provider speech quality while keeping Apple speech as the offline default.
+- **Decision:** Extend D7 with exactly three independent audio settings: Apple/API source, a separate API key, and model. API audio sends only the selected sentence after an explicit tap to the supplied fixed HTTPS endpoint. See [audio service](../contracts/audio-service.md).
+- **Consequence:** API speech needs network and may incur charges. Stop cancels pending loading as well as playback. No automatic retries, persisted audio cache, whole-chapter synthesis or implicit Apple fallback on API errors.

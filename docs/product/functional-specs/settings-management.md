@@ -1,11 +1,11 @@
 # Settings Management
 
-> Stores, restores, and sanitizes current settings for catalog, AI, prefetch, and typography. No legacy migration.
+> Stores, restores, and sanitizes current settings for catalog, AI, audio, prefetch, and typography. No legacy migration.
 
 ## Flow (ordered steps actor / system)
 
 1. On launch, system restores current settings from `UserDefaults` via `@Observable` store. Missing or invalid values are sanitized to defaults before features read them. Unknown and legacy keys are ignored.
-2. Actor opens Settings. System shows groups: catalog address, AI (URL AI, model, masked API key, Auto/manual provider, thinking, custom headers/body, unit size, separate Vietnamese and bilingual prompts), prefetch N, typography (font, size, line height).
+2. Actor opens Settings. System shows groups: catalog address, AI (URL AI, model, masked API key, Auto/manual provider, thinking, custom headers/body, unit size, separate Vietnamese and bilingual prompts), audio (Apple/API source with API-only masked key and model), prefetch N, typography (font, size, line height).
 3. Actor edits a value. System validates and saves to `UserDefaults` via the `@Observable` store. Next operation uses the new value.
 4. Invalid edits fallback to defaults on next launch without crashing. Typography restores on launch to style the reader. No network at launch.
 
@@ -17,6 +17,7 @@
 - Only current keys exist. Unknown and legacy keys are ignored and defaults apply (no migration) ([business-rules.md](../business-rules.md) BR-12, `../../contracts/settings-schema.md`).
 - Typography persists via `UserDefaults` and applies to every render. Missing values use defaults ([business-rules.md](../business-rules.md) BR-11).
 - Prefetch N only respects 0..1000, else 3 ([business-rules.md](../business-rules.md) BR-08).
+- Audio source/key/model persist independently of AI settings. Apple is default; unknown source resets to Apple and blank model to the supplied default. Hidden API fields retain their values. API key uses SecureField and never displays its value in a row; edits do not call network. See [settings schema](../../contracts/settings-schema.md).
 - AI reading mode persists app-wide via `AI_MODE` (default `none`); unknown or missing → `none`.
 
 ## States
@@ -45,7 +46,7 @@
 ## Acceptance
 
 - [ ] Launch restores current settings and replaces invalid or missing values with defaults. Unknown and legacy keys are ignored.
-- [ ] Editing catalog, AI, prefetch, or typography persists via `UserDefaults` + `@Observable` and survives restart.
+- [ ] Editing catalog, AI, audio, prefetch, or typography persists via `UserDefaults` + `@Observable` and survives restart.
 - [ ] Unknown provider or empty prompt corrects to `auto` and mode-specific defaults.
 - [ ] Existing configuration stays intact; API key is masked and custom Authorization wins.
 - [ ] Auto identifies provider without changing endpoint transport or guessing model capabilities.

@@ -20,11 +20,17 @@ struct SettingEditorView: View {
             }
             .listRowBackground(DesignTokens.surface)
             Section("Giá trị") {
-                if descriptor.key == "AI_API_KEY" {
+                if descriptor.key == "AI_API_KEY" || descriptor.key == "AUDIO_API_KEY" {
                     SecureField(descriptor.placeholder, text: $draft)
                         .autocorrectionDisabled(true)
                         .textInputAutocapitalization(.never)
-                        .accessibilityLabel("API key (Bearer)")
+                        .accessibilityLabel(descriptor.label)
+                } else if descriptor.key == "AUDIO_SOURCE" {
+                    Picker("Nguồn audio", selection: $draft) {
+                        ForEach(AudioSource.allCases, id: \.rawValue) { source in
+                            Text(source.title).tag(source.rawValue)
+                        }
+                    }
                 } else if descriptor.key == "AI_PROVIDER" {
                     Picker("Nhà cung cấp", selection: $draft) {
                         ForEach(AIProvider.allCases, id: \.rawValue) { provider in

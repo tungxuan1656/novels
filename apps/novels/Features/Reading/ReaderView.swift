@@ -139,7 +139,7 @@ struct ReaderView: View {
                 .preferredColorScheme(theme.preferredColorScheme)
         }
         .sheet(item: $learningParagraph, onDismiss: { speech.stop() }, content: { paragraph in
-            EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech)
+            EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech, settings: settingsStore)
                 .presentationDetents([.medium, .large])
         })
         .onChange(of: viewModel.aiMode) { _, _ in dismissLearning() }

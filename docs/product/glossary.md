@@ -16,7 +16,7 @@
 | **AI Prompt** | Independent configurable system prompts: `AI_PROMPT` for Vietnamese translation and `AI_BILINGUAL_PROMPT` for bilingual pairs. Empty → that mode’s default. Bilingual pairing protocol is app-owned. |
 | **AI Mode** | Active reading mode: Bản gốc (`none`), Dịch (`rewrite`) or Song ngữ (`bilingual`). Results are independent. |
 | **Bilingual Paragraph** | One app-assigned source ID with Vietnamese `vi` and English `en`; rendered VI then EN. |
-| **English Learning** | On-demand sentence sheet with local system speech and explicit Google lookup, not a dictionary or automatic web request. |
+| **English Learning** | On-demand sentence sheet with configured Apple/API speech and explicit Google lookup, not a dictionary or automatic web request. |
 | **Reading Session** | Persisted position: `bookId`, `onScreen` flag, and `scrollOffset`. It drives launch routing. |
 | **Typography Setting** | Reader appearance: `font`, `fontSize`, and `lineHeight`. |
 | **Prefetch Status** | Runtime progress of background prefetch: running flag, totals, processed count, and errors. |

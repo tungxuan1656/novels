@@ -18,8 +18,8 @@
 
 - Each VI paragraph precedes its EN counterpart. VI uses current typography. EN uses system regular, size `max(12, viSize - 2)`, the same added point line spacing, and theme muted color at full opacity. No separate English typography settings or VI-only filter within bilingual mode.
 - Reading settings explain: `Tiếng Anh dùng font hệ thống, cỡ chữ nhỏ hơn và màu nhẹ hơn.` Appearance changes stay local without AI calls.
-- Tap an English paragraph to open a learning sheet. Split sentences locally only on opening; each offers local speech and `Tra cứu Google · Online`. No per-word views, dictionary, automatic lookup or generated audio files. Tokenization is heuristic.
-- Speech uses AVSpeechSynthesizer and an available English voice. New speech stops old speech. Stop on chapter/mode/content change, reader disappearance, sheet dismissal or backgrounding. No English voice shows an actionable unavailable message, not another-language fallback. Quality/offline availability require device verification.
+- Tap an English paragraph to open a learning sheet. Split sentences locally only on opening; each offers configured Apple/API speech and `Tra cứu Google · Online`. No per-word views, dictionary, automatic lookup or saved audio files. Tokenization is heuristic.
+- Speech defaults to AVSpeechSynthesizer and an available English voice. Settings can select API audio with its own key/model; only tapping Nghe sends the chosen sentence, with online/cost notice, loading and error feedback. No automatic retries, audio cache or implicit Apple fallback. New speech stops old speech; stop also cancels pending API work on chapter/mode/content change, reader disappearance, sheet dismissal, Google lookup, source change or backgrounding. Missing English voices show a download hint. See [audio contract](../../contracts/audio-service.md); device/provider playback remains a release check.
 - Google opens encoded HTTPS Search in SFSafariViewController in a sheet, sending only the selected sentence plus a Vietnamese explanation request. Explain that tapping sends that sentence to Google and needs internet. No scraping, guaranteed AI Overview, whole-chapter upload or custom browser session.
 
 ## Acceptance
@@ -28,7 +28,7 @@
 - Out-of-order chunk responses yield one ordered chapter; malformed/missing pairs never yield partial cache.
 - Switching/reprocessing never publishes stale content from another chapter/mode.
 - Content stays readable in five themes at typography bounds; learning preserves reading gestures.
-- Cached reading and available speech work offline; explicit Google lookup is online.
+- Cached reading and installed Apple speech work offline; API audio and explicit Google lookup are online.
 
 ## Sources
 

@@ -44,6 +44,14 @@ struct SettingsView: View {
                     value: "\(settings.aiMinChunkSize)"
                 )
             }
+            Section("Audio") {
+                row(key: "AUDIO_SOURCE", label: "Nguồn audio", value: settings.audioSource.title)
+                if settings.audioSource == .api {
+                    row(key: "AUDIO_API_KEY", label: "API key audio",
+                        value: SettingsViewModel.apiKeyRowValue(settings, key: "AUDIO_API_KEY"))
+                    row(key: "AUDIO_MODEL", label: "Model audio", value: settings.audioModel)
+                }
+            }
             Section("Tải trước") {
                 row(
                     key: "PREFETCH_COUNT",

@@ -14,9 +14,15 @@ struct SettingDescriptor {
             case "BOOKS_API_URL", "OPENAI_API_URL":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 return trimmed.isEmpty ? "URL không được để trống" : nil
-            case "OPENAI_MODEL":
+            case "OPENAI_MODEL", "AUDIO_MODEL":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
                 return trimmed.isEmpty ? "Mô hình không được để trống" : nil
+            case "AUDIO_SOURCE":
+                let raw = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                return AudioSource(rawValue: raw) == nil ? "Nguồn audio không hợp lệ" : nil
+            case "AUDIO_API_KEY":
+                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.contains(where: \.isNewline) ? "API key không được chứa dòng mới" : nil
             case "AI_PROVIDER":
                 return AIProvider.normalized(value) == nil ? "Nhà cung cấp không hợp lệ" : nil
             case "AI_THINKING_EFFORT":
@@ -25,9 +31,7 @@ struct SettingDescriptor {
                     ? nil : "Chọn none, low, medium hoặc high"
             case "AI_CUSTOM_HEADERS", "AI_EXTRA_BODY":
                 let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmed.isEmpty {
-                    return nil
-                }
+                guard !trimmed.isEmpty else { return nil }
                 guard let data = value.data(using: .utf8),
                       let obj = try? JSONSerialization.jsonObject(with: data),
                       obj is [String: Any]
@@ -196,6 +200,30 @@ enum SettingsViewModel {
             defaultValue: SettingsDefaults.defaultBilingualPrompt,
             allowsVerbatimSave: false
         ),
+        "AUDIO_SOURCE": SettingDescriptor(
+            key: "AUDIO_SOURCE",
+            label: "Nguồn audio",
+            placeholder: "apple",
+            description: "Apple dùng giọng trên thiết bị. API gửi câu bạn chọn qua Internet, có thể tính phí.",
+            defaultValue: AudioSource.apple.rawValue,
+            allowsVerbatimSave: false
+        ),
+        "AUDIO_API_KEY": SettingDescriptor(
+            key: "AUDIO_API_KEY",
+            label: "API key audio",
+            placeholder: "API key",
+            description: "Bearer key riêng cho API audio, không dùng key AI. Để trống khi chưa thiết lập.",
+            defaultValue: "",
+            allowsVerbatimSave: false
+        ),
+        "AUDIO_MODEL": SettingDescriptor(
+            key: "AUDIO_MODEL",
+            label: "Model audio",
+            placeholder: AudioSource.defaultModel,
+            description: "Tên model tại API audio. Mặc định dùng giọng William tiếng Anh (Úc).",
+            defaultValue: AudioSource.defaultModel,
+            allowsVerbatimSave: false
+        ),
         "PREFETCH_COUNT": SettingDescriptor(
             key: "PREFETCH_COUNT",
             label: "Số chương tải trước",
@@ -251,8 +279,9 @@ enum SettingsViewModel {
     }
 
     @MainActor
-    static func apiKeyRowValue(_ store: SettingsStore) -> String {
-        store.aiAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Chưa thiết lập" : "Đã thiết lập"
+    static func apiKeyRowValue(_ store: SettingsStore, key: String = "AI_API_KEY") -> String {
+        store.value(forKey: key).trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? "Chưa thiết lập" : "Đã thiết lập"
     }
 
     @MainActor
