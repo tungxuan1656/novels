@@ -39,6 +39,7 @@ import Observation
     var prefetchCount: Int
     var aiMode: AIMode
     var bilingualEnglishPrimary = false
+    var bilingualHideOption: BilingualHideOption = .none
     var diagnosticsVerbose: Bool
     var readingTheme: ReadingTheme
     var typography: TypographySetting
@@ -134,6 +135,17 @@ import Observation
 
     private func loadDiagnosticsTypographySession() {
         bilingualEnglishPrimary = userDefaults.bool(forKey: DefaultsKeys.bilingualEnglishPrimary)
+        if let raw = userDefaults.string(forKey: DefaultsKeys.bilingualHideOption),
+           let option = BilingualHideOption(rawValue: raw) {
+            bilingualHideOption = option
+        } else {
+            bilingualHideOption = .none
+        }
+        if bilingualHideOption == .vietnamese {
+            bilingualEnglishPrimary = true
+        } else if bilingualHideOption == .english {
+            bilingualEnglishPrimary = false
+        }
         if userDefaults.object(forKey: DefaultsKeys.diagnosticsVerbose) != nil {
             diagnosticsVerbose = userDefaults.bool(forKey: DefaultsKeys.diagnosticsVerbose)
         }
@@ -345,6 +357,7 @@ import Observation
         userDefaults.set(prefetchCount, forKey: DefaultsKeys.prefetchCount)
         userDefaults.set(aiMode.rawValue, forKey: DefaultsKeys.aiMode)
         userDefaults.set(bilingualEnglishPrimary, forKey: DefaultsKeys.bilingualEnglishPrimary)
+        userDefaults.set(bilingualHideOption.rawValue, forKey: DefaultsKeys.bilingualHideOption)
         userDefaults.set(readingTheme.rawValue, forKey: DefaultsKeys.readingTheme)
         userDefaults.set(diagnosticsVerbose, forKey: DefaultsKeys.diagnosticsVerbose)
         userDefaults.set(typography.font, forKey: DefaultsKeys.font)
@@ -435,5 +448,18 @@ import Observation
             return num.doubleValue
         }
         return nil
+    }
+
+    func setBilingualHideOption(_ option: BilingualHideOption) {
+        bilingualHideOption = option
+        switch option {
+        case .vietnamese:
+            bilingualEnglishPrimary = true
+        case .english:
+            bilingualEnglishPrimary = false
+        case .none:
+            break
+        }
+        save()
     }
 }

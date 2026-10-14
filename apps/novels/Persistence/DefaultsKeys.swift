@@ -16,6 +16,7 @@ enum DefaultsKeys {
     static let prefetchCount = "PREFETCH_COUNT"
     static let aiMode = "AI_MODE"
     static let bilingualEnglishPrimary = "bilingualEnglishPrimary"
+    static let bilingualHideOption = "bilingualHideOption"
     static let font = "font"
     static let fontSize = "fontSize"
     static let lineHeight = "lineHeight"
@@ -41,6 +42,7 @@ enum DefaultsKeys {
         prefetchCount,
         aiMode,
         bilingualEnglishPrimary,
+        bilingualHideOption,
         font,
         fontSize,
         lineHeight,
