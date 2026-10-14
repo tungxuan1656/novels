@@ -1,6 +1,6 @@
 # Bilingual Partial Language Hiding
 
-- Status: active
+- Status: done
 - Owner: Agent
 - Required to start: none
 - Required to integrate/release: `./init.sh` passing
@@ -17,15 +17,15 @@ Scope:
 
 ## Acceptance
 
-- [ ] "Ẩn một phần" picker appears in reader bottom sheet when bilingual mode is active, positioned directly below "Ngôn ngữ chính".
-- [ ] Values provided: "Không", "Tiếng Việt", "Tiếng Anh".
-- [ ] Selecting "Tiếng Việt" hides Vietnamese paragraphs/sentences and ensures English is set as primary language.
-- [ ] Selecting "Tiếng Anh" hides English paragraphs/sentences and ensures Vietnamese is set as primary language.
-- [ ] Selecting "Không" displays both languages as normal.
-- [ ] If primary language is changed while a language is hidden or if hiding is selected, the primary language rule is upheld.
-- [ ] Settings persist appropriately.
-- [ ] Unit tests added/updated for hiding logic and primary language auto-switch.
-- [ ] Full `./init.sh` passes.
+- [x] "Ẩn một phần" picker appears in reader bottom sheet when bilingual mode is active, positioned directly below "Ngôn ngữ chính".
+- [x] Values provided: "Không", "Tiếng Việt", "Tiếng Anh".
+- [x] Selecting "Tiếng Việt" hides Vietnamese paragraphs/sentences and ensures English is set as primary language.
+- [x] Selecting "Tiếng Anh" hides English paragraphs/sentences and ensures Vietnamese is set as primary language.
+- [x] Selecting "Không" displays both languages as normal.
+- [x] If primary language is changed while a language is hidden or if hiding is selected, the primary language rule is upheld.
+- [x] Settings persist appropriately.
+- [x] Unit tests added/updated for hiding logic and primary language auto-switch.
+- [x] Full `./init.sh` passes.
 
 ## Sources and Plan
 
@@ -42,7 +42,7 @@ Scope:
      - `.vietnamese` -> `bilingualEnglishPrimary = true`
      - `.english` -> `bilingualEnglishPrimary = false`
      - `.none` -> preserves existing primary language.
-   - Commit: `feat(settings): add bilingual partial hide option and primary language synchronization`
+   - Commit: `feat(settings): add bilingual partial hide option and settings persistence`
 2. **Reader Bottom Sheet UI**:
    - Update `ReaderBottomSheet.swift` in `bilingualLanguageSection`:
      - Add "Ẩn một phần" segmented picker directly below "Ngôn ngữ chính".
@@ -63,5 +63,9 @@ Scope:
 
 ## Verification and Handoff
 
-- Evidence: to be captured after `./init.sh`.
-- Delivery: commits on `feat/bilingual-partial-hide`.
+- Evidence: `./init.sh` passes cleanly (SwiftFormat, SwiftLint with zero violations, xcodebuild build, xcodebuild test with zero failures on iPhone 17 Pro, OS=26.5).
+- Delivery: commits on branch `feat/bilingual-partial-hide`:
+  - `9be367f` feat(settings): add bilingual partial hide option and settings persistence
+  - `155a214` feat(reader): add partial hide picker to bilingual reader bottom sheet
+  - `d1746fd` feat(reader): support hiding vietnamese or english in bilingual view
+  - `4bfccb8` test(bilingual): add tests for bilingual hide option and language synchronization
