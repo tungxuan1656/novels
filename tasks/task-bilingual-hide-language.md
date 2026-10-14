@@ -21,6 +21,7 @@ Scope:
 - [x] Values provided: "Không", "Tiếng Việt", "Tiếng Anh".
 - [x] Selecting "Tiếng Việt" hides Vietnamese paragraphs/sentences and ensures English is set as primary language.
 - [x] Selecting "Tiếng Anh" hides English paragraphs/sentences and ensures Vietnamese is set as primary language.
+- [x] When English is hidden, Vietnamese paragraphs remain interactive (button) so users can tap to open English learning sheet.
 - [x] Selecting "Không" displays both languages as normal.
 - [x] If primary language is changed while a language is hidden or if hiding is selected, the primary language rule is upheld.
 - [x] Settings persist appropriately.

@@ -21,9 +21,24 @@ struct BilingualReaderBody: View {
             ForEach(paragraphs) { paragraph in
                 VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
                     if hideOption != .vietnamese {
-                        Text(verbatim: paragraph.vi)
-                            .font(englishPrimary ? secondaryFont : primaryFont)
-                            .foregroundStyle(englishPrimary ? theme.textMuted : theme.textPrimary)
+                        if hideOption == .english {
+                            Button {
+                                onSelect(paragraph)
+                            } label: {
+                                Text(verbatim: paragraph.vi)
+                                    .font(englishPrimary ? secondaryFont : primaryFont)
+                                    .foregroundStyle(englishPrimary ? theme.textMuted : theme.textPrimary)
+                                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Mở các câu tiếng Anh để nghe hoặc tra cứu Google")
+                            .accessibilityIdentifier("vietnamese-\(paragraph.id)")
+                        } else {
+                            Text(verbatim: paragraph.vi)
+                                .font(englishPrimary ? secondaryFont : primaryFont)
+                                .foregroundStyle(englishPrimary ? theme.textMuted : theme.textPrimary)
+                        }
                     }
                     if hideOption != .english {
                         Button {
