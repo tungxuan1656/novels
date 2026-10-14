@@ -162,6 +162,7 @@ struct ReaderView: View {
                 BilingualReaderBody(
                     paragraphs: paragraphs, typography: settingsStore.typography, theme: theme,
                     englishPrimary: settingsStore.bilingualEnglishPrimary,
+                    hideOption: settingsStore.bilingualHideOption,
                     onSelect: { learningParagraph = $0 }
                 )
             } else if let processed = viewModel.currentProcessedContent, !processed.isEmpty {
