@@ -25,6 +25,87 @@ final class BilingualSettingsTests: XCTestCase {
         }
     }
 
+    // MARK: - BilingualHideOption
+
+    func testBilingualHideOptionCasesAndTitles() {
+        XCTAssertEqual(BilingualHideOption.allCases, [.none, .vietnamese, .english])
+        XCTAssertEqual(BilingualHideOption.none.rawValue, "none")
+        XCTAssertEqual(BilingualHideOption.vietnamese.rawValue, "vietnamese")
+        XCTAssertEqual(BilingualHideOption.english.rawValue, "english")
+
+        XCTAssertEqual(BilingualHideOption.none.title, "Không")
+        XCTAssertEqual(BilingualHideOption.vietnamese.title, "Tiếng Việt")
+        XCTAssertEqual(BilingualHideOption.english.title, "Tiếng Anh")
+    }
+
+    func testBilingualHideOptionCodableRoundTrip() throws {
+        for option in BilingualHideOption.allCases {
+            let encoded = try JSONEncoder().encode(option)
+            let decoded = try JSONDecoder().decode(BilingualHideOption.self, from: encoded)
+            XCTAssertEqual(decoded, option)
+        }
+    }
+
+    func testDefaultsKeysIncludesBilingualHideOption() {
+        XCTAssertEqual(DefaultsKeys.bilingualHideOption, "bilingualHideOption")
+        XCTAssertTrue(DefaultsKeys.allCurrent.contains(DefaultsKeys.bilingualHideOption))
+    }
+
+    func testBilingualHideOptionDefaultsAndPersistence() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+            XCTAssertEqual(store.bilingualHideOption, .none)
+
+            store.setBilingualHideOption(.vietnamese)
+            let restored = SettingsStore(userDefaults: defaults)
+            XCTAssertEqual(restored.bilingualHideOption, .vietnamese)
+            XCTAssertTrue(restored.bilingualEnglishPrimary)
+
+            restored.setBilingualHideOption(.english)
+            let restored2 = SettingsStore(userDefaults: defaults)
+            XCTAssertEqual(restored2.bilingualHideOption, .english)
+            XCTAssertFalse(restored2.bilingualEnglishPrimary)
+
+            restored2.setBilingualHideOption(.none)
+            let restored3 = SettingsStore(userDefaults: defaults)
+            XCTAssertEqual(restored3.bilingualHideOption, .none)
+            XCTAssertFalse(restored3.bilingualEnglishPrimary)
+        }
+    }
+
+    func testHidingLanguageAutomaticallySetsOtherAsPrimary() {
+        withDefaults { defaults in
+            let store = SettingsStore(userDefaults: defaults)
+
+            // Initially Vietnamese primary (bilingualEnglishPrimary == false)
+            XCTAssertFalse(store.bilingualEnglishPrimary)
+
+            // Hide Vietnamese -> English becomes primary
+            store.setBilingualHideOption(.vietnamese)
+            XCTAssertEqual(store.bilingualHideOption, .vietnamese)
+            XCTAssertTrue(store.bilingualEnglishPrimary)
+
+            // Hide English -> Vietnamese becomes primary
+            store.setBilingualHideOption(.english)
+            XCTAssertEqual(store.bilingualHideOption, .english)
+            XCTAssertFalse(store.bilingualEnglishPrimary)
+
+            // Make English primary while hidden option is none
+            store.setBilingualHideOption(.none)
+            XCTAssertFalse(store.bilingualEnglishPrimary) // unchanged by switching to none
+            store.bilingualEnglishPrimary = true
+            store.save()
+
+            // Hide Vietnamese again -> English remains primary
+            store.setBilingualHideOption(.vietnamese)
+            XCTAssertTrue(store.bilingualEnglishPrimary)
+
+            // Switching to none does not change primary language
+            store.setBilingualHideOption(.none)
+            XCTAssertTrue(store.bilingualEnglishPrimary)
+        }
+    }
+
     // MARK: - DefaultsKeys & SettingsDefaults
 
     func testDefaultsKeysIncludesBilingualPrompt() {
