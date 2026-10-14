@@ -1,5 +1,6 @@
 import SwiftUI
 
+// swiftlint:disable:next type_body_length
 struct ReaderBottomSheet: View {
     @Bindable var settingsStore: SettingsStore
     var viewModel: ReaderViewModel?
@@ -206,33 +207,65 @@ struct ReaderBottomSheet: View {
     }
 
     private var bilingualLanguageSection: some View {
-        HStack {
-            Text("Ngôn ngữ chính: \(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")")
-                .font(.subheadline)
-                .foregroundStyle(theme.textPrimary)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Ngôn ngữ chính: \(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.textPrimary)
 
-            Spacer()
+                Spacer()
 
-            Button {
-                settingsStore.bilingualEnglishPrimary.toggle()
-                settingsStore.save()
-            } label: {
-                Image(systemName: "arrow.left.arrow.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(theme.accentColor)
-                    .frame(width: 32, height: 32)
-                    .background(theme.chipBackground)
-                    .clipShape(Circle())
+                Button {
+                    settingsStore.bilingualEnglishPrimary.toggle()
+                    settingsStore.save()
+                } label: {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(theme.accentColor)
+                        .frame(width: 32, height: 32)
+                        .background(theme.chipBackground)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .a11yHitTarget()
+                .disabled(settingsStore.bilingualHideOption != .none)
+                .opacity(settingsStore.bilingualHideOption == .none ? 1 : 0.4)
+                .accessibilityIdentifier("swapBilingualLanguageButton")
+                .accessibilityLabel("Đổi ngôn ngữ chính")
+                .accessibilityValue(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")
+                .accessibilityHint(
+                    settingsStore.bilingualHideOption == .none
+                        ? "Hoán đổi ngôn ngữ chính và phụ"
+                        : "Không thể đổi khi đang ẩn một ngôn ngữ"
+                )
             }
-            .buttonStyle(.plain)
-            .a11yHitTarget()
-            .accessibilityIdentifier("swapBilingualLanguageButton")
-            .accessibilityLabel("Đổi ngôn ngữ chính")
-            .accessibilityValue(settingsStore.bilingualEnglishPrimary ? "Tiếng Anh" : "Tiếng Việt")
-            .accessibilityHint("Hoán đổi ngôn ngữ chính và phụ")
+            .frame(minHeight: 36)
+            .contentShape(Rectangle())
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Ẩn một phần")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.textPrimary)
+
+                Picker(
+                    "Ẩn một phần",
+                    selection: Binding(
+                        get: { settingsStore.bilingualHideOption },
+                        set: { newValue in
+                            settingsStore.setBilingualHideOption(newValue)
+                        }
+                    )
+                ) {
+                    ForEach(BilingualHideOption.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .accessibilityIdentifier("bilingualHidePicker")
+                .frame(minHeight: 36)
+            }
         }
-        .frame(minHeight: 36)
-        .contentShape(Rectangle())
     }
 
     private func apiLogButton(viewModel: ReaderViewModel) -> some View {
