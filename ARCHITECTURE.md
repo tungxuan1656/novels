@@ -38,7 +38,7 @@ This is one app module; the folders are responsibility boundaries, not separate 
 - Persistence and services use domain models; they do not depend on feature views. Actors return results to UI coordination on the main actor.
 - `AIReadingService` and `PrefetchManager` share one processed-chapter cache and AI pipeline. No second AI cache.
 - Contracts own wire/storage rules; `docs/product/business-rules.md` owns business rules. Do not duplicate those rules here.
-- No SwiftData, Core Data, Swift package, Keychain, or BGTaskScheduler for these boundaries. See `docs/decisions/local-persistence.md`.
+- No SwiftData, Core Data, Swift package, or Keychain. iOS 26 continued processing is used only for explicitly user-started prefetch (see `docs/decisions/background-ai-processing.md`); automatic prefetch uses a brief UIKit assertion. See `docs/decisions/local-persistence.md`.
 - No persisted Network Logger. The in-session viewer follows redaction rules in `docs/decisions/diagnostic-log-viewer.md` and `SECURITY.md`.
 
 ## 4. Flows
@@ -48,7 +48,7 @@ This is one app module; the folders are responsibility boundaries, not separate 
 - **Library:** `LibraryViewModel` scans local books through the repository. Confirmed deletion removes the slug folder and related state. See `docs/product/functional-specs/book-library.md`.
 - **Reader:** `ReaderViewModel` loads source HTML or processed text. `HtmlParser` extracts title/body; `ReaderBodySplitter` prepares paragraph chunks for `ReaderView`. Navigation and scrolling persist per-book position through `SettingsStore`.
 - **AI:** Mode `none` uses source text; independent `rewrite` and `bilingual` check SQLite by slug, chapter, and selected mode. On a miss, `AIReadingService` de-duplicates work and processes chunks in parallel. `AIClient` makes at most two attempts per chunk. Rewrite joins ordered text. Bilingual validates source IDs and nonempty VI/EN pairs, then serializes one versioned chapter; only a complete successful result enters cache. See `docs/contracts/ai-service.md`.
-- **Prefetch:** `PrefetchManager` batch-checks cache, then processes chapters sequentially through the same AI pipeline. Same-book/mode navigation reconciles the FIFO queue; book/mode changes or explicit cancellation end it. An unsuccessful chapter can be requeued once. See `docs/product/functional-specs/chapter-prefetch.md`.
+- **Prefetch:** App-shared `PrefetchManager` batch-checks cache, then processes chapters sequentially through the same AI pipeline. Same-book/mode navigation reconciles the FIFO queue; book/mode changes or explicit cancellation end it. An unsuccessful chapter can be requeued once. See `docs/product/functional-specs/chapter-prefetch.md`.
 - **Sentence speech:** `ReaderSpeech` owns local synthesis or cancellable `AudioSpeechClient` requests and in-memory AVAudioPlayer playback. Explicit taps only; independent source/key/model settings. See `docs/contracts/audio-service.md`.
 - **Settings:** `SettingsStore` sanitizes persisted values, uses defaults for invalid values, and stores validated edits in UserDefaults. See `docs/contracts/settings-schema.md`.
 
