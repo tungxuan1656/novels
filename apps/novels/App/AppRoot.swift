@@ -67,6 +67,7 @@ struct AppRoot: View {
             if newPhase == .background || newPhase == .inactive {
                 settingsStore.save()
             }
+            BackgroundAIExecution.shared.sceneChanged(isBackground: newPhase == .background)
         }
         .task {
             router.restoreInitialRoute()
