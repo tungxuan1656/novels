@@ -18,6 +18,7 @@ Use descriptive task slugs for new approved work; do not continue the legacy num
 - [Navigation performance](task-navigation-performance.md).
 - [Reader cancellation and diagnostic outcomes](task-reader-diagnostics-cancellation.md).
 - [AI log and cache organization](task-ai-log-cache-organization.md).
+- [PR 45 background-prefetch lifecycle repairs](task-pr45-background-prefetch-lifecycle.md).
 
 ## AI Configuration
 

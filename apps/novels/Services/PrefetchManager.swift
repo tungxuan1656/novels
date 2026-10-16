@@ -2,24 +2,42 @@ import Foundation
 
 // swiftlint:disable:next type_body_length
 actor PrefetchManager {
+    static let shared = PrefetchManager()
     static let perChapterBudget: TimeInterval = 600
     static let globalBudget: TimeInterval = 1800
 
     private var task: Task<Void, Never>?
     private var generation = 0
     private var statusValue: PrefetchStatus = .idle
+    private var continuedUpdates: AsyncStream<PrefetchStatus>.Continuation?
 
-    /// Durable FIFO queue for the running batch (feat-024 Phase 1): same
-    /// book+mode starts keep the running task (keep ∩ + append tail); cancel
-    /// happens only on book/mode change, explicit cancel, or deletion.
+    struct ContinuedBatch {
+        let generation: Int
+        let updates: AsyncStream<PrefetchStatus>
+    }
+
+    func protectCurrentBatch() -> ContinuedBatch? {
+        guard statusValue.isRunning, task != nil, continuedUpdates == nil else { return nil }
+        let (updates, continuation) = AsyncStream<PrefetchStatus>.makeStream()
+        continuedUpdates = continuation
+        continuation.yield(statusValue)
+        return ContinuedBatch(generation: generation, updates: updates)
+    }
+
+    func releaseProtection(generation expectedGeneration: Int) {
+        guard generation == expectedGeneration else { return }
+        continuedUpdates?.finish()
+        continuedUpdates = nil
+    }
+
+    /// FIFO per book/mode, reconciled across chapter navigation.
     private var activeBookId: String?
     private var activeMode: AIMode?
     private var pending: [Int] = []
     private var inFlight: Int?
     private var batchFinished = true
     private var bookEndRemaining: Int? // Window size when it reaches the book end (end-of-book message).
-    /// Per-chapter tail-requeue attempts in the live queue (default 0);
-    /// a chapter is requeued at most once, then recorded and dropped.
+    /// At most one tail-requeue per chapter.
     private var attempts: [Int: Int] = [:]
     /// Reconciled-window counts for the existing batchCheck log detail.
     typealias WindowKept = (overlapKept: Int, topUpAdded: Int)
@@ -28,12 +46,13 @@ actor PrefetchManager {
         statusValue
     }
 
-    func cancel(reason: String = "manual") async {
-        generation += 1
-        task?.cancel()
-        task = nil
-        resetWindowState()
-        batchFinished = true
+    func cancel(
+        reason: String = "manual", generation expectedGeneration: Int? = nil,
+        unlessContinued: Bool = false
+    ) async {
+        guard expectedGeneration == nil || expectedGeneration == generation else { return }
+        guard !unlessContinued || continuedUpdates == nil else { return }
+        invalidateActiveBatch()
         statusValue.isRunning = false
         statusValue.message = "Đã hủy"
         await DiagnosticsLog.shared.append(LogEntry(
@@ -85,9 +104,10 @@ actor PrefetchManager {
             await skipAsIdle(bookId: bookId, chapterNumber: currentChapter, mode: mode, reason: "invalidRange")
             return
         }
+        let requestedGeneration = generation
         let effectiveN: Int = await MainActor.run { settings.effectivePrefetchCount() }
-        // feat-024 Phase 3 (single N): no runtime hardCap; the public
-        // 0...1000-else-3 policy is the only bound, paced sequentially.
+        guard generation == requestedGeneration, !Task.isCancelled else { return }
+        // N is validated by SettingsStore; the worker is sequential.
         let appliedN = effectiveN
         let range = windowRange(currentChapter: currentChapter, effectiveN: appliedN, totalChapters: totalChapters)
         guard !range.isEmpty else {
@@ -109,9 +129,7 @@ actor PrefetchManager {
         do {
             misses = try missList(cache: cache, bookId: bookId, mode: mode, range: range)
         } catch {
-            // Query failure keeps prior state (never miss-all): log on the
-            // existing error-continue event and return without touching the
-            // running batch or status.
+            // Do not turn a failed cache query into a bulk refetch.
             await logPrefetch(
                 event: "prefetch.error-continue",
                 bookId: bookId,
@@ -121,20 +139,13 @@ actor PrefetchManager {
             )
             return
         }
-        // P-Important-1: assign AFTER the query succeeds — the early return
-        // above must not mutate shared window state read by finish().
-        bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
-        // Log-only transparency fields (feat-024 Phase 3 single N): storedN is
-        // raw stored, effectiveN is the single consumed N. No runtime cap.
         let storedN: Int = await MainActor.run { settings.prefetchCount }
-        // Overlap-preserving top-up (feat-024 Phase 1 queue): same book+mode
-        // with a running batch keeps the task; the window is reconciled
-        // (keep ∩ + append tail) instead of restarting.
+        guard generation == requestedGeneration, !Task.isCancelled else { return }
+        bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
+        // Same book/mode: preserve overlap and append only missing tail.
         if activeBookId == bookId, activeMode == mode, task != nil, !batchFinished {
             let kept = ensureWindow(cur: currentChapter, appliedN: appliedN, total: totalChapters, misses: misses)
-            // PR 26 review (parked M4): recompute instead of accumulating —
-            // ensureWindow drops out-of-window entries, so `+= topUpAdded`
-            // inflated total unbounded on steady reading and far jumps.
+            // Recompute after reconcile; do not accumulate stale counts.
             statusValue.totalChapters = statusValue.processedChapters + pending.count + (inFlight == nil ? 0 : 1)
             statusValue.currentBookId = bookId
             await logPrefetch(
@@ -151,8 +162,7 @@ actor PrefetchManager {
             )
             return
         }
-        // Clean restart (new book/mode): cancel + bump so the stale batch
-        // can no longer publish (testCancellationStopsRemaining).
+        // A new book/mode invalidates the old worker before publishing.
         invalidateActiveBatch()
         let currentGeneration = generation
         pending = misses
@@ -172,9 +182,9 @@ actor PrefetchManager {
                 extra: ""
             )
         )
+        guard generation == currentGeneration, !Task.isCancelled else { return }
         guard !misses.isEmpty else {
-            // P-Minor-a: no batch spawned here — mark finished so a stale task
-            // can never satisfy the top-up keep invariant (task != nil).
+            // No worker exists for an all-cached window.
             batchFinished = true
             statusValue = PrefetchStatus(
                 isRunning: false, currentBookId: bookId, totalChapters: range.count,
@@ -198,6 +208,7 @@ actor PrefetchManager {
             let batchStart = Date()
             var processed = 0
             var errors: [String] = []
+            var stoppedEarly = false
             // Chapter-sequential: shared queue so navigates can reconcile mid-run.
             while let number = await self.nextChapter(generation: currentGeneration) {
                 if Task.isCancelled {
@@ -208,6 +219,7 @@ actor PrefetchManager {
                         currentGeneration: currentGeneration,
                         reason: "chapterChange"
                     )
+                    stoppedEarly = true
                     break
                 }
                 let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
@@ -219,6 +231,7 @@ actor PrefetchManager {
                         mode: mode.rawValue,
                         detail: "reason=bookDeleted"
                     )
+                    stoppedEarly = true
                     break
                 }
                 if Date().timeIntervalSince(batchStart) > Self.globalBudget {
@@ -229,6 +242,7 @@ actor PrefetchManager {
                         mode: mode.rawValue,
                         detail: "reason=budgetExhausted scope=global"
                     )
+                    stoppedEarly = true
                     break
                 }
                 let itemStart = Date()
@@ -275,9 +289,7 @@ actor PrefetchManager {
                     )
                     continue
                 }
-                // No extra cancel check here: a cancelled task throws
-                // CancellationError from processedContent below (same
-                // logCancel + break), and the loop-top check stops the rest.
+                // processedContent checks cancellation before starting AI work.
                 do {
                     _ = try await aiService.processedContent(
                         bookId: bookId,
@@ -295,6 +307,7 @@ actor PrefetchManager {
                             mode: mode.rawValue,
                             detail: "reason=budgetExhausted scope=perChapter"
                         )
+                        stoppedEarly = true
                         break
                     }
                     processed += 1
@@ -307,12 +320,10 @@ actor PrefetchManager {
                         currentGeneration: currentGeneration,
                         reason: "chapterChange"
                     )
+                    stoppedEarly = true
                     break
                 } catch {
-                    // No Task.isCancelled fork here: a stale batch cannot
-                    // publish (finish/updateStatus are generation-guarded) and
-                    // the loop-top check breaks next iteration. The failure is
-                    // requeued at the tail at most once, then recorded.
+                    // Generation guards reject stale writes; retry once at the tail.
                     await self.requeueOrRecord(
                         number: number,
                         message: "Chương \(number): \(error.localizedDescription)",
@@ -334,7 +345,8 @@ actor PrefetchManager {
                 processed: processed,
                 errors: errors,
                 bookId: bookId,
-                generation: currentGeneration
+                generation: currentGeneration,
+                stoppedEarly: stoppedEarly
             )
             await self.clearTaskIfCurrent(generation: currentGeneration)
         }
@@ -394,16 +406,16 @@ actor PrefetchManager {
         range.last == totalChapters ? range.count : nil
     }
 
-    /// Cache-backed miss list; on query failure logs and returns nil so the
-    /// caller keeps prior state instead of refetching as miss-all.
+    /// Throw on cache failure; never turn it into a bulk refetch.
     private func missList(cache: ProcessedChapterCaching, bookId: String, mode: AIMode, range: [Int]) throws -> [Int] {
         let cached = try cache.batchStatus(bookId: bookId, mode: mode, numbers: range)
         return range.filter { !cached.contains($0) }
     }
 
-    /// Cancels any running batch and invalidates its window state, so a stale
-    /// batch can no longer publish. Used on restart and on early exits.
+    /// End protection immediately, even if a shared AI request is still running.
     private func invalidateActiveBatch() {
+        continuedUpdates?.finish()
+        continuedUpdates = nil
         task?.cancel()
         task = nil
         generation += 1
@@ -411,10 +423,7 @@ actor PrefetchManager {
         batchFinished = true
     }
 
-    /// FIFO window reconcile (feat-024 Phase 1): keep queued chapters inside
-    /// the new window, append only new-tail misses. Membership is rebuilt
-    /// from `pending` plus `inFlight` (no separate stored set to drift).
-    /// Returns kept/added counts for the existing batchCheck log detail.
+    /// Keep FIFO overlap and append only new misses, excluding the in-flight chapter.
     private func ensureWindow(cur: Int, appliedN: Int, total: Int, misses: [Int]) -> WindowKept {
         let range = windowRange(currentChapter: cur, effectiveN: appliedN, totalChapters: total)
         let window = Set(range)
@@ -428,9 +437,7 @@ actor PrefetchManager {
         return (overlapKept, freshTail.count)
     }
 
-    /// Tail-requeue bound (feat-024 Phase 1): a failed chapter returns to the
-    /// queue tail at most once; afterwards it is recorded in errors[] and
-    /// dropped so the worker keeps draining FIFO.
+    /// Retry once at the tail, then record the failure and keep draining.
     private func requeueOrRecord(number: Int, message: String, errors: inout [String]) {
         if attempts[number, default: 0] < 1 {
             attempts[number, default: 0] += 1
@@ -454,19 +461,21 @@ actor PrefetchManager {
         return number
     }
 
-    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) {
+    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) async {
         guard generation == targetGeneration else { return }
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
+        continuedUpdates?.yield(statusValue)
     }
 
     private func finish(
         processed: Int,
         errors: [String],
         bookId: String,
-        generation targetGeneration: Int
-    ) {
+        generation targetGeneration: Int,
+        stoppedEarly: Bool
+    ) async {
         guard generation == targetGeneration else { return }
         batchFinished = true
         resetWindowState()
@@ -475,7 +484,11 @@ actor PrefetchManager {
         statusValue.processedChapters = processed
         statusValue.errors = errors
         let tailMark = bookEndRemaining.map { " (còn \($0) chương cuối)" } ?? ""
-        statusValue.message = (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
+        statusValue.message = stoppedEarly
+            ? "Đã tạm dừng"
+            : (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
+        continuedUpdates?.yield(statusValue)
+        releaseProtection(generation: targetGeneration)
     }
 
     private func clearTaskIfCurrent(generation targetGeneration: Int) {
