@@ -71,7 +71,7 @@ final class ReaderViewModel {
         self.repository = repository
         self.settingsStore = settingsStore
         self.toastCenter = toastCenter
-        self.prefetchManager = prefetchManager ?? PrefetchManager()
+        self.prefetchManager = prefetchManager ?? PrefetchManager.shared
         let resolvedCache: ProcessedChapterCaching = cache ?? {
             if let fileCache = try? SQLiteProcessedChapterCache() {
                 return fileCache
@@ -257,8 +257,12 @@ final class ReaderViewModel {
         // Single ordered cancel path: cancel any previous disappear-cancel
         // before overwrite, then run cancelPrefetch() once (it writes the
         // terminal state). Joined by the next .returnFromLog resync.
-        disappearCancelTask?.cancel()
-        disappearCancelTask = Task { await cancelPrefetch(reason: "disappear") }
+        // An explicitly requested continued-processing batch must outlive
+        // Reader navigation; iOS owns its lifetime until completion/expiration.
+        if !ContinuedPrefetchCoordinator.shared.isProtecting(prefetchManager) {
+            disappearCancelTask?.cancel()
+            disappearCancelTask = Task { await cancelPrefetch(reason: "disappear") }
+        }
     }
 
     func setAIMode(_ mode: AIMode) async {
@@ -412,6 +416,31 @@ final class ReaderViewModel {
             settingsStore.session?.bookId = bookId
         }
         settingsStore.save()
+    }
+
+    /// Explicit user action: promote the existing FIFO worker to iOS 26
+    /// continued processing. Automatic chapter prefetch never submits this API.
+    func startBackgroundPrefetch() async {
+        guard aiMode != .none, errorMessage == nil,
+              (book?.count ?? 0) > chapterNumber,
+              settingsStore.effectivePrefetchCount() > 0 else {
+            toastCenter?.show("Không có chương cần xử lý trước", type: .info)
+            return
+        }
+        await triggerPrefetchIfEligible()
+        let status = await prefetchManager.currentStatus()
+        guard status.isRunning else {
+            toastCenter?.show("Các chương tiếp theo đã có trong bộ nhớ đệm", type: .info)
+            return
+        }
+        do {
+            try ContinuedPrefetchCoordinator.shared.submit(
+                manager: prefetchManager, chapters: status.totalChapters
+            )
+            toastCenter?.show("Đã bật xử lý nền cho lượt tải trước", type: .info)
+        } catch {
+            toastCenter?.show("Không thể bật xử lý nền: \(error.localizedDescription)", type: .error)
+        }
     }
 
     private func triggerPrefetchIfEligible() async {
