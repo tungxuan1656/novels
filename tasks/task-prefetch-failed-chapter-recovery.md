@@ -15,7 +15,8 @@ Recover uncached failed chapters inside the next-N window on Next/Prev without r
 - [x] Next and Prev recover failures still inside the window; cached and genuinely running chapters are not duplicated.
 - [x] Retries remain bounded; superseded workers cannot change the new queue.
 - [x] Queue completion cannot discard navigation top-ups.
-- [x] Focused regression tests and full `./init.sh` pass.
+- [x] Same-worker recovery clears its chapter error but preserves other failures in status and continued-processing completion.
+- [x] Focused regression tests and full `./init.sh` pass after the review repair.
 
 ## Sources
 
@@ -32,8 +33,8 @@ Recover uncached failed chapters inside the next-N window on Next/Prev without r
 
 - Red: focused `PrefetchQueueTests` failed `testExhaustedFailureIsAdmittedByNextAndPreviousWindows` before the production fix.
 - Green: focused queue and bilingual pipeline tests passed after the fix. Added Next/Prev reader-to-cache regressions, bounded retry, in-flight exclusion, and stale-generation rejection.
-- Full: final `./init.sh` passed format, strict lint, simulator build, and 164 tests (zero failures) on iPhone 17 Pro / iOS 26.5, including the recovered-chapter-before-new-tail assertion.
-- Review: independent static review found no concrete issue; reviewer lacked diff/test access. Implementer checked the diff and ran verification.
+- Full: `./init.sh` passed format, strict lint, simulator build, and 166 tests (zero failures) on iPhone 17 Pro / iOS 26.5 after the review repair. Protected-worker regressions verify clean recovery and preservation of another chapter's unresolved failure.
+- Review follow-up: same-worker recovery regression failed before repair: cache held chapter 4, but terminal status remained `Hoàn tất với 1 lỗi`. Replaced historical error strings with chapter-keyed unresolved errors.
 - Limits: fixture AI requests, not a live provider; no device or iOS 26.0 runtime check. Queue-drain safety is structural, not a scheduler-controlled race test.
 - Blockers: none.
-- Next: review PR from `fix/prefetch-failed-chapter-recovery` into `main`. Includes version 1.1.4; `fastlane ios distribute` succeeded. Full `./init.sh` passed again before commit.
+- Next: review PR #46 before merge. The previously distributed 1.1.4 IPA does not include this follow-up.

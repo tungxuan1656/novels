@@ -11,6 +11,64 @@ extension BilingualPipelineTests {
         try await verifyNavigationRecoversFailure(goNext: false)
     }
 
+    func testNavigationRecoveryClearsErrorInSameProtectedWorker() async throws {
+        try await verifySameWorkerRecovery(failOtherChapter: false)
+    }
+
+    func testRecoveryPreservesOtherChapterFailuresInSameWorker() async throws {
+        try await verifySameWorkerRecovery(failOtherChapter: true)
+    }
+
+    private func verifySameWorkerRecovery(failOtherChapter: Bool) async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.aiMode = .bilingual
+        fixture.settings.prefetchCount = 3
+        BilingualURLProtocol.configure(invalid: false, holdResponses: true)
+        defer { BilingualURLProtocol.releasePendingResponses() }
+        let bookId = "same-worker-retry"
+        let paragraph = BilingualParagraph(id: "p001", vi: "Cached", en: "Cached")
+        let content = try BilingualChapter(paragraphs: [paragraph]).encoded()
+        for number in [2, 3] {
+            try fixture.cache.upsert(ProcessedChapter(
+                bookId: bookId, chapterNumber: number, mode: .bilingual, content: content,
+                contentHash: "fixture", createdAt: Date(), updatedAt: Date()
+            ))
+        }
+        // Fail 5 once so retry 4 exhausts before 5 holds the worker open.
+        let repository = PrefetchRetryRepository(failChapterFiveOnce: true, failChapterSix: failOtherChapter)
+        let manager = PrefetchManager()
+        let reader = ReaderViewModel(
+            bookId: bookId, repository: repository, settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service, prefetchManager: manager
+        )
+        defer { reader.onDisappear() }
+        await reader.goToChapter(2)
+        try await waitForRequest()
+        let failed = await manager.currentStatus()
+        XCTAssertTrue(failed.isRunning)
+        XCTAssertEqual(failed.errors.count, 1)
+        XCTAssertEqual(repository.failedChapterReads, 2)
+        let protection = await manager.protectCurrentBatch()
+        let batch = try XCTUnwrap(protection)
+
+        repository.recover()
+        await reader.goNext()
+        let replacement = await manager.protectCurrentBatch()
+        XCTAssertNil(replacement, "Navigation must keep the protected worker")
+        BilingualURLProtocol.releasePendingResponses()
+        var terminal: PrefetchStatus?
+        for await status in batch.updates {
+            terminal = status
+        }
+        let completed = try XCTUnwrap(terminal)
+        XCTAssertFalse(completed.isRunning)
+        XCTAssertEqual(repository.failedChapterReads, 3)
+        XCTAssertNotNil(try fixture.cache.get(bookId: bookId, chapterNumber: 4, mode: .bilingual))
+        XCTAssertEqual(completed.errors, failOtherChapter ? ["Chương 6: Không tìm thấy chương"] : [])
+        XCTAssertEqual(completed.message, failOtherChapter ? "Hoàn tất với 1 lỗi" : "Đã hoàn tất")
+    }
+
     private func verifyNavigationRecoversFailure(goNext: Bool) async throws {
         let fixture = try makeFixture()
         defer { fixture.cleanUp() }
@@ -75,6 +133,13 @@ private final nonisolated class PrefetchRetryRepository: BookRepository, @unchec
     private let lock = NSLock()
     private var failing = true
     private var chapterReads = 0
+    private var failChapterFiveOnce: Bool
+    private let failChapterSix: Bool
+
+    init(failChapterFiveOnce: Bool = false, failChapterSix: Bool = false) {
+        self.failChapterFiveOnce = failChapterFiveOnce
+        self.failChapterSix = failChapterSix
+    }
 
     var failedChapterReads: Int {
         lock.withLock { chapterReads }
@@ -93,6 +158,19 @@ private final nonisolated class PrefetchRetryRepository: BookRepository, @unchec
     }
 
     func chapterHTML(slug: String, number: Int) throws -> String {
+        if number == 6, failChapterSix {
+            throw CocoaError(.fileReadNoSuchFile)
+        }
+        if number == 5 {
+            let shouldFail = lock.withLock {
+                let result = failChapterFiveOnce
+                failChapterFiveOnce = false
+                return result
+            }
+            if shouldFail {
+                throw CocoaError(.fileReadNoSuchFile)
+            }
+        }
         if number == 4 {
             let shouldFail = lock.withLock {
                 chapterReads += 1

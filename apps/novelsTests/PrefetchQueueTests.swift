@@ -8,12 +8,12 @@ final class PrefetchQueueTests: XCTestCase {
             _ = await manager.ensureWindow(cur: 2, appliedN: 3, total: 10, misses: [4])
             let initial = await manager.nextChapter(generation: 0)
             XCTAssertEqual(initial, 4)
-            var errors: [String] = []
+            var errors: [Int: String] = [:]
             await manager.requeueOrRecord(number: 4, message: "failed", errors: &errors, generation: 0)
             let retry = await manager.nextChapter(generation: 0)
             XCTAssertEqual(retry, 4)
             await manager.requeueOrRecord(number: 4, message: "failed", errors: &errors, generation: 0)
-            XCTAssertEqual(errors, ["failed"])
+            XCTAssertEqual(errors, [4: "failed"])
 
             _ = await manager.ensureWindow(cur: current, appliedN: 3, total: 10, misses: [4])
             let recovered = await manager.nextChapter(generation: 0)
@@ -24,7 +24,7 @@ final class PrefetchQueueTests: XCTestCase {
     func testRetryIsBoundedEvenAfterNavigationReadmitsFailure() async {
         let manager = PrefetchManager()
         _ = await manager.ensureWindow(cur: 2, appliedN: 3, total: 10, misses: [4])
-        var errors: [String] = []
+        var errors: [Int: String] = [:]
         for _ in 0 ..< 2 {
             let number = await manager.nextChapter(generation: 0)
             XCTAssertEqual(number, 4)
@@ -38,6 +38,7 @@ final class PrefetchQueueTests: XCTestCase {
         await manager.requeueOrRecord(number: 4, message: "failed", errors: &errors, generation: 0)
         let stopped = await manager.nextChapter(generation: 0)
         XCTAssertNil(stopped)
+        XCTAssertEqual(errors, [4: "failed"], "Repeated failures must not duplicate chapter errors")
     }
 
     func testSupersededFailureCannotRequeueIntoReplacementBatch() async {
@@ -49,7 +50,7 @@ final class PrefetchQueueTests: XCTestCase {
         _ = await manager.ensureWindow(cur: 3, appliedN: 3, total: 10, misses: [5])
         let replacement = await manager.nextChapter(generation: 1)
         XCTAssertEqual(replacement, 5)
-        var errors: [String] = []
+        var errors: [Int: String] = [:]
         await manager.requeueOrRecord(number: 4, message: "stale", errors: &errors, generation: 0)
         _ = await manager.ensureWindow(cur: 3, appliedN: 3, total: 10, misses: [5, 6])
         let next = await manager.nextChapter(generation: 1)

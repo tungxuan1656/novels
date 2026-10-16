@@ -206,7 +206,7 @@ actor PrefetchManager {
         task = Task {
             let batchStart = Date()
             var processed = 0
-            var errors: [String] = []
+            var errors: [Int: String] = [:]
             var stoppedEarly = false
             // Chapter-sequential: shared queue so navigates can reconcile mid-run.
             while let number = self.nextChapter(generation: currentGeneration) {
@@ -268,6 +268,7 @@ actor PrefetchManager {
                 let chapter = HtmlParser.parseChapter(html: html)
                 let raw = chapter.body
                 if raw.isEmpty, let parsedTitle = chapter.title, !parsedTitle.isEmpty {
+                    errors[number] = nil
                     processed += 1
                     self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     continue
@@ -300,6 +301,7 @@ actor PrefetchManager {
                         runId: runId,
                         source: "prefetch"
                     )
+                    errors[number] = nil
                     if Date().timeIntervalSince(itemStart) > Self.perChapterBudget {
                         await self.logPrefetch(
                             event: "prefetch.cancel",
@@ -438,7 +440,7 @@ actor PrefetchManager {
     }
 
     /// Retry once at the tail, then record the failure and keep draining.
-    func requeueOrRecord(number: Int, message: String, errors: inout [String], generation targetGeneration: Int) {
+    func requeueOrRecord(number: Int, message: String, errors: inout [Int: String], generation targetGeneration: Int) {
         guard generation == targetGeneration, inFlight == number else { return }
         // Settle before logging can suspend and navigation reconciles the window.
         inFlight = nil
@@ -446,7 +448,7 @@ actor PrefetchManager {
             attempts[number, default: 0] += 1
             pending.append(number)
         } else {
-            errors.append(message)
+            errors[number] = message
         }
     }
 
@@ -464,18 +466,18 @@ actor PrefetchManager {
         return number
     }
 
-    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) {
+    private func updateStatus(processed: Int, errors: [Int: String], generation targetGeneration: Int) {
         guard generation == targetGeneration else { return }
         inFlight = nil
         statusValue.processedChapters = processed
-        statusValue.errors = errors
+        statusValue.errors = errors.sorted { $0.key < $1.key }.map(\.value)
         statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
         continuedUpdates?.yield(statusValue)
     }
 
     private func finish(
         processed: Int,
-        errors: [String],
+        errors: [Int: String],
         bookId: String,
         generation targetGeneration: Int,
         stoppedEarly: Bool
@@ -487,7 +489,7 @@ actor PrefetchManager {
         statusValue.isRunning = false
         statusValue.currentBookId = bookId
         statusValue.processedChapters = processed
-        statusValue.errors = errors
+        statusValue.errors = errors.sorted { $0.key < $1.key }.map(\.value)
         let tailMark = bookEndRemaining.map { " (còn \($0) chương cuối)" } ?? ""
         statusValue.message = stoppedEarly
             ? "Đã tạm dừng"
