@@ -213,9 +213,11 @@ struct ReaderBottomSheet: View {
                 .buttonStyle(.bordered)
                 .disabled(settingsStore.effectivePrefetchCount() == 0)
                 .accessibilityIdentifier("backgroundPrefetchButton")
-                Text("Chủ động xử lý các chương tiếp theo ngay cả khi về Home. iOS có thể tạm dừng khi thiếu tài nguyên.")
-                    .font(.caption)
-                    .foregroundStyle(theme.textMuted)
+                Text(
+                    "Chủ động xử lý các chương tiếp theo ngay cả khi về Home. iOS có thể tạm dừng khi thiếu tài nguyên."
+                )
+                .font(.caption)
+                .foregroundStyle(theme.textMuted)
             }
             apiLogButton(viewModel: viewModel)
         }

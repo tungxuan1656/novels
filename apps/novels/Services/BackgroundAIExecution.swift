@@ -60,11 +60,18 @@ final class ContinuedPrefetchCoordinator {
     private struct Batch {
         let identifier: String
         let manager: PrefetchManager
+        let worker: PrefetchManager.ContinuedBatch
     }
 
     private var batch: Batch?
-    private var systemTask: BGContinuedProcessingTask?
-    private var wasExpired = false
+    private var completion: ((Bool) -> Void)?
+    private let submitRequest: (BGContinuedProcessingTaskRequest) throws -> Void
+
+    init(submitRequest: @escaping (BGContinuedProcessingTaskRequest) throws -> Void = {
+        try BGTaskScheduler.shared.submit($0)
+    }) {
+        self.submitRequest = submitRequest
+    }
 
     func register() {
         _ = BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.identifier, using: nil) { task in
@@ -74,13 +81,16 @@ final class ContinuedPrefetchCoordinator {
         }
     }
 
-    func isProtecting(_ manager: PrefetchManager) -> Bool {
-        batch?.manager === manager
-    }
-
     /// Must be called from a user's foreground action; never from auto-prefetch.
-    func submit(manager: PrefetchManager, chapters: Int) throws {
+    func submit(manager: PrefetchManager, chapters: Int) async throws {
         guard batch == nil else { throw ContinuedPrefetchError.alreadyRunning }
+        guard let worker = await manager.protectCurrentBatch() else {
+            throw ContinuedPrefetchError.notRunning
+        }
+        guard batch == nil else {
+            await manager.releaseProtection(generation: worker.generation)
+            throw ContinuedPrefetchError.alreadyRunning
+        }
         let identifier = "com.tungxuan.novels.ai-prefetch.\(UUID().uuidString)"
         let request = BGContinuedProcessingTaskRequest(
             identifier: identifier,
@@ -89,18 +99,19 @@ final class ContinuedPrefetchCoordinator {
         )
         // A delayed request must not surprise the user or attach to a newer batch.
         request.strategy = .fail
-        batch = Batch(identifier: identifier, manager: manager)
-        wasExpired = false
+        batch = Batch(identifier: identifier, manager: manager, worker: worker)
         do {
-            try BGTaskScheduler.shared.submit(request)
+            try submitRequest(request)
         } catch {
             batch = nil
+            await manager.releaseProtection(generation: worker.generation)
             throw error
         }
     }
 
-    func report(manager: PrefetchManager, processed: Int, total: Int) {
-        guard batch?.manager === manager, let task = systemTask else { return }
+    private func report(_ status: PrefetchStatus, task: BGContinuedProcessingTask) {
+        let processed = status.processedChapters
+        let total = status.totalChapters
         task.progress.totalUnitCount = Int64(max(total, 1))
         task.progress.completedUnitCount = Int64(min(max(0, processed), max(total, 1)))
         task.updateTitle(
@@ -114,12 +125,11 @@ final class ContinuedPrefetchCoordinator {
             task.setTaskCompleted(success: false)
             return
         }
-        guard let batch, batch.identifier == task.identifier else {
+        guard batch?.identifier == task.identifier else {
             // A request delivered after relaunch cannot reuse an in-memory worker.
             task.setTaskCompleted(success: false)
             return
         }
-        systemTask = task
         task.progress.totalUnitCount = 1
         task.progress.completedUnitCount = 0
         let identifier = task.identifier
@@ -128,37 +138,55 @@ final class ContinuedPrefetchCoordinator {
                 self?.expire(identifier: identifier)
             }
         }
+        launch(
+            identifier: identifier, report: { self.report($0, task: task) },
+            completion: { task.setTaskCompleted(success: $0) }
+        )
+    }
+
+    func launch(identifier: String, report: @escaping (PrefetchStatus) -> Void, completion: @escaping (Bool) -> Void) {
+        guard let batch, batch.identifier == identifier else {
+            completion(false)
+            return
+        }
+        self.completion = completion
         Task { @MainActor in
-            let initial = await batch.manager.currentStatus()
-            self.report(
-                manager: batch.manager, processed: initial.processedChapters,
-                total: initial.totalChapters
-            )
-            let status = await batch.manager.waitForCompletion()
-            guard self.batch?.identifier == batch.identifier else { return }
-            let success = !self.wasExpired && status.errors.isEmpty
-                && status.message.hasPrefix("Đã hoàn tất")
-            task.setTaskCompleted(success: success)
-            self.systemTask = nil
-            self.batch = nil
+            var success = false
+            for await status in batch.worker.updates {
+                guard self.batch?.identifier == identifier else { return }
+                report(status)
+                success = !status.isRunning && status.errors.isEmpty
+                    && status.message.hasPrefix("Đã hoàn tất")
+            }
+            self.complete(identifier: identifier, success: success)
         }
     }
 
-    private func expire(identifier: String) {
+    func expire(identifier: String) {
         guard let batch, batch.identifier == identifier else { return }
-        wasExpired = true
-        Task { await batch.manager.cancel(reason: "systemExpiration") }
-        // The waiter in launch() completes the system task exactly once.
+        // A shared AI request can outlive this worker; never await it on expiration.
+        complete(identifier: identifier, success: false)
+        Task {
+            await batch.manager.cancel(reason: "systemExpiration", generation: batch.worker.generation)
+        }
+    }
+
+    private func complete(identifier: String, success: Bool) {
+        guard batch?.identifier == identifier else { return }
+        let completion = completion
+        self.completion = nil
+        batch = nil
+        completion?(success)
     }
 }
 
 enum ContinuedPrefetchError: LocalizedError {
     case alreadyRunning
+    case notRunning
 
     var errorDescription: String? {
-        switch self {
-        case .alreadyRunning:
-            "Đang có một lượt xử lý nền khác"
-        }
+        self == .alreadyRunning
+            ? "Đang có một lượt xử lý nền khác"
+            : "Không có lượt tải trước đang chạy"
     }
 }

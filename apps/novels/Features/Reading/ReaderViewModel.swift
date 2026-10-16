@@ -227,9 +227,10 @@ final class ReaderViewModel {
         isAIProcessing = false
         // The next returnFromLog waits for this ordered cancellation.
         // Explicit continued processing may outlive Reader navigation.
-        if !ContinuedPrefetchCoordinator.shared.isProtecting(prefetchManager) {
-            disappearCancelTask?.cancel()
-            disappearCancelTask = Task { await cancelPrefetch(reason: "disappear") }
+        disappearCancelTask?.cancel()
+        disappearCancelTask = Task {
+            await prefetchManager.cancel(reason: "disappear", unlessContinued: true)
+            prefetchStatus = await prefetchManager.currentStatus()
         }
     }
 
@@ -391,7 +392,8 @@ final class ReaderViewModel {
     func startBackgroundPrefetch() async {
         guard aiMode != .none, errorMessage == nil,
               (book?.count ?? 0) > chapterNumber,
-              settingsStore.effectivePrefetchCount() > 0 else {
+              settingsStore.effectivePrefetchCount() > 0
+        else {
             toastCenter?.show("Không có chương cần xử lý trước", type: .info)
             return
         }
@@ -402,7 +404,7 @@ final class ReaderViewModel {
             return
         }
         do {
-            try ContinuedPrefetchCoordinator.shared.submit(
+            try await ContinuedPrefetchCoordinator.shared.submit(
                 manager: prefetchManager, chapters: status.totalChapters
             )
             toastCenter?.show("Đã bật xử lý nền cho lượt tải trước", type: .info)

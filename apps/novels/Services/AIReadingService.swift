@@ -338,8 +338,7 @@ actor AIReadingService {
         )
     }
 
-    /// Hold a finite UIKit background assertion while active AI work exists.
-    /// A continued-processing task (if user-started) owns its own longer lifetime.
+    // Hold a finite UIKit assertion; user-started continued tasks own their longer lifetime.
     // swiftlint:disable:next function_parameter_count
     private func processWithBackgroundLease(
         bookId: String, chapterNumber: Int, mode: AIMode, rawText: String,

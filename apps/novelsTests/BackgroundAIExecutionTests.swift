@@ -11,18 +11,20 @@ final class BackgroundAIExecutionTests: XCTestCase {
         XCTAssertTrue(permitted?.contains(identifier) == true)
     }
 
-    func testWaitForCompletionDoesNotStartIdleWork() async {
+    func testIdleWorkerCannotBePromoted() async {
         let manager = PrefetchManager()
-        let status = await manager.waitForCompletion()
+        let batch = await manager.protectCurrentBatch()
+        XCTAssertNil(batch)
+        let status = await manager.currentStatus()
         XCTAssertFalse(status.isRunning)
-        XCTAssertEqual(status.processedChapters, 0)
     }
 
-    func testExplicitCancellationMakesWaiterReturnCancelledState() async {
+    func testCancelledWorkerCannotBePromoted() async {
         let manager = PrefetchManager()
         await manager.cancel(reason: "unitTest")
-        let status = await manager.waitForCompletion()
-        XCTAssertFalse(status.isRunning)
+        let batch = await manager.protectCurrentBatch()
+        XCTAssertNil(batch)
+        let status = await manager.currentStatus()
         XCTAssertEqual(status.message, "Đã hủy")
     }
 }
