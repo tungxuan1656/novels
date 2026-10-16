@@ -34,7 +34,8 @@ struct ReaderView: View {
             bookId: bookId,
             repository: repo,
             settingsStore: store,
-            toastCenter: router.toast
+            toastCenter: router.toast,
+            prefetchManager: .shared
         ))
         _settingsStore = State(initialValue: store)
     }
