@@ -206,7 +206,7 @@ struct ReaderBottomSheet: View {
                 Button {
                     Task { await viewModel.startBackgroundPrefetch() }
                 } label: {
-                    Label("Xử lý trước khi thoát ứng dụng", systemImage: "arrow.down.circle")
+                    Label("Xử lý trước khi về Home", systemImage: "arrow.down.circle")
                         .font(.subheadline)
                         .frame(maxWidth: .infinity)
                 }
