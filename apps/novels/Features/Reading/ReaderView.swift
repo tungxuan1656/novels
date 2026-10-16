@@ -121,8 +121,7 @@ struct ReaderView: View {
                     if newPhase != .active {
                         dismissLearning()
                     }
-                    // Kill within the 300ms debounce window must not lose position:
-                    // persist the latest offset synchronously on backgrounding.
+                    // Persist the offset before a background kill (even during debounce).
                     if newPhase == .background {
                         flushPendingOffset()
                     }
