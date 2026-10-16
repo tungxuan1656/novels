@@ -202,6 +202,21 @@ struct ReaderBottomSheet: View {
             if viewModel.aiMode == .bilingual {
                 bilingualLanguageSection
             }
+            if viewModel.aiMode != .none {
+                Button {
+                    Task { await viewModel.startBackgroundPrefetch() }
+                } label: {
+                    Label("Xử lý trước khi thoát ứng dụng", systemImage: "arrow.down.circle")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .disabled(settingsStore.effectivePrefetchCount() == 0)
+                .accessibilityIdentifier("backgroundPrefetchButton")
+                Text("Chủ động xử lý các chương tiếp theo ngay cả khi về Home. iOS có thể tạm dừng khi thiếu tài nguyên.")
+                    .font(.caption)
+                    .foregroundStyle(theme.textMuted)
+            }
             apiLogButton(viewModel: viewModel)
         }
     }
