@@ -206,6 +206,7 @@ actor PrefetchManager {
             let batchStart = Date()
             var processed = 0
             var errors: [String] = []
+            var stoppedEarly = false
             // Chapter-sequential: shared queue so navigates can reconcile mid-run.
             while let number = await self.nextChapter(generation: currentGeneration) {
                 if Task.isCancelled {
@@ -216,6 +217,7 @@ actor PrefetchManager {
                         currentGeneration: currentGeneration,
                         reason: "chapterChange"
                     )
+                    stoppedEarly = true
                     break
                 }
                 let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
@@ -227,6 +229,7 @@ actor PrefetchManager {
                         mode: mode.rawValue,
                         detail: "reason=bookDeleted"
                     )
+                    stoppedEarly = true
                     break
                 }
                 if Date().timeIntervalSince(batchStart) > Self.globalBudget {
@@ -237,6 +240,7 @@ actor PrefetchManager {
                         mode: mode.rawValue,
                         detail: "reason=budgetExhausted scope=global"
                     )
+                    stoppedEarly = true
                     break
                 }
                 let itemStart = Date()
@@ -303,6 +307,7 @@ actor PrefetchManager {
                             mode: mode.rawValue,
                             detail: "reason=budgetExhausted scope=perChapter"
                         )
+                        stoppedEarly = true
                         break
                     }
                     processed += 1
@@ -315,6 +320,7 @@ actor PrefetchManager {
                         currentGeneration: currentGeneration,
                         reason: "chapterChange"
                     )
+                    stoppedEarly = true
                     break
                 } catch {
                     // No Task.isCancelled fork here: a stale batch cannot
@@ -342,7 +348,8 @@ actor PrefetchManager {
                 processed: processed,
                 errors: errors,
                 bookId: bookId,
-                generation: currentGeneration
+                generation: currentGeneration,
+                stoppedEarly: stoppedEarly
             )
             await self.clearTaskIfCurrent(generation: currentGeneration)
         }
@@ -476,7 +483,8 @@ actor PrefetchManager {
         processed: Int,
         errors: [String],
         bookId: String,
-        generation targetGeneration: Int
+        generation targetGeneration: Int,
+        stoppedEarly: Bool
     ) async {
         guard generation == targetGeneration else { return }
         batchFinished = true
@@ -486,7 +494,9 @@ actor PrefetchManager {
         statusValue.processedChapters = processed
         statusValue.errors = errors
         let tailMark = bookEndRemaining.map { " (còn \($0) chương cuối)" } ?? ""
-        statusValue.message = (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
+        statusValue.message = stoppedEarly
+            ? "Đã tạm dừng"
+            : (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
         await ContinuedPrefetchCoordinator.shared.report(
             manager: self, processed: processed, total: statusValue.totalChapters
         )
