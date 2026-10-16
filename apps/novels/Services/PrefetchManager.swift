@@ -2,6 +2,7 @@ import Foundation
 
 // swiftlint:disable:next type_body_length
 actor PrefetchManager {
+    static let shared = PrefetchManager()
     static let perChapterBudget: TimeInterval = 600
     static let globalBudget: TimeInterval = 1800
 
@@ -26,6 +27,13 @@ actor PrefetchManager {
 
     func currentStatus() -> PrefetchStatus {
         statusValue
+    }
+
+    /// Await the existing worker; never create a second FIFO or AI pipeline.
+    func waitForCompletion() async -> PrefetchStatus {
+        let running = task
+        await running?.value
+        return statusValue
     }
 
     func cancel(reason: String = "manual") async {
@@ -454,11 +462,14 @@ actor PrefetchManager {
         return number
     }
 
-    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) {
+    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) async {
         guard generation == targetGeneration else { return }
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
+        await ContinuedPrefetchCoordinator.shared.report(
+            manager: self, processed: processed, total: statusValue.totalChapters
+        )
     }
 
     private func finish(
@@ -466,7 +477,7 @@ actor PrefetchManager {
         errors: [String],
         bookId: String,
         generation targetGeneration: Int
-    ) {
+    ) async {
         guard generation == targetGeneration else { return }
         batchFinished = true
         resetWindowState()
@@ -476,6 +487,9 @@ actor PrefetchManager {
         statusValue.errors = errors
         let tailMark = bookEndRemaining.map { " (còn \($0) chương cuối)" } ?? ""
         statusValue.message = (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
+        await ContinuedPrefetchCoordinator.shared.report(
+            manager: self, processed: processed, total: statusValue.totalChapters
+        )
     }
 
     private func clearTaskIfCurrent(generation targetGeneration: Int) {
