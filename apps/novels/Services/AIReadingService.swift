@@ -319,7 +319,7 @@ actor AIReadingService {
         runId: UUID? = nil,
         source: String = "reader"
     ) async throws -> String {
-        try await process(
+        try await processWithBackgroundLease(
             bookId: bookId, chapterNumber: chapterNumber, mode: mode, rawText: rawText,
             runId: runId ?? UUID(), source: source, refresh: false
         )
@@ -332,10 +332,31 @@ actor AIReadingService {
         rawText: String,
         runId: UUID? = nil
     ) async throws -> String {
-        try await process(
+        try await processWithBackgroundLease(
             bookId: bookId, chapterNumber: chapterNumber, mode: mode, rawText: rawText,
             runId: runId ?? UUID(), source: "manual", refresh: true
         )
+    }
+
+    /// Hold a finite UIKit background assertion while active AI work exists.
+    /// A continued-processing task (if user-started) owns its own longer lifetime.
+    // swiftlint:disable:next function_parameter_count
+    private func processWithBackgroundLease(
+        bookId: String, chapterNumber: Int, mode: AIMode, rawText: String,
+        runId: UUID, source: String, refresh: Bool
+    ) async throws -> String {
+        await BackgroundAIExecution.shared.operationStarted()
+        do {
+            let result = try await process(
+                bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+                rawText: rawText, runId: runId, source: source, refresh: refresh
+            )
+            await BackgroundAIExecution.shared.operationFinished()
+            return result
+        } catch {
+            await BackgroundAIExecution.shared.operationFinished()
+            throw error
+        }
     }
 
     // swiftlint:disable:next function_parameter_count function_body_length
