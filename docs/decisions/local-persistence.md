@@ -41,7 +41,7 @@ Official references:
 | `SwiftData` for books or cache | Requires model container and migration; overkill for file + single table |
 | `Core Data` for cache | Heavy stack for one table with `UNIQUE(bookId,chapterNumber,mode)` |
 | `Keychain` for `AI_CUSTOM_HEADERS` | Adds access policy and sync complexity; user-entered JSON stays in `UserDefaults` per scope |
-| `BGTaskScheduler` for prefetch | Prefetch is foreground and task-scoped; background scheduling not required |
+| Automatic `BGTaskScheduler` for prefetch | Automatic prefetch still runs as a finite task; only explicitly user-started chapter batches use iOS 26 continued processing. See background-ai-processing.md. |
 | React Native package or SQLite wrapper package | No React Native and no extra Swift package; use system `libsqlite3` |
 
 ## Consequences
@@ -50,7 +50,7 @@ Official references:
 - Single cache keyed by `bookId + chapterNumber + mode`; canonical DDL and queries live in `../contracts/local-data.md`.
 - Settings sanitize on launch for current keys only; unknown keys are ignored and defaults apply.
 - `AI_CUSTOM_HEADERS` stays as normal settings; no `Keychain`, encryption, or redaction log.
-- No extra capabilities beyond `localhost` ATS exception.
+- Background processing mode and a permitted wildcard task identifier are enabled **only** for explicitly user-initiated continued chapter processing. Automatic prefetch uses a short UIKit background assertion, not continued processing. See [background AI processing](./background-ai-processing.md).
 
 ## Links
 
