@@ -122,18 +122,24 @@ final class ContinuedPrefetchCoordinator {
         systemTask = task
         task.progress.totalUnitCount = 1
         task.progress.completedUnitCount = 0
+        let identifier = task.identifier
         task.expirationHandler = { [weak self] in
             Task { @MainActor in
-                self?.expire(identifier: task.identifier)
+                self?.expire(identifier: identifier)
             }
         }
         Task { @MainActor in
+            let initial = await batch.manager.currentStatus()
+            self.report(
+                manager: batch.manager, processed: initial.processedChapters,
+                total: initial.totalChapters
+            )
             let status = await batch.manager.waitForCompletion()
             guard self.batch?.identifier == batch.identifier else { return }
-            let success = !wasExpired && status.errors.isEmpty
+            let success = !self.wasExpired && status.errors.isEmpty
                 && status.message.hasPrefix("Đã hoàn tất")
             task.setTaskCompleted(success: success)
-            systemTask = nil
+            self.systemTask = nil
             self.batch = nil
         }
     }
