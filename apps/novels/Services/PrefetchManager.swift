@@ -10,17 +10,14 @@ actor PrefetchManager {
     private var generation = 0
     private var statusValue: PrefetchStatus = .idle
 
-    /// Durable FIFO queue for the running batch (feat-024 Phase 1): same
-    /// book+mode starts keep the running task (keep ∩ + append tail); cancel
-    /// happens only on book/mode change, explicit cancel, or deletion.
+    /// FIFO per book/mode, reconciled across chapter navigation.
     private var activeBookId: String?
     private var activeMode: AIMode?
     private var pending: [Int] = []
     private var inFlight: Int?
     private var batchFinished = true
     private var bookEndRemaining: Int? // Window size when it reaches the book end (end-of-book message).
-    /// Per-chapter tail-requeue attempts in the live queue (default 0);
-    /// a chapter is requeued at most once, then recorded and dropped.
+    /// At most one tail-requeue per chapter.
     private var attempts: [Int: Int] = [:]
     /// Reconciled-window counts for the existing batchCheck log detail.
     typealias WindowKept = (overlapKept: Int, topUpAdded: Int)
@@ -94,8 +91,7 @@ actor PrefetchManager {
             return
         }
         let effectiveN: Int = await MainActor.run { settings.effectivePrefetchCount() }
-        // feat-024 Phase 3 (single N): no runtime hardCap; the public
-        // 0...1000-else-3 policy is the only bound, paced sequentially.
+        // N is validated by SettingsStore; the worker is sequential.
         let appliedN = effectiveN
         let range = windowRange(currentChapter: currentChapter, effectiveN: appliedN, totalChapters: totalChapters)
         guard !range.isEmpty else {
@@ -117,9 +113,7 @@ actor PrefetchManager {
         do {
             misses = try missList(cache: cache, bookId: bookId, mode: mode, range: range)
         } catch {
-            // Query failure keeps prior state (never miss-all): log on the
-            // existing error-continue event and return without touching the
-            // running batch or status.
+            // Do not turn a failed cache query into a bulk refetch.
             await logPrefetch(
                 event: "prefetch.error-continue",
                 bookId: bookId,
@@ -129,20 +123,14 @@ actor PrefetchManager {
             )
             return
         }
-        // P-Important-1: assign AFTER the query succeeds — the early return
-        // above must not mutate shared window state read by finish().
+        // Mutate window state only after cache query succeeds.
         bookEndRemaining = bookEndCount(range: range, totalChapters: totalChapters)
-        // Log-only transparency fields (feat-024 Phase 3 single N): storedN is
-        // raw stored, effectiveN is the single consumed N. No runtime cap.
+        // Record stored and effective N for diagnostics.
         let storedN: Int = await MainActor.run { settings.prefetchCount }
-        // Overlap-preserving top-up (feat-024 Phase 1 queue): same book+mode
-        // with a running batch keeps the task; the window is reconciled
-        // (keep ∩ + append tail) instead of restarting.
+        // Same book/mode: preserve overlap and append only missing tail.
         if activeBookId == bookId, activeMode == mode, task != nil, !batchFinished {
             let kept = ensureWindow(cur: currentChapter, appliedN: appliedN, total: totalChapters, misses: misses)
-            // PR 26 review (parked M4): recompute instead of accumulating —
-            // ensureWindow drops out-of-window entries, so `+= topUpAdded`
-            // inflated total unbounded on steady reading and far jumps.
+            // Recompute after reconcile; do not accumulate stale counts.
             statusValue.totalChapters = statusValue.processedChapters + pending.count + (inFlight == nil ? 0 : 1)
             statusValue.currentBookId = bookId
             await logPrefetch(
