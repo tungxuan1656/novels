@@ -6,6 +6,7 @@
 
 | ADR | Title | Status | Links |
 |---|---|---|---|
+| [background-ai-processing.md](./background-ai-processing.md) | iOS background assertions and user-started continued AI prefetch | Proposed, pending device QA | `../product/functional-specs/chapter-prefetch.md`, `../../ARCHITECTURE.md` |
 | [ios-scope.md](./ios-scope.md) | iPhone-only, iOS 26.0+, Vietnamese UI | Accepted | `../../ARCHITECTURE.md` §1, `../../docs/product/overview.md`, `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../docs/design/design-system.md` |
 | [network-logger-removed.md](./network-logger-removed.md) | Remove Network Logger from product/design scope | Accepted | `../../docs/design/navigation.md`, `../../docs/design/screens.md`, `../../SECURITY.md` |
 | [book-package-shape.md](./book-package-shape.md) | ZIP producer shape at archive root; sample ZIP non-canonical | Accepted | `../contracts/book-package.md`, `../contracts/local-data.md` |
