@@ -1,6 +1,6 @@
 # Chapter Prefetch
 
-> Prepares the next N chapters in the background for the active AI mode for instant reads.
+> Prepares the next N chapters asynchronously for the active AI mode for instant reads. Ordinary async processing is not itself a guarantee of iOS execution while the app is backgrounded.
 
 ## Flow (ordered steps actor / system)
 
@@ -9,6 +9,15 @@
 3. System batch-checks processed chapter cache for range and mode in ~200-id chunks accumulated into one set. All cached → zero service calls, finish as done. Otherwise list only the missing chapters. A cache query failure keeps the prior state and logs (never treated as miss-all, never mass-refetches).
 4. System processes the queue sequentially in FIFO order, one chapter at a time (never all N at once): each chapter runs its own parallel chunk batch (see `ai-service.md` Chunking), then joins and saves before moving to the next queued chapter. Update progress after each.
 5. The engine is a durable FIFO queue (`pending: [Int]` + `inFlight` + `attempts`) with a single sequential worker. On start with the same book and mode as the running task, the queue is never cancelled: `ensureWindow` keeps the overlap (`pending` ∩ window) in order and appends only the new-tail misses, so steady reading issues about one tail fetch per next chapter. Cancel happens only on book change, mode change (including to `none`), empty window at the book end, book deletion, or explicit cancel. Per-chapter error → log, record once in `errors[]`, and requeue at the tail at most once (`attempts <= 1`); a chapter still failing after one retry is logged and dropped, with no failed-first reorder, and is picked up later only when a later window miss check lists it again (or the actor opens it and taps "Xử lý lại" manually). Returning from Log to the same chapter and mode makes zero API calls for the current chapter and resumes the background queue when misses remain. At end, mark not running. Example: N=20 at chapter 450 issues 451-470 once; navigating to 451 keeps the running task and appends only 471.
+
+## iOS background execution
+
+- Automatic prefetch continues for a best-effort, finite UIKit background assertion when the user goes Home; iOS can still suspend it. This is not an indefinite scheduler.
+- In the Reader settings sheet, the user can explicitly press **Xử lý trước khi thoát ứng dụng**. This submits an iOS 26 `BGContinuedProcessingTask` for the *already running* shared FIFO worker. It never starts a second queue or bypasses the existing SQLite cache. If submission fails, ordinary in-app prefetch remains available and the UI shows an error.
+- A system task reports completed chapters (not chunk-count estimates). It ends when the worker finishes; expiration/user cancellation cancels the worker. iOS can also terminate the app; this is not a promise of uninterrupted execution.
+- Completed chapters are durable in the existing SQLite cache. When the app is launched again, the normal Reader load checks cache misses and resumes the next N chapters. **The in-memory FIFO order and incomplete chunk responses do not survive process death.** Force-quit is not a background restart guarantee.
+- User-started processing can outlive Reader view disappearance; automatic prefetch retains its existing view-scoped cancellation behavior. Changing book/mode or explicit cancellation can still end the shared batch.
+- The app declares only the `processing` background mode and `com.tungxuan.novels.ai-prefetch.*` identifier. No audio/location/VoIP workaround or background `URLSession` is used for AI JSON calls.
 
 ## Rules (business rules, link to business-rules.md)
 
