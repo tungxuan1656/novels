@@ -13,7 +13,7 @@
 ## iOS background execution
 
 - Automatic prefetch continues for a best-effort, finite UIKit background assertion when the user goes Home; iOS can still suspend it. This is not an indefinite scheduler.
-- In the Reader settings sheet, the user can explicitly press **Xử lý trước khi thoát ứng dụng**. This submits an iOS 26 `BGContinuedProcessingTask` for the *already running* shared FIFO worker. It never starts a second queue or bypasses the existing SQLite cache. If submission fails, ordinary in-app prefetch remains available and the UI shows an error.
+- In the Reader settings sheet, the user can explicitly press **Xử lý trước khi về Home**. This submits an iOS 26 `BGContinuedProcessingTask` for the *already running* shared FIFO worker. It never starts a second queue or bypasses the existing SQLite cache. If submission fails, ordinary in-app prefetch remains available and the UI shows an error.
 - A system task reports completed chapters (not chunk-count estimates). It ends when the worker finishes; expiration/user cancellation cancels the worker. iOS can also terminate the app; this is not a promise of uninterrupted execution.
 - Completed chapters are durable in the existing SQLite cache. When the app is launched again, the normal Reader load checks cache misses and resumes the next N chapters. **The in-memory FIFO order and incomplete chunk responses do not survive process death.** Force-quit is not a background restart guarantee.
 - User-started processing can outlive Reader view disappearance; automatic prefetch retains its existing view-scoped cancellation behavior. Changing book/mode or explicit cancellation can still end the shared batch.
