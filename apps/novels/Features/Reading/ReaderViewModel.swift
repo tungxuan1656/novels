@@ -71,7 +71,7 @@ final class ReaderViewModel {
         self.repository = repository
         self.settingsStore = settingsStore
         self.toastCenter = toastCenter
-        self.prefetchManager = prefetchManager ?? PrefetchManager.shared
+        self.prefetchManager = prefetchManager ?? PrefetchManager()
         let resolvedCache: ProcessedChapterCaching = cache ?? {
             if let fileCache = try? SQLiteProcessedChapterCache() {
                 return fileCache
