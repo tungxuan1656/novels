@@ -203,14 +203,13 @@ actor PrefetchManager {
             isRunning: true, currentBookId: bookId, totalChapters: misses.count,
             processedChapters: 0, message: "Đang tải trước...", errors: []
         )
-        var createdTask: Task<Void, Never>!
-        createdTask = Task {
+        task = Task {
             let batchStart = Date()
             var processed = 0
             var errors: [String] = []
             var stoppedEarly = false
             // Chapter-sequential: shared queue so navigates can reconcile mid-run.
-            while let number = await self.nextChapter(generation: currentGeneration) {
+            while let number = self.nextChapter(generation: currentGeneration) {
                 if Task.isCancelled {
                     await self.logCancel(
                         bookId: bookId,
@@ -222,7 +221,7 @@ actor PrefetchManager {
                     stoppedEarly = true
                     break
                 }
-                let bookExists = await self.bookStillExists(bookId: bookId, repository: repository)
+                let bookExists = self.bookStillExists(bookId: bookId, repository: repository)
                 if !bookExists {
                     await self.logPrefetch(
                         event: "prefetch.cancel",
@@ -249,12 +248,13 @@ actor PrefetchManager {
                 let runId = UUID()
                 let htmlResult: String? = try? repository.chapterHTML(slug: bookId, number: number)
                 guard let html = htmlResult else {
-                    await self.requeueOrRecord(
+                    self.requeueOrRecord(
                         number: number,
                         message: "Chương \(number): Không tìm thấy chương",
-                        errors: &errors
+                        errors: &errors,
+                        generation: currentGeneration
                     )
-                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     await self.logPrefetch(
                         event: "prefetch.error-continue",
                         bookId: bookId,
@@ -269,16 +269,17 @@ actor PrefetchManager {
                 let raw = chapter.body
                 if raw.isEmpty, let parsedTitle = chapter.title, !parsedTitle.isEmpty {
                     processed += 1
-                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     continue
                 }
                 guard !raw.isEmpty else {
-                    await self.requeueOrRecord(
+                    self.requeueOrRecord(
                         number: number,
                         message: "Chương \(number): Nội dung rỗng",
-                        errors: &errors
+                        errors: &errors,
+                        generation: currentGeneration
                     )
-                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     await self.logPrefetch(
                         event: "prefetch.error-continue",
                         bookId: bookId,
@@ -311,7 +312,7 @@ actor PrefetchManager {
                         break
                     }
                     processed += 1
-                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                 } catch is CancellationError {
                     await self.logCancel(
                         bookId: bookId,
@@ -324,12 +325,13 @@ actor PrefetchManager {
                     break
                 } catch {
                     // Generation guards reject stale writes; retry once at the tail.
-                    await self.requeueOrRecord(
+                    self.requeueOrRecord(
                         number: number,
                         message: "Chương \(number): \(error.localizedDescription)",
-                        errors: &errors
+                        errors: &errors,
+                        generation: currentGeneration
                     )
-                    await self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
+                    self.updateStatus(processed: processed, errors: errors, generation: currentGeneration)
                     await self.logPrefetch(
                         event: "prefetch.error-continue",
                         bookId: bookId,
@@ -341,16 +343,14 @@ actor PrefetchManager {
                     continue
                 }
             }
-            await self.finish(
+            self.finish(
                 processed: processed,
                 errors: errors,
                 bookId: bookId,
                 generation: currentGeneration,
                 stoppedEarly: stoppedEarly
             )
-            await self.clearTaskIfCurrent(generation: currentGeneration)
         }
-        task = createdTask
     }
 
     private func logCancel(
@@ -424,7 +424,7 @@ actor PrefetchManager {
     }
 
     /// Keep FIFO overlap and append only new misses, excluding the in-flight chapter.
-    private func ensureWindow(cur: Int, appliedN: Int, total: Int, misses: [Int]) -> WindowKept {
+    func ensureWindow(cur: Int, appliedN: Int, total: Int, misses: [Int]) -> WindowKept {
         let range = windowRange(currentChapter: cur, effectiveN: appliedN, totalChapters: total)
         let window = Set(range)
         var kept = Set(pending)
@@ -438,7 +438,10 @@ actor PrefetchManager {
     }
 
     /// Retry once at the tail, then record the failure and keep draining.
-    private func requeueOrRecord(number: Int, message: String, errors: inout [String]) {
+    func requeueOrRecord(number: Int, message: String, errors: inout [String], generation targetGeneration: Int) {
+        guard generation == targetGeneration, inFlight == number else { return }
+        // Settle before logging can suspend and navigation reconciles the window.
+        inFlight = nil
         if attempts[number, default: 0] < 1 {
             attempts[number, default: 0] += 1
             pending.append(number)
@@ -454,15 +457,16 @@ actor PrefetchManager {
     }
 
     /// Pops the next queued chapter (nil when drained/superseded); popped = in flight.
-    private func nextChapter(generation targetGeneration: Int) -> Int? {
+    func nextChapter(generation targetGeneration: Int) -> Int? {
         guard generation == targetGeneration, !pending.isEmpty else { return nil }
         let number = pending.removeFirst()
         inFlight = number
         return number
     }
 
-    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) async {
+    private func updateStatus(processed: Int, errors: [String], generation targetGeneration: Int) {
         guard generation == targetGeneration else { return }
+        inFlight = nil
         statusValue.processedChapters = processed
         statusValue.errors = errors
         statusValue.message = "Đang tải trước \(processed)/\(statusValue.totalChapters)"
@@ -475,9 +479,10 @@ actor PrefetchManager {
         bookId: String,
         generation targetGeneration: Int,
         stoppedEarly: Bool
-    ) async {
+    ) {
         guard generation == targetGeneration else { return }
         batchFinished = true
+        task = nil
         resetWindowState()
         statusValue.isRunning = false
         statusValue.currentBookId = bookId
@@ -489,11 +494,5 @@ actor PrefetchManager {
             : (errors.isEmpty ? "Đã hoàn tất" : "Hoàn tất với \(errors.count) lỗi") + tailMark
         continuedUpdates?.yield(statusValue)
         releaseProtection(generation: targetGeneration)
-    }
-
-    private func clearTaskIfCurrent(generation targetGeneration: Int) {
-        if generation == targetGeneration {
-            task = nil
-        }
     }
 }
