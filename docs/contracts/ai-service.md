@@ -189,4 +189,4 @@ Defaults and sanitize rules live in `settings-schema.md` (catalog, AI, prefetch,
 
 ## Notes
 
-- `AI_API_KEY` and `AI_CUSTOM_HEADERS` persist with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS permits insecure HTTP for the `localhost` domain and its subdomains, without a port restriction. Port `8317` belongs to the default endpoint.
+- `AI_API_KEY` and `AI_CUSTOM_HEADERS` persist with normal settings (no `Keychain`); no Network Logger or credential log exists — see `../../SECURITY.md` and `../decisions/local-persistence.md`. Keep docs free of real secrets. ATS permits HTTP for all domains via `NSAllowsArbitraryLoads`. HTTP sends content and credentials without transport encryption; prefer HTTPS. Port `8317` belongs to the default endpoint.
