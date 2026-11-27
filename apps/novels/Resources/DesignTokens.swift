@@ -61,6 +61,22 @@ enum DesignTokens {
     static let warning = Color(hex: 0xEA580C)
     static let error = Color(hex: 0xDC2626)
 
+    enum Typography {
+        #if os(macOS)
+        static let body: Font? = .system(size: 15)
+        static let subheadline: Font = .system(size: 15)
+        static let footnote: Font = .system(size: 13)
+        static let caption: Font = .system(size: 13)
+        static let caption2: Font = .system(size: 13)
+        #else
+        static let body: Font? = nil // Inherit the native list label font.
+        static let subheadline: Font = .subheadline
+        static let footnote: Font = .footnote
+        static let caption: Font = .caption
+        static let caption2: Font = .system(size: 11)
+        #endif
+    }
+
     static let radiusSmall: CGFloat = 8
     static let radiusMedium: CGFloat = 12
     static let radiusLarge: CGFloat = 16

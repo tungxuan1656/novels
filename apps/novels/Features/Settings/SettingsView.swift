@@ -96,6 +96,7 @@ struct SettingsView: View {
             Section("Dữ liệu") {
                 NavigationLink(value: Router.Route.cacheManager) {
                     Label("Quản lý bộ nhớ đệm", systemImage: "internaldrive")
+                        .font(DesignTokens.Typography.body)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                 }
@@ -105,6 +106,7 @@ struct SettingsView: View {
                 .accessibilityIdentifier("settings-CACHE")
                 NavigationLink(value: Router.Route.apiLog(bookId: nil, initialFilter: .all)) {
                     Label("Nhật ký", systemImage: "doc.text.magnifyingglass")
+                        .font(DesignTokens.Typography.body)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
                 }
@@ -138,10 +140,10 @@ struct SettingsView: View {
         NavigationLink(value: Router.Route.settingEditor(settingKey: key)) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(label)
-                    .font(.subheadline)
+                    .font(DesignTokens.Typography.subheadline)
                     .foregroundStyle(DesignTokens.text)
                 Text(value.isEmpty ? "—" : String(value.prefix(60)))
-                    .font(.caption)
+                    .font(DesignTokens.Typography.caption)
                     .foregroundStyle(DesignTokens.muted)
                     .lineLimit(1)
             }

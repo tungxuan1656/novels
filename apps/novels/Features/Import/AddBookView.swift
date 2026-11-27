@@ -140,27 +140,27 @@ struct AddBookView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                                     Text(exp.book.name)
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(DesignTokens.Typography.subheadline.weight(.semibold))
                                         .foregroundStyle(DesignTokens.text)
                                         .lineLimit(2)
                                         .truncationMode(.tail)
                                         .lineSpacing(2)
                                         .multilineTextAlignment(.leading)
                                     Text(exp.book.author ?? "Không rõ")
-                                        .font(.footnote)
+                                        .font(DesignTokens.Typography.footnote)
                                         .foregroundStyle(DesignTokens.muted)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                     Text(
                                         "\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))"
                                     )
-                                    .font(.caption)
+                                    .font(DesignTokens.Typography.caption)
                                     .foregroundStyle(DesignTokens.muted)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                                     if let syn = exp.book.synopsis, !syn.isEmpty {
                                         Text(syn)
-                                            .font(.caption)
+                                            .font(DesignTokens.Typography.caption)
                                             .foregroundStyle(DesignTokens.muted)
                                             .lineLimit(2)
                                             .truncationMode(.tail)

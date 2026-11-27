@@ -33,17 +33,17 @@ struct LibraryView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                                     Text(book.name)
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(DesignTokens.Typography.subheadline.weight(.semibold))
                                         .foregroundStyle(DesignTokens.text)
                                         .lineLimit(2)
                                     HStack(spacing: DesignTokens.spacing8) {
                                         if let author = book.author {
                                             Text(author)
-                                                .font(.footnote)
+                                                .font(DesignTokens.Typography.footnote)
                                                 .foregroundStyle(DesignTokens.muted)
                                         }
                                         Text("\(book.count) chương")
-                                            .font(.footnote)
+                                            .font(DesignTokens.Typography.footnote)
                                             .foregroundStyle(DesignTokens.muted)
                                     }
                                 }

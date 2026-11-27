@@ -52,7 +52,7 @@ Icons use muted/iconTint for idle and surface for on-color. Contrast is 4.5:1 fo
 
 One UI family, plus choices for reading content.
 
-UI scale: Title large bold (header), Heading medium (book name), Body 14-16 regular, Footnote 11-13 (meta), Mini for badges.
+UI scale: Title large bold (header), Heading medium (book name), Body 14-16 regular, Footnote 11-13 (meta), Mini for badges. On macOS, Library, Add Book, and Settings rows use 15 pt primary text and 13 pt secondary text; the compact Reader chapter label uses 13 pt. The affected views use the shared SwiftUI-style roles in `DesignTokens.Typography`: `body`, `subheadline`, `footnote`, `caption`, and `caption2`. Reading content uses its own scale.
 
 Reading content user set:
 
@@ -79,7 +79,7 @@ Radius: card 12-16, pill 24, sheet 24 top only. Elevation: flat for lists, raise
 
 ## 6. Accessibility
 
-- Scale: UI follows system scale; reading size separate.
+- Scale: iPhone UI uses system text styles; Mac uses the desktop row scale above. Reading size is separate.
 - Contrast: 4.5:1 text, 3:1 icons.
 - Targets: 44 min, swipe reachable.
 - Labels: rows read name, author, count; buttons label role.
