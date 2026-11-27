@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 @Observable
 final class Router {
-    var path = NavigationPath()
+    var path: [Route] = []
     var toast = ToastCenter()
     private let settingsStore: SettingsStore
     let repository: BookRepository
@@ -23,12 +23,22 @@ final class Router {
 
     enum Route: Hashable {
         case reading(bookId: String)
-        case references(bookId: String)
-        case addBook
+        case references(bookId: String, current: Int)
+        case addBook(UUID)
         case settings
         case cacheManager
         case settingEditor(settingKey: String)
         case apiLog(bookId: String?, initialFilter: LogKindFilter)
+
+        var hasCustomBack: Bool {
+            if case .reading = self {
+                return true
+            }
+            if case .addBook = self {
+                return true
+            }
+            return false
+        }
     }
 
     func restoreInitialRoute() {
@@ -78,7 +88,10 @@ final class Router {
         return true
     }
 
-    func pop() {
+    func pop(ifTop route: Route? = nil) {
+        if let route, path.last != route {
+            return
+        }
         if !path.isEmpty {
             path.removeLast()
         }

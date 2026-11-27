@@ -14,11 +14,11 @@ struct ReaderView: View {
     @State private var showSheet = false
     @State private var scrollProxy: ScrollViewProxy?
     @State private var debounceTask: Task<Void, Never>?
-    @State private var scrollPosition = ScrollPosition(point: .zero)
+    @State private var scrollPosition = ScrollPosition(idType: Int.self)
     @State private var visibleParagraph: Int?
     @State private var hasOpened = false
     @State private var readyChapter: Int?
-    @State private var pendingRestore: ReadingProgress?
+    @State private var pendingRestore: ReaderScrollRestore?
     @State private var isJumpingToBottom = false
     @State private var hapticTrigger = 0
     @State private var learningParagraph: BilingualParagraph?
@@ -62,16 +62,15 @@ struct ReaderView: View {
                 ZStack(alignment: .top) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
-                            if !isReaderReady || viewModel.isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                            } else if viewModel.aiMode != .none {
-                                aiSection
-                            } else if (viewModel.chapterTitle?.isEmpty ?? true) && viewModel.chapterBody.isEmpty {
-                                Text(viewModel.errorMessage ?? "Không tìm thấy chương")
-                                    .foregroundStyle(theme.textMuted)
+                            if !isReaderReady || viewModel.isLoading || viewModel.isAIProcessing {
+                                ProgressView().frame(maxWidth: .infinity)
                             } else {
-                                content
+                                chapterContent
+                                    .onGeometryChange(for: Bool.self) { $0.size.height > 0 } action: { hasLayout in
+                                        if hasLayout {
+                                            restoreScroll()
+                                        }
+                                    }
                             }
                             Color.clear
                                 .frame(height: 120)
@@ -128,7 +127,7 @@ struct ReaderView: View {
                         onBack: { router.popReading() },
                         onPrevious: { changeChapter(forward: false) },
                         onNext: { changeChapter(forward: true) },
-                        onContents: { router.push(.references(bookId: bookId)) }
+                        onContents: { router.push(.references(bookId: bookId, current: viewModel.chapterNumber)) }
                     )
 
                     if isReaderReady {
@@ -175,15 +174,6 @@ struct ReaderView: View {
                 EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech, settings: settingsStore)
                     .presentationDetents([.medium, .large])
             })
-            .onChange(of: isReaderReady) { _, ready in
-                if ready {
-                    if pendingRestore != nil {
-                        restoreProgress()
-                    } else {
-                        restoreOffset()
-                    }
-                }
-            }
             .onChange(of: viewModel.aiMode) { _, _ in
                 pendingRestore = nil
                 cancelOffsetSave()
@@ -195,10 +185,19 @@ struct ReaderView: View {
                     cancelOffsetSave()
                     visibleParagraph = nil
                     dismissLearning()
-                } else if pendingRestore != nil {
-                    restoreProgress()
                 }
             }
+    }
+
+    @ViewBuilder
+    private var chapterContent: some View {
+        if viewModel.aiMode != .none {
+            aiSection
+        } else if (viewModel.chapterTitle?.isEmpty ?? true) && viewModel.chapterBody.isEmpty {
+            Text(viewModel.errorMessage ?? "Không tìm thấy chương").foregroundStyle(theme.textMuted)
+        } else {
+            content
+        }
     }
 
     private func dismissLearning() {
@@ -220,9 +219,6 @@ struct ReaderView: View {
                 chapterTitleView
                 bodyText(processed)
                     .accessibilityIdentifier("aiContent")
-            } else if viewModel.isLoading || viewModel.isAIProcessing {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
             } else if (viewModel.chapterTitle?.isEmpty ?? true) && viewModel.chapterBody.isEmpty {
                 Text(viewModel.errorMessage ?? "Không tìm thấy chương")
                     .foregroundStyle(theme.textMuted)
@@ -342,21 +338,28 @@ struct ReaderView: View {
         if selectedChapter {
             cancelOffsetSave()
         }
+        var savedChapter: Int?
         if !hasOpened, !selectedChapter {
             let saved = await ReadingProgressStore.shared.progressOnOpen(bookId: bookId)
             guard !Task.isCancelled else { return }
             if let saved {
-                useSavedProgress(saved.progress, isLocal: saved.isLocal)
+                savedChapter = prepareSavedProgress(saved.progress, isLocal: saved.isLocal)
             }
         }
+        let chapterOverride = hasOpened && !selectedChapter ? viewModel.chapterNumber : savedChapter
         hasOpened = true
         let disappearingChapter = viewModel.lastVisibleChapter
         let disappearingMode = viewModel.lastVisibleMode
-        viewModel.onAppear()
+        viewModel.onAppear(chapterOverride: chapterOverride)
         let source: LoadSource = disappearingChapter == viewModel.chapterNumber && disappearingMode == viewModel.aiMode
             ? .returnFromLog : .chapterChange
         await viewModel.load(source: source)
         guard !Task.isCancelled else { return }
+        if pendingRestore == nil, !selectedChapter, savedChapter == nil {
+            pendingRestore = ReaderScrollRestore.local(
+                session: settingsStore.session, bookId: bookId, chapter: viewModel.chapterNumber
+            )
+        }
         readyChapter = viewModel.chapterNumber
         if selectedChapter {
             pendingRestore = nil
@@ -365,25 +368,30 @@ struct ReaderView: View {
         }
     }
 
-    private func useSavedProgress(_ progress: ReadingProgress, isLocal: Bool) {
+    private func prepareSavedProgress(_ progress: ReadingProgress, isLocal: Bool) -> Int? {
         guard let count = (try? repository.book(slug: bookId))?.count,
-              progress.fits(chapterCount: count) else { return }
-        let session = settingsStore.session
-        let hasLocalOffset = session?.bookId == bookId && session?.chapterNumber == progress.chapter
-            && (session?.offset ?? 0) > 0
-        guard !isLocal || !hasLocalOffset else { return }
-        pendingRestore = progress
-        settingsStore.session?.chapterNumber = progress.chapter
-        settingsStore.session?.offset = 0
+              progress.fits(chapterCount: count) else { return nil }
+        let local = ReaderScrollRestore.local(session: settingsStore.session, bookId: bookId, chapter: progress.chapter)
+        guard !isLocal || local == nil else { return nil }
+        pendingRestore = progress.anchor.map { .paragraph(chapter: progress.chapter, $0) }
+        return progress.chapter
     }
 
-    private func restoreProgress() {
-        guard isReaderReady, !viewModel.isAIProcessing, let progress = pendingRestore else { return }
+    private func restoreScroll() {
+        guard readyChapter == viewModel.chapterNumber, !viewModel.isLoading, !viewModel.isAIProcessing,
+              let restore = pendingRestore else { return }
         pendingRestore = nil
-        guard progress.chapter == viewModel.chapterNumber, let anchor = progress.anchor,
-              let layout = readingLayout(), let index = anchor.index(in: layout.rendition, count: layout.count)
-        else { return }
-        scrollPosition.scrollTo(id: index, anchor: .top)
+        guard restore.chapter == viewModel.chapterNumber, viewModel.errorMessage == nil else { return }
+        // swiftlint:disable switch_case_alignment
+        switch restore {
+            case let .offset(_, offset):
+                scrollPosition.scrollTo(y: offset)
+            case let .paragraph(_, anchor):
+                if let layout = readingLayout(), let index = anchor.index(in: layout.rendition, count: layout.count) {
+                    scrollPosition.scrollTo(id: index, anchor: .top)
+                }
+        }
+        // swiftlint:enable switch_case_alignment
     }
 
     private func readingLayout() -> (rendition: String, count: Int)? {
@@ -445,7 +453,7 @@ struct ReaderView: View {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
-            scrollPosition = ScrollPosition(point: .zero)
+            scrollPosition = ScrollPosition(idType: Int.self)
             scrollProxy?.scrollTo("top", anchor: .top)
         }
     }
@@ -456,30 +464,6 @@ struct ReaderView: View {
         isJumpingToBottom = true
         withAnimation(.easeOut(duration: 0.35)) {
             scrollPosition.scrollTo(edge: .bottom)
-        }
-    }
-
-    private func restoreOffset() {
-        let session = settingsStore.session
-        guard let offset = ReaderOffsetRestore.offsetToRestore(
-            sessionBookId: session?.bookId,
-            sessionOffset: session?.offset,
-            currentBookId: bookId
-        ) else { return }
-        // Top of chapter needs no scroll work: position already starts at zero.
-        guard ReaderRestoreDecision.needsScrollRestore(offset: offset) else { return }
-        let chapter = viewModel.chapterNumber
-        Task {
-            // Content is ready (called after await load()), so a single ready
-            // check suffices before the single scroll assign.
-            await MainActor.run {
-                // Never apply a stale restore onto a chapter the user already left.
-                guard viewModel.chapterNumber == chapter else { return }
-                let hasTitle = !(viewModel.chapterTitle?.isEmpty ?? true)
-                let hasContent = hasTitle || !viewModel.chapterBody.isEmpty || viewModel.errorMessage != nil
-                guard !viewModel.isLoading, hasContent else { return }
-                scrollPosition = ScrollPosition(point: CGPoint(x: 0, y: offset))
-            }
         }
     }
 }

@@ -21,7 +21,9 @@
 ## Verification and handoff
 
 - Baseline: `./init.sh --quick` passes on Xcode 26.6.
-- Passed `./init.sh` with Xcode 26.6: format, strict lint, iPhone 17 Pro (iOS 26.5) simulator build, unsigned native macOS build on macOS 26.5.1, and 170 unit tests (0 failures, 0 skipped).
+- Pre-merge hardening isolates pending uploads by account, preserves the device session on cloud restore, stops superseded retries for incompatible chapters, and fixes import Back and restore timing.
+- Passed `./init.sh` with Xcode 26.6: format, strict lint, iPhone 17 Pro (iOS 26.5) simulator build, unsigned native macOS build on macOS 26.5.1, and 174 unit tests (0 failures, 0 skipped).
+- An isolated Mac smoke build confirmed Back and `Command-[` remain blocked during a delayed ZIP download and success refreshes Library. A separate delayed AI fixture confirmed a nonzero local offset restores after the chapter renders, and contents selection still opens the new chapter. CloudKit was bypassed in these smoke builds.
 - Release build settings resolve to macOS 26.0 and iOS 26.0; iOS stays iPhone-only (`TARGETED_DEVICE_FAMILY = 1`). These checks do not cover runtime behavior on 26.0.
 - Blocker: Xcode found no Mac App Development provisioning profile for `com.tungxuan.novels`. No Apple developer account or CloudKit schema changes were made.
 - Next: authorize the shared `iCloud.com.tungxuan.novels` container for both signed builds and run the [two-device smoke test](../docs/decisions/reading-progress-sync.md#provisioning-and-smoke-test). Deploy the production schema before production distribution.

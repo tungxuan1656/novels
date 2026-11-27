@@ -18,18 +18,13 @@ struct AppRoot: View {
             LibraryView(router: router, viewModel: libraryViewModel)
                 .navigationDestination(for: Router.Route.self) { route in
                     #if os(macOS)
-                    if case .reading = route {
+                    if route.hasCustomBack {
                         destination(for: route)
                     } else {
                         destination(for: route)
                             .navigationBarBackButtonHidden(true)
                             .toolbar {
-                                ToolbarItem(placement: .navigation) {
-                                    Button("Quay lại", systemImage: "chevron.left") { router.pop() }
-                                        .keyboardShortcut("[")
-                                        .labelStyle(.iconOnly)
-                                        .help("Quay lại")
-                                }
+                                MacBackToolbarItem { router.pop(ifTop: route) }
                             }
                     }
                     #else
@@ -67,12 +62,12 @@ struct AppRoot: View {
         switch route {
             case let .reading(bookId):
                 ReaderView(bookId: bookId, router: router)
-            case let .references(bookId):
+            case let .references(bookId, current):
                 let repo = router.repository
                 if let book = try? repo.book(slug: bookId) {
                     ReferencesView(
                         book: book,
-                        current: settingsStore.session?.chapterNumber ?? 1,
+                        current: current,
                         onSelect: { number in
                             router.chapterSelectedInContents = true
                             settingsStore.session?.chapterNumber = number
@@ -88,8 +83,8 @@ struct AppRoot: View {
                         .font(.subheadline)
                         .foregroundStyle(DesignTokens.muted)
                 }
-            case .addBook:
-                AddBookView(viewModel: makeImportViewModel())
+            case let .addBook(id):
+                AddBookView(id: id, viewModel: makeImportViewModel())
             case .settings:
                 SettingsView()
             case .cacheManager:

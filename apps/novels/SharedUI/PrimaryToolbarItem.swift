@@ -15,3 +15,20 @@ struct PrimaryToolbarItem<Control: View>: ToolbarContent {
         #endif
     }
 }
+
+#if os(macOS)
+struct MacBackToolbarItem: ToolbarContent {
+    var isEnabled = true
+    let action: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button("Quay lại", systemImage: "chevron.left", action: action)
+                .keyboardShortcut("[")
+                .labelStyle(.iconOnly)
+                .help("Quay lại")
+                .disabled(!isEnabled)
+        }
+    }
+}
+#endif

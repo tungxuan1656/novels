@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AddBookView: View {
+    let id: UUID
     @State var viewModel: ImportViewModel
     @Environment(Router.self) private var router
     @Environment(ToastCenter.self) private var toast
@@ -11,8 +12,17 @@ struct AddBookView: View {
             .background(DesignTokens.backgroundWhite)
             .navigationTitle("Thêm sách")
             .toolbarTitleDisplayMode(.inline)
+        #if os(macOS)
+            .navigationBarBackButtonHidden(true)
+        #else
+            .navigationBarBackButtonHidden(viewModel.importState != .idle)
+        #endif
             .toolbar {
                 #if os(macOS)
+                MacBackToolbarItem(isEnabled: viewModel.importState == .idle) {
+                    guard viewModel.importState == .idle else { return }
+                    router.pop(ifTop: .addBook(id))
+                }
                 PrimaryToolbarItem {
                     Button("Làm mới", systemImage: "arrow.clockwise") {
                         Task { await viewModel.loadCatalog() }
@@ -119,10 +129,11 @@ struct AddBookView: View {
                         ForEach(viewModel.sortedBooks, id: \.id) { exp in
                             BookRowButton(accessory: .download) {
                                 Task {
+                                    guard viewModel.importState == .idle else { return }
                                     do {
                                         try await viewModel.importBook(exp)
                                         toast.show("Đã nhập sách", type: .success)
-                                        router.pop()
+                                        router.pop(ifTop: .addBook(id))
                                     } catch let error as ImportError {
                                         switch error {
                                             case .downloadFailed:

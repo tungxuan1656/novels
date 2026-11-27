@@ -155,17 +155,20 @@ enum ReaderFontMapper {
     // swiftlint:enable cyclomatic_complexity switch_case_alignment
 }
 
-/// Helper for offset restore decision — testable without importing domain types
-enum ReaderOffsetRestore {
-    static func offsetToRestore(
-        sessionBookId: String?,
-        sessionOffset: Double?,
-        currentBookId: String
-    ) -> Double? {
-        // Offset 0 (top of chapter) is a valid restore position: same book is enough.
-        guard let sessionBookId, let sessionOffset, sessionBookId == currentBookId, sessionOffset >= 0 else {
-            return nil
+enum ReaderScrollRestore {
+    case offset(chapter: Int, Double)
+    case paragraph(chapter: Int, ReadingProgress.Anchor)
+
+    var chapter: Int {
+        switch self {
+            // swiftlint:disable:next switch_case_alignment
+            case let .offset(chapter, _), let .paragraph(chapter, _): chapter
         }
-        return sessionOffset
+    }
+
+    static func local(session: ReadingSession?, bookId: String, chapter: Int) -> Self? {
+        guard let session, session.bookId == bookId, session.chapterNumber == chapter,
+              session.offset.isFinite, session.offset > 0 else { return nil }
+        return .offset(chapter: chapter, session.offset)
     }
 }

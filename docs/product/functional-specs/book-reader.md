@@ -4,9 +4,9 @@
 
 ## Flow (ordered steps actor / system)
 
-1. Actor opens a locally installed book. System marks the session on-screen, reconciles its per-book checkpoint with private iCloud when available, then opens the saved chapter or chapter 1. System reads `chapters/chapter-N.html`, parses the first heading as an optional untranslated title, and displays it at body size + 8 bold. Mid-chapter headings merge into plain body text chunks. The reader restores the same device's offset when available or the saved paragraph in a matching rendition. With no compatible position, it starts at the chapter top. Pipeline: [local-data.md](../../contracts/local-data.md).
+1. Actor opens a locally installed book. System marks the session on-screen, reconciles its per-book checkpoint with private iCloud when available, then opens the saved chapter or chapter 1. System reads `chapters/chapter-N.html`, parses the first heading as an optional untranslated title, and displays it at body size + 8 bold. Mid-chapter headings merge into plain body text chunks. After the selected chapter content is laid out, the reader restores the same device's offset when available or the saved paragraph in a matching rendition. With no compatible position, it starts at the chapter top. Pipeline: [local-data.md](../../contracts/local-data.md).
 2. Actor navigates. Next and Previous step one chapter within 1..total. Buttons are disabled at ends. Index jump moves directly to the selected chapter.
-3. System saves the local offset and portable chapter/paragraph position while reading. Pending changes can sync when connectivity returns.
+3. System saves the local offset and portable chapter/paragraph position while reading. Pending changes can sync when connectivity returns for their verified iCloud account.
 4. Actor closes the reader. System marks it off-screen and keeps the position for resume. A cloud update never moves a reader that is already open.
 5. Missing file → "Failed to load chapter."
 

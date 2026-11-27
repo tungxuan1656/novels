@@ -192,22 +192,16 @@ final class ReaderViewModel {
         settingsStore.save()
     }
 
-    func onAppear() {
+    func onAppear(chapterOverride: Int? = nil) {
         preservesProcessingForLog = false
-        let existing = settingsStore.session
-        let offsetToKeep = (existing?.bookId == bookId) ? existing?.offset ?? 0 : 0
-        let chapterToKeep: Int
-        if let session = existing, session.bookId == bookId {
-            chapterToKeep = session.chapterNumber
-            chapterNumber = chapterToKeep
-        } else {
-            chapterToKeep = chapterNumber
-        }
+        let local = settingsStore.session.flatMap { $0.bookId == bookId ? $0 : nil }
+        chapterNumber = chapterOverride ?? local?.chapterNumber ?? chapterNumber
+        // A chapter supplied by iCloud is not a local edit. Do not persist it in the device session.
         settingsStore.session = ReadingSession(
             bookId: bookId,
             onScreen: true,
-            offset: offsetToKeep,
-            chapterNumber: chapterToKeep
+            offset: local?.offset ?? 0,
+            chapterNumber: local?.chapterNumber ?? 1
         )
         settingsStore.save()
     }

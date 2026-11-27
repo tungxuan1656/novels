@@ -192,6 +192,25 @@ final class BilingualPipelineTests: XCTestCase {
         XCTAssertEqual(groups.first { $0.id == originRunId.uuidString }?.status, .cancelled)
     }
 
+    func testCloudRestoreDoesNotReplaceDeviceSession() throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanUp() }
+        let local = ReadingSession(bookId: "sample", onScreen: true, offset: 120, chapterNumber: 2)
+        fixture.settings.session = local
+        let reader = ReaderViewModel(
+            bookId: "sample", repository: LogCoverRepository(), settingsStore: fixture.settings,
+            cache: fixture.cache, aiService: fixture.service
+        )
+
+        reader.onAppear(chapterOverride: 7)
+        XCTAssertEqual(reader.chapterNumber, 7)
+        XCTAssertEqual(fixture.settings.session, local)
+
+        reader.onAppear() // Reopen without the previous account's cloud checkpoint.
+        XCTAssertEqual(reader.chapterNumber, 2)
+        XCTAssertEqual(fixture.settings.session, local)
+    }
+
     func testLogCoverKeepsReaderAndPrefetchWithoutDuplicateCurrentRequest() async throws {
         let fixture = try makeFixture()
         defer { fixture.cleanUp() }

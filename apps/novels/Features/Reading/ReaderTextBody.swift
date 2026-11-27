@@ -24,11 +24,3 @@ struct ReaderTextBody: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
-
-/// Pure helper for scroll-restore decision — testable without UI.
-enum ReaderRestoreDecision {
-    /// Top-of-chapter (or missing) offsets need no scroll work.
-    static func needsScrollRestore(offset: Double?) -> Bool {
-        (offset ?? 0) > 0
-    }
-}

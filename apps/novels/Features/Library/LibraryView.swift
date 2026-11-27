@@ -18,7 +18,7 @@ struct LibraryView: View {
                     Text("Nhấn + để thêm sách")
                 } actions: {
                     Button("Thêm sách") {
-                        router.push(.addBook)
+                        router.push(.addBook(UUID()))
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -86,7 +86,7 @@ struct LibraryView: View {
                 if router.path.isEmpty {
                     PrimaryToolbarItem {
                         Button("Thêm sách", systemImage: "plus") {
-                            router.push(.addBook)
+                            router.push(.addBook(UUID()))
                         }
                         .labelStyle(.iconOnly)
                     }

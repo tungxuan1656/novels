@@ -45,7 +45,7 @@ Abstract stack:
 ## 4. Route Params
 
 - **Reading:** requires `bookId: string`. Chapter comes from book state, not URL. Offset is per book.
-- **References:** reads `bookId` from active session. No param.
+- **References:** receives the book ID and the chapter visible in the Reader.
 - **Setting Editor:** requires `settingKey`, `label`, `placeholder`. Optional `description`, `multiple=true` for multi-line.
 - **Log:** optional `bookId` scopes runs; optional error-focused entry initially selects failed runs.
 - Others have no params. Missing required param shows toast and stays on current screen.
@@ -57,7 +57,7 @@ Abstract stack:
 - Chapter change stays in Reading. Scroll resets to top. New chapter uses its own offset.
 - References tap → update current chapter for that `bookId` → pop to Reading. Back without a selection keeps the current chapter and position.
 - Opening Log covers Reading but keeps its current-chapter AI and prefetch running; popping Log does not reload the same chapter. Actual Reader exit still cancels its consumer and prefetch.
-- Add Book success → pop to Home and refresh list.
+- Add Book blocks Back during download and extraction. On success, refresh Library and pop only if that Add Book presentation is still on top.
 - Settings edit → persist at once. Invalid input blocks save and shows error.
 - Swipe on a Library row on iPhone or open its context menu on Mac to see book actions.
 
