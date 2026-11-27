@@ -23,7 +23,9 @@ struct SettingEditorView: View {
                 if descriptor.key == "AI_API_KEY" || descriptor.key == "AUDIO_API_KEY" {
                     SecureField(descriptor.placeholder, text: $draft)
                         .autocorrectionDisabled(true)
+                    #if os(iOS)
                         .textInputAutocapitalization(.never)
+                    #endif
                         .accessibilityLabel(descriptor.label)
                 } else if descriptor.key == "AUDIO_SOURCE" {
                     Picker("Nguồn audio", selection: $draft) {
@@ -49,7 +51,9 @@ struct SettingEditorView: View {
                         .frame(minHeight: 350)
                         .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
+                    #if os(iOS)
                         .textInputAutocapitalization(.never)
+                    #endif
                         .accessibilityLabel(descriptor.label)
                         .overlay(alignment: .topLeading) {
                             if draft.isEmpty {
@@ -66,7 +70,9 @@ struct SettingEditorView: View {
                     TextField(descriptor.placeholder, text: $draft)
                         .font(.caption.monospaced())
                         .autocorrectionDisabled(true)
+                    #if os(iOS)
                         .textInputAutocapitalization(.never)
+                    #endif
                 }
                 if let errorMessage {
                     Text(errorMessage)
@@ -79,7 +85,7 @@ struct SettingEditorView: View {
         .scrollContentBackground(.hidden)
         .background(DesignTokens.backgroundWhite)
         .navigationTitle(descriptor.label)
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Lưu") {

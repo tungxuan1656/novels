@@ -21,7 +21,6 @@ struct AppRoot: View {
                     switch route {
                         case let .reading(bookId):
                             ReaderView(bookId: bookId, router: router)
-                                .toolbar(.hidden, for: .navigationBar)
                         case let .references(bookId):
                             let repo = router.repository
                             if let book = try? repo.book(slug: bookId) {
@@ -29,10 +28,12 @@ struct AppRoot: View {
                                     book: book,
                                     current: settingsStore.session?.chapterNumber ?? 1,
                                     onSelect: { number in
+                                        router.chapterSelectedInContents = true
                                         settingsStore.session?.chapterNumber = number
                                         settingsStore.session?.offset = 0
                                         settingsStore.session?.bookId = bookId
                                         settingsStore.save()
+                                        ReadingProgressStore.shared.save(bookId: bookId, chapter: number, anchor: nil)
                                     },
                                     router: router
                                 )
@@ -67,7 +68,12 @@ struct AppRoot: View {
             if newPhase == .background || newPhase == .inactive {
                 settingsStore.save()
             }
+            if newPhase == .active {
+                ReadingProgressStore.shared.retryPending()
+            }
+            #if os(iOS)
             BackgroundAIExecution.shared.sceneChanged(isBackground: newPhase == .background)
+            #endif
         }
         .task {
             router.restoreInitialRoute()

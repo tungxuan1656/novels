@@ -17,8 +17,10 @@ struct ReaderTextBody: View {
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.bottom, typography.fontSize + typography.lineHeight)
+                    .id(entry.offset)
             }
         }
+        .scrollTargetLayout()
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

@@ -3,16 +3,23 @@ import SwiftUI
 // swiftlint:disable:next type_body_length
 struct ReaderView: View {
     let bookId: String
+    private let repository: any BookRepository
     @Bindable var router: Router
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel: ReaderViewModel
     @State private var settingsStore: SettingsStore
-    @State private var currentOffset: Double = 0
+    @State private var pendingOffset: Double?
+    @State private var scrollPhase: ScrollPhase = .idle
     @State private var lastEdgeSwitch = Date.distantPast
     @State private var showSheet = false
     @State private var scrollProxy: ScrollViewProxy?
     @State private var debounceTask: Task<Void, Never>?
     @State private var scrollPosition = ScrollPosition(point: .zero)
+    @State private var visibleParagraph: Int?
+    @State private var hasOpened = false
+    @State private var readyChapter: Int?
+    @State private var pendingRestore: ReadingProgress?
+    @State private var isJumpingToBottom = false
     @State private var hapticTrigger = 0
     @State private var learningParagraph: BilingualParagraph?
     @State private var speech = ReaderSpeech()
@@ -30,6 +37,7 @@ struct ReaderView: View {
             root: AppPaths.booksRoot(),
             fileManager: .default
         )
+        self.repository = repo
         _viewModel = State(initialValue: ReaderViewModel(
             bookId: bookId,
             repository: repo,
@@ -44,15 +52,17 @@ struct ReaderView: View {
         settingsStore.readingTheme
     }
 
+    private var isReaderReady: Bool {
+        readyChapter != nil
+    }
+
     var body: some View {
         GeometryReader { outer in
             ScrollViewReader { proxy in
                 ZStack(alignment: .top) {
                     ScrollView {
                         VStack(alignment: .leading, spacing: DesignTokens.spacing16) {
-                            Color.clear.frame(height: 54)
-
-                            if viewModel.isLoading {
+                            if !isReaderReady || viewModel.isLoading {
                                 ProgressView()
                                     .frame(maxWidth: .infinity)
                             } else if viewModel.aiMode != .none {
@@ -68,20 +78,41 @@ struct ReaderView: View {
                                 .id("bottom")
                         }
                         .padding(DesignTokens.spacing16)
-                        .id("top")
+                        #if os(macOS)
+                            .frame(maxWidth: 800)
+                            .frame(maxWidth: .infinity)
+                        #endif
+                            .id("top")
                     }
+                    .safeAreaPadding(.top, 54)
                     .scrollBounceBehavior(.always, axes: .vertical)
                     .scrollPosition($scrollPosition)
                     .id(viewModel.chapterNumber)
-                    .onChange(of: viewModel.chapterNumber) { _, _ in
+                    .onChange(of: viewModel.chapterNumber) { _, chapter in
                         dismissLearning()
-                        scrollToTop()
+                        if isReaderReady, readyChapter != chapter {
+                            readyChapter = chapter
+                            pendingRestore = nil
+                            scrollToTop()
+                            saveChapterStart()
+                        }
+                    }
+                    .onScrollTargetVisibilityChange(idType: Int.self, threshold: 0.01) { ids in
+                        visibleParagraph = ids.min()
                     }
                     .onScrollGeometryChange(for: Double.self) { geometry in
-                        geometry.contentOffset.y + geometry.contentInsets.top
+                        max(0, geometry.contentOffset.y + geometry.contentInsets.top)
                     } action: { _, scrolled in
-                        currentOffset = scrolled
-                        debouncedSave(scrolled)
+                        if isJumpingToBottom || scrollPhase == .interacting || scrollPhase == .decelerating {
+                            pendingRestore = nil
+                            debouncedSave(scrolled)
+                        }
+                    }
+                    .onScrollPhaseChange { _, phase in
+                        scrollPhase = phase
+                        if phase == .idle {
+                            isJumpingToBottom = false
+                        }
                     }
                     .simultaneousGesture(
                         DragGesture(minimumDistance: 10)
@@ -90,39 +121,37 @@ struct ReaderView: View {
                             }
                     )
 
-                    topHeader
+                    ReaderHeader(
+                        viewModel: viewModel,
+                        theme: theme,
+                        isReaderReady: isReaderReady,
+                        onBack: { router.popReading() },
+                        onPrevious: { changeChapter(forward: false) },
+                        onNext: { changeChapter(forward: true) },
+                        onContents: { router.push(.references(bookId: bookId)) }
+                    )
 
-                    VStack {
-                        Spacer()
-                        bottomFloatingBar(proxy)
+                    if isReaderReady {
+                        VStack {
+                            Spacer()
+                            bottomFloatingBar
+                        }
                     }
                 }
                 .sensoryFeedback(.impact(weight: .light), trigger: hapticTrigger)
-                .onAppear {
+                .task {
                     scrollProxy = proxy
-                    let disappearingChapter = viewModel.lastVisibleChapter
-                    let disappearingMode = viewModel.lastVisibleMode
-                    viewModel.onAppear()
-                    let source: LoadSource =
-                        (disappearingChapter == viewModel.chapterNumber
-                            && disappearingMode == viewModel.aiMode)
-                        ? .returnFromLog : .chapterChange
-                    Task {
-                        await viewModel.load(source: source)
-                        restoreOffset()
-                    }
+                    await openReader()
                 }
                 .onDisappear {
                     dismissLearning()
                     flushPendingOffset()
+                    readyChapter = nil
                     viewModel.onDisappear()
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase != .active {
                         dismissLearning()
-                    }
-                    // Persist the offset before a background kill (even during debounce).
-                    if newPhase == .background {
                         flushPendingOffset()
                     }
                 }
@@ -131,23 +160,43 @@ struct ReaderView: View {
         .background(theme.background)
         .colorScheme(theme.preferredColorScheme)
         .navigationBarBackButtonHidden(true)
-        .toolbar(.hidden, for: .navigationBar)
-        .interactiveDismissDisabled(true)
-        .sheet(isPresented: $showSheet) {
-            ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
-                .presentationDetents([.height(560), .large])
-                .preferredColorScheme(theme.preferredColorScheme)
-        }
-        .sheet(item: $learningParagraph, onDismiss: { speech.stop() }, content: { paragraph in
-            EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech, settings: settingsStore)
-                .presentationDetents([.medium, .large])
-        })
-        .onChange(of: viewModel.aiMode) { _, _ in dismissLearning() }
-        .onChange(of: viewModel.isAIProcessing) { _, processing in
-            if processing {
+        #if os(iOS)
+            .toolbar(.hidden, for: .navigationBar)
+        #endif
+            .interactiveDismissDisabled(true)
+            .sheet(isPresented: $showSheet) {
+                ReaderBottomSheet(settingsStore: settingsStore, viewModel: viewModel, onClose: { showSheet = false })
+                    .presentationDetents([.height(560), .large])
+                    .preferredColorScheme(theme.preferredColorScheme)
+            }
+            .sheet(item: $learningParagraph, onDismiss: { speech.stop() }, content: { paragraph in
+                EnglishLearningSheet(paragraph: paragraph, theme: theme, speech: speech, settings: settingsStore)
+                    .presentationDetents([.medium, .large])
+            })
+            .onChange(of: isReaderReady) { _, ready in
+                if ready {
+                    if pendingRestore != nil {
+                        restoreProgress()
+                    } else {
+                        restoreOffset()
+                    }
+                }
+            }
+            .onChange(of: viewModel.aiMode) { _, _ in
+                pendingRestore = nil
+                cancelOffsetSave()
+                visibleParagraph = nil
                 dismissLearning()
             }
-        }
+            .onChange(of: viewModel.isAIProcessing) { _, processing in
+                if processing {
+                    cancelOffsetSave()
+                    visibleParagraph = nil
+                    dismissLearning()
+                } else if pendingRestore != nil {
+                    restoreProgress()
+                }
+            }
     }
 
     private func dismissLearning() {
@@ -210,136 +259,7 @@ struct ReaderView: View {
         ReaderTextBody(text: text, typography: settingsStore.typography, theme: theme)
     }
 
-    private var topChapterTitleText: String {
-        let num = viewModel.chapterNumber
-        if let title = viewModel.chapterTitle, !title.isEmpty {
-            return "【\(num)】 \(title)"
-        }
-        if let bookName = viewModel.book?.name, !bookName.isEmpty {
-            return "【\(num)】 Chương \(num): \(bookName)"
-        }
-        return "【\(num)】 Chương \(num)"
-    }
-
-    private var topHeader: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(topChapterTitleText)
-                    .font(.system(size: 11, weight: .regular))
-                    .foregroundStyle(theme.textPrimary)
-                    .lineLimit(1)
-                    .accessibilityIdentifier("chapterText")
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 2)
-            .background(theme.headerBackground)
-
-            HStack {
-                Button {
-                    router.popReading()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(theme.iconTint)
-                        .frame(width: 28, height: 28)
-                        .background(theme.chipBackground)
-                        .clipShape(Circle())
-                }
-                .a11yHitTarget()
-                .accessibilityIdentifier("backButton")
-                .accessibilityLabel("Quay lại Thư viện")
-
-                Spacer()
-
-                HStack(spacing: 4) {
-                    if viewModel.isAIProcessing {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .frame(width: 22, height: 28)
-                            Text("Đang xử lý")
-                                .font(.caption)
-                                .foregroundStyle(theme.textMuted)
-                                .lineLimit(1)
-                        }
-                        .frame(height: 28)
-                        .accessibilityIdentifier("aiProgressHeader")
-                        .accessibilityLabel("Đang xử lý")
-                    }
-                    HStack(spacing: 2) {
-                        Button {
-                            debounceTask?.cancel()
-                            debounceTask = nil
-                            lastEdgeSwitch = Date()
-                            Task {
-                                await viewModel.goPrev()
-                                scrollToTop()
-                            }
-                        } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(
-                                    viewModel.canGoPrev
-                                        ? theme.iconTint
-                                        : theme.iconTint.opacity(theme.disabledIconOpacity)
-                                )
-                                .frame(width: 22, height: 28)
-                                .contentShape(Rectangle())
-                        }
-                        .disabled(!viewModel.canGoPrev)
-                        .accessibilityIdentifier("prevButton")
-                        .accessibilityLabel("Chương trước")
-
-                        Button {
-                            debounceTask?.cancel()
-                            debounceTask = nil
-                            lastEdgeSwitch = Date()
-                            Task {
-                                await viewModel.goNext()
-                                scrollToTop()
-                            }
-                        } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundStyle(
-                                    viewModel.canGoNext
-                                        ? theme.iconTint
-                                        : theme.iconTint.opacity(theme.disabledIconOpacity)
-                                )
-                                .frame(width: 22, height: 28)
-                                .contentShape(Rectangle())
-                        }
-                        .disabled(!viewModel.canGoNext)
-                        .accessibilityIdentifier("nextButton")
-                        .accessibilityLabel("Chương sau")
-                    }
-                    .padding(.horizontal, 2)
-                    .frame(height: 28)
-                    .background(theme.chipBackground)
-                    .clipShape(Capsule())
-
-                    Button {
-                        router.push(.references(bookId: bookId))
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(theme.iconTint)
-                            .frame(width: 28, height: 28)
-                            .background(theme.chipBackground)
-                            .clipShape(Circle())
-                    }
-                    .a11yHitTarget()
-                    .accessibilityIdentifier("tocButton")
-                    .accessibilityLabel("Mục lục")
-                }
-            }
-            .padding(.horizontal, 8)
-        }
-        .accessibilityIdentifier("header")
-    }
-
-    private func bottomFloatingBar(_ proxy: ScrollViewProxy) -> some View {
+    private var bottomFloatingBar: some View {
         HStack {
             Spacer()
 
@@ -386,7 +306,7 @@ struct ReaderView: View {
             dx: value.translation.width,
             dy: value.translation.height
         )
-        guard let direction else { return }
+        guard isReaderReady, let direction else { return }
         let now = Date()
         guard EdgeSwipeDecision.isThrottleOk(now: now, lastSwitch: lastEdgeSwitch) else { return }
         // swiftlint:disable switch_case_alignment
@@ -404,14 +324,8 @@ struct ReaderView: View {
             router.toast.show("Đã là chương đầu", type: .info)
             return
         }
-        lastEdgeSwitch = now
-        debounceTask?.cancel()
-        debounceTask = nil
         hapticTrigger += 1
-        Task {
-            await viewModel.goPrev()
-            scrollToTop()
-        }
+        changeChapter(forward: false, now: now)
     }
 
     private func edgeGoNext(now: Date) {
@@ -419,42 +333,124 @@ struct ReaderView: View {
             router.toast.show("Đã là chương cuối", type: .info)
             return
         }
-        lastEdgeSwitch = now
-        debounceTask?.cancel()
-        debounceTask = nil
         hapticTrigger += 1
-        Task {
-            await viewModel.goNext()
-            scrollToTop()
-        }
+        changeChapter(forward: true, now: now)
     }
 
-    private func debouncedSave(_ offset: Double) {
-        debounceTask?.cancel()
-        debounceTask = Task {
-            try? await Task.sleep(nanoseconds: 300_000_000)
-            guard !Task.isCancelled else { return }
-            await MainActor.run {
-                viewModel.saveOffset(offset)
-                debounceTask = nil
+    private func changeChapter(forward: Bool, now: Date = .now) {
+        lastEdgeSwitch = now
+        cancelOffsetSave()
+        Task {
+            if forward {
+                await viewModel.goNext()
+            } else {
+                await viewModel.goPrev()
             }
         }
     }
 
-    /// Synchronously persist the latest scroll offset when a debounced save is
-    /// still pending. Called from onDisappear and scenePhase background so a
-    /// kill inside the 300ms debounce window cannot lose the position.
-    private func flushPendingOffset() {
-        if debounceTask != nil {
-            viewModel.saveOffset(currentOffset)
+    private func openReader() async {
+        let selectedChapter = router.chapterSelectedInContents
+        if !hasOpened, !selectedChapter {
+            let saved = await ReadingProgressStore.shared.progressOnOpen(bookId: bookId)
+            guard !Task.isCancelled else { return }
+            if let saved {
+                useSavedProgress(saved.progress, isLocal: saved.isLocal)
+            }
         }
+        hasOpened = true
+        let disappearingChapter = viewModel.lastVisibleChapter
+        let disappearingMode = viewModel.lastVisibleMode
+        viewModel.onAppear()
+        let source: LoadSource = disappearingChapter == viewModel.chapterNumber && disappearingMode == viewModel.aiMode
+            ? .returnFromLog : .chapterChange
+        await viewModel.load(source: source)
+        guard !Task.isCancelled else { return }
+        if selectedChapter {
+            router.chapterSelectedInContents = false
+            pendingRestore = nil
+            scrollToTop()
+        }
+        readyChapter = viewModel.chapterNumber
+    }
+
+    private func useSavedProgress(_ progress: ReadingProgress, isLocal: Bool) {
+        guard let count = (try? repository.book(slug: bookId))?.count,
+              progress.fits(chapterCount: count) else { return }
+        let session = settingsStore.session
+        let hasLocalOffset = session?.bookId == bookId && session?.chapterNumber == progress.chapter
+            && (session?.offset ?? 0) > 0
+        guard !isLocal || !hasLocalOffset else { return }
+        pendingRestore = progress
+        settingsStore.session?.chapterNumber = progress.chapter
+        settingsStore.session?.offset = 0
+    }
+
+    private func restoreProgress() {
+        guard isReaderReady, !viewModel.isAIProcessing, let progress = pendingRestore else { return }
+        pendingRestore = nil
+        guard progress.chapter == viewModel.chapterNumber, let anchor = progress.anchor,
+              let layout = readingLayout(), let index = anchor.index(in: layout.rendition, count: layout.count)
+        else { return }
+        scrollPosition.scrollTo(id: index, anchor: .top)
+    }
+
+    private func readingLayout() -> (rendition: String, count: Int)? {
+        if let paragraphs = viewModel.currentBilingualParagraphs {
+            let text = paragraphs.map { "\($0.vi)\u{1E}\($0.en)" }.joined(separator: "\u{1F}")
+            return ("bilingual-v1-" + SHA256.hex(text), paragraphs.count)
+        }
+        if let text = viewModel.currentProcessedContent {
+            return ("processed-v1-" + SHA256.hex(text), ReaderBodySplitter.split(text).count)
+        }
+        guard !viewModel.isAIProcessing, !viewModel.chapterBody.isEmpty else { return nil }
+        return ("raw-v1-" + SHA256.hex(viewModel.chapterBody), ReaderBodySplitter.split(viewModel.chapterBody).count)
+    }
+
+    private func saveReadingPosition(_ offset: Double) {
+        guard readyChapter == viewModel.chapterNumber, let layout = readingLayout() else { return }
+        viewModel.saveOffset(offset)
+        if offset <= 1 {
+            ReadingProgressStore.shared.save(bookId: bookId, chapter: viewModel.chapterNumber, anchor: nil)
+        } else if let index = visibleParagraph, (0 ..< layout.count).contains(index) {
+            let anchor = ReadingProgress.Anchor(rendition: layout.rendition, paragraph: index)
+            ReadingProgressStore.shared.save(bookId: bookId, chapter: viewModel.chapterNumber, anchor: anchor)
+        }
+    }
+
+    private func saveChapterStart() {
+        guard viewModel.errorMessage == nil else { return }
+        ReadingProgressStore.shared.save(bookId: bookId, chapter: viewModel.chapterNumber, anchor: nil)
+    }
+
+    private func debouncedSave(_ offset: Double) {
+        guard isReaderReady, !viewModel.isLoading, !viewModel.isAIProcessing else { return }
+        debounceTask?.cancel()
+        pendingOffset = offset
+        debounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            flushPendingOffset()
+        }
+    }
+
+    private func flushPendingOffset() {
+        if let pendingOffset {
+            saveReadingPosition(pendingOffset)
+        }
+        cancelOffsetSave()
+    }
+
+    private func cancelOffsetSave() {
         debounceTask?.cancel()
         debounceTask = nil
+        pendingOffset = nil
     }
 
     private func scrollToTop() {
-        debounceTask?.cancel()
-        debounceTask = nil
+        cancelOffsetSave()
+        isJumpingToBottom = false
+        visibleParagraph = nil
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -464,12 +460,11 @@ struct ReaderView: View {
     }
 
     private func scrollToBottom() {
-        debounceTask?.cancel()
-        debounceTask = nil
-        if let proxy = scrollProxy {
-            withAnimation(.easeOut(duration: 0.35)) {
-                proxy.scrollTo("bottom", anchor: .bottom)
-            }
+        cancelOffsetSave()
+        pendingRestore = nil
+        isJumpingToBottom = true
+        withAnimation(.easeOut(duration: 0.35)) {
+            scrollPosition.scrollTo(edge: .bottom)
         }
     }
 

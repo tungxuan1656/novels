@@ -75,3 +75,11 @@
 - **Context:** Readers can prefer provider speech quality while keeping Apple speech as the offline default.
 - **Decision:** Extend D7 with exactly three independent audio settings: Apple/API source, a separate API key, and model. API audio sends only the selected sentence after an explicit tap to the supplied fixed HTTPS endpoint. See [audio service](../contracts/audio-service.md).
 - **Consequence:** API speech needs network and may incur charges. Stop cancels pending loading as well as playback. No automatic retries, persisted audio cache, whole-chapter synthesis or implicit Apple fallback on API errors.
+
+### D9 — Native Mac and Reading Progress Only
+
+- **Date:** 2026-11-27
+- **Status:** Accepted by user before implementation
+- **Context:** Readers want to continue the same book on Mac or iPhone without a separate app codebase.
+- **Decision:** Build both platforms from the shared SwiftUI target. Sync only per-book reading progress through private iCloud. This amends D1 for progress, not book storage or user accounts.
+- **Consequence:** Install the same book independently on both devices. Resume a compatible paragraph on open; mismatched renditions resume at the saved chapter. Reading still works offline. See [reading progress sync](../decisions/reading-progress-sync.md).

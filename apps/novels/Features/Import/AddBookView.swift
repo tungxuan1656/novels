@@ -10,9 +10,9 @@ struct AddBookView: View {
         contentView
             .background(DesignTokens.backgroundWhite)
             .navigationTitle("Thêm sách")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .primaryAction) {
                     Menu {
                         Picker("Sắp xếp", selection: $bindable.sortOption) {
                             Text("A→Z").tag(ImportViewModel.SortOption.nameAZ)

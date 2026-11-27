@@ -1,9 +1,14 @@
-# ADR — iPhone-Only, iOS 26.0+, Vietnamese UI
+# ADR — iPhone and Mac Platform Scope
 
 - **Date:** 2026-08-24
-- **Status:** Accepted; current scope amended in feat-031.
+- **Status:** Accepted; amended for [macOS and reading progress](../../tasks/task-macos-reading-sync.md).
 
-## Current Scope — feat-031 Revision
+## Current Scope
+
+- The shared `novels` SwiftUI target builds natively for iPhone and Mac. The deployment floors are iOS 26.0 and macOS 26.0; iPad and Mac Catalyst are out of scope.
+- Preserve the Vietnamese UI and shared reading flows. Platform conditionals isolate system features such as iOS background AI execution from the Mac build.
+
+## feat-031 iOS Revision
 
 The user restored the iOS 26+ scope and selected 26.0 as the minimum, superseding the earlier 18.6 amendment.
 

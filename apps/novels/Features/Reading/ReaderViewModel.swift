@@ -387,6 +387,7 @@ final class ReaderViewModel {
         settingsStore.save()
     }
 
+    #if os(iOS)
     /// Explicit user action: promote the existing FIFO worker to iOS 26
     /// continued processing. Automatic chapter prefetch never submits this API.
     func startBackgroundPrefetch() async {
@@ -412,6 +413,8 @@ final class ReaderViewModel {
             toastCenter?.show("Không thể bật xử lý nền: \(error.localizedDescription)", type: .error)
         }
     }
+
+    #endif
 
     private func triggerPrefetchIfEligible() async {
         // feat-024 Phase 2: no debounce — the FIFO queue absorbs rapid

@@ -18,7 +18,8 @@ struct BilingualReaderBody: View {
 
     var body: some View {
         LazyVStack(alignment: .leading, spacing: typography.fontSize + typography.lineHeight) {
-            ForEach(paragraphs) { paragraph in
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { entry in
+                let paragraph = entry.element
                 VStack(alignment: .leading, spacing: DesignTokens.spacing8) {
                     if hideOption != .vietnamese {
                         if hideOption == .english {
@@ -60,8 +61,10 @@ struct BilingualReaderBody: View {
                 .lineSpacing(typography.lineHeight)
                 .multilineTextAlignment(.leading)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .id(entry.offset)
             }
         }
+        .scrollTargetLayout()
         .accessibilityIdentifier("bilingualContent")
     }
 }

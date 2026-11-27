@@ -1,7 +1,7 @@
 # AGENTS.md
 
-Novels is an offline-first iPhone reader with Vietnamese UI. Download one ZIP book package and read offline.
-Support iOS 26.0+; app Debug and Release use device family `1`.
+Novels is an offline-first iPhone and Mac reader with Vietnamese UI. Books are local; iCloud syncs reading progress only.
+Support iOS 26.0+ and macOS 26.0+; iOS app Debug and Release use device family `1`.
 
 ## Read When Needed
 
@@ -12,7 +12,7 @@ Support iOS 26.0+; app Debug and Release use device family `1`.
 - Wire and storage contracts: [contracts index](docs/contracts/index.md).
 - Decisions: [technical index](docs/decisions/index.md), [product decisions](docs/product/decisions.md), [SECURITY.md](SECURITY.md).
 - Persistence and identity: [local persistence](docs/decisions/local-persistence.md), [book identity](docs/decisions/book-identity.md), [local data](docs/contracts/local-data.md), [settings](docs/contracts/settings-schema.md).
-- Support scope and verification policy: [iOS scope](docs/decisions/ios-scope.md), [focused unit verification](docs/decisions/verification.md).
+- Support scope and verification policy: [platform scope](docs/decisions/ios-scope.md), [reading progress sync](docs/decisions/reading-progress-sync.md), [focused unit verification](docs/decisions/verification.md).
 - Roadmap and task links: [tasks/index.md](tasks/index.md). Verification commands: `init.sh`.
 
 Read the relevant spec or decision before changing product behavior or architecture. Ask when evidence conflicts.
@@ -51,13 +51,13 @@ Read the relevant spec or decision before changing product behavior or architect
 
 ## Verification
 
-- Full: `./init.sh` runs format, lint, build and focused unit tests. Run it before task completion, commit or push.
+- Full: `./init.sh` runs format, lint, iOS and macOS builds, and focused iOS unit tests. Run it before task completion, commit or push.
 - Quick: `./init.sh --quick` (alias `-q`) runs format and lint, explicitly skipping build and unit tests.
 - Help: `./init.sh --help`. Checks run sequentially and stop at the first failure.
 - SwiftFormat and SwiftLint are required. Missing tools fail; verification never fixes source or installs dependencies.
 - Build/test outputs are allowed. Unit tests isolate temporary data and bypass production startup.
 - The staged-Swift pre-commit hook is a fast gate, not a substitute for full verification.
 - Update `init.sh` and affected canonical docs when check commands or workspace modules change.
-- Disclose coverage limits: iOS 26.5 simulator checks do not prove iOS 26.0 runtime behavior.
+- Disclose coverage limits: iOS 26.5 simulator checks and an unsigned Mac build do not prove minimum-OS runtime behavior or real iCloud sync.
 
 <!-- harness 2.0.0 | migrated 2026-10-12 | repository-specific rules retained -->

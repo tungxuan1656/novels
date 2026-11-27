@@ -117,7 +117,7 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(DesignTokens.backgroundWhite)
         .navigationTitle("Cài đặt")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
             Text("Phiên bản \(appVersion)")
                 .font(.footnote)

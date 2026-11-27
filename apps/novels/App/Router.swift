@@ -8,6 +8,7 @@ final class Router {
     var toast = ToastCenter()
     private let settingsStore: SettingsStore
     let repository: BookRepository
+    @ObservationIgnored var chapterSelectedInContents = false
     private var isPushing = false
 
     init(settingsStore: SettingsStore = .shared, repository: BookRepository? = nil) {
@@ -58,6 +59,7 @@ final class Router {
         isPushing = true
         path.append(route)
         if case let .reading(bookId) = route {
+            chapterSelectedInContents = false
             let isSameBook = settingsStore.session?.bookId == bookId
             let offset = isSameBook ? (settingsStore.session?.offset ?? 0) : 0
             let chapter = isSameBook ? (settingsStore.session?.chapterNumber ?? 1) : 1

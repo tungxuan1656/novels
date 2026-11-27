@@ -1,6 +1,6 @@
 # Screens — Novels
 
-> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). iPhone only, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md).
+> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). Shared iPhone and Mac screens, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 ## 1. Screen Map
 

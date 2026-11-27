@@ -202,6 +202,7 @@ struct ReaderBottomSheet: View {
             if viewModel.aiMode == .bilingual {
                 bilingualLanguageSection
             }
+            #if os(iOS)
             if viewModel.aiMode != .none {
                 Button {
                     Task { await viewModel.startBackgroundPrefetch() }
@@ -219,6 +220,7 @@ struct ReaderBottomSheet: View {
                 .font(.caption)
                 .foregroundStyle(theme.textMuted)
             }
+            #endif
             apiLogButton(viewModel: viewModel)
         }
     }

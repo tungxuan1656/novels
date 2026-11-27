@@ -7,9 +7,9 @@
 ### 1 — Startup and Resume
 
 Request → System restores session and settings from persistent settings store → Checks `onScreen`.
-- `true` → Open Reader for saved `bookId`, restore offset.
+- `true` → Open Reader for the saved local `bookId` and follow Flow 4.
 - `false` / no session → Show Library.
-- No network. Missing values use defaults.
+- Startup routing needs no network. Missing values use defaults.
 
 ### 2 — Discover and Import Book
 
@@ -29,9 +29,9 @@ Request → User views Library → System lists books from local book repository
 
 ### 4 — Reading and Navigation
 
-Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to one optional title plus one plain body string per local-persistence.md → Renders the raw title at body size + 8 bold above native paragraph text → Restores offset or top. Mid-chapter heading text merges into the body as plain text.
+Request → User opens book → System marks `onScreen=true` → Loads current chapter (1-based, default 1, clamp 1..total) from file storage → Parses HTML to one optional title plus one plain body string per local-persistence.md → Renders the raw title at body size + 8 bold above native paragraph text → Restores the local offset or compatible synced paragraph, else chapter top. Mid-chapter heading text merges into the body as plain text. See [Book Reader](functional-specs/book-reader.md) for checkpoint reconciliation.
 - Request → Next/Previous → Step within bounds. Button is disabled at ends.
-- Scroll → Saves offset per book. New chapter starts at top.
+- Scroll → Saves the local offset and per-book checkpoint. New chapter starts at top.
 - Request → Scroll to bottom or open index → Jump to chapter.
 - Missing file → "Failed to load chapter."
 
