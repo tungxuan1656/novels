@@ -21,7 +21,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 
 ## 3. Shared Patterns
 
-**Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
+**Bottom Sheet.** On iPhone, the sheet slides up and the backdrop dims; drag down or tap the backdrop to close. On Mac, use “Đóng” or Escape. The Reading sheet includes:
 - Font picker
 - Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
 - In Song ngữ, row `Ngôn ngữ chính: <Tiếng Việt / Tiếng Anh>` with trailing icon-only swap button (no explanatory text)
@@ -35,7 +35,7 @@ Gear opens Settings.
 
 **Cache Inventory.** The existing Cache Manager reads SQLite metadata, not diagnostics history. Counts distinguish saved chapter/mode versions from distinct chapters. Expand each book title/slug for ordered chapter, mode and update time. Pull to refresh; opening/query/deletion errors are explicit. Existing per-book/all deletes require confirmation and do not delete the original book.
 
-**Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
+**Book Rows.** On Mac, Library and Add Book use full-width rows with a trailing open or download icon. Library offers Info and Delete via the context menu; on iPhone, swipe left to reveal them. Delete requires confirmation.
 
 **Toast.** Top and global. Colors:
 - Success uses green

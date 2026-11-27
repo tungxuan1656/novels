@@ -263,40 +263,26 @@ struct ReaderView: View {
         HStack {
             Spacer()
 
-            Button {
-                scrollToBottom()
-            } label: {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(theme.iconTint)
-                    .frame(width: 24, height: 24)
-                    .background(theme.chipBackground)
-                    .clipShape(Circle())
-            }
-            .a11yHitTarget()
-            .accessibilityIdentifier("toBottomButton")
-            .accessibilityLabel("Cuộn xuống cuối")
-            .offset(y: 12)
+            ReaderIconButton(symbol: "arrow.down", theme: theme, size: 24, action: scrollToBottom)
+                .accessibilityIdentifier("toBottomButton")
+                .accessibilityLabel("Cuộn xuống cuối")
+            #if os(iOS)
+                .offset(y: 12)
+            #endif
 
             Spacer()
         }
         .overlay(alignment: .trailing) {
-            Button {
-                showSheet = true
-            } label: {
-                Image(systemName: "textformat.size")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(theme.iconTint)
-                    .frame(width: 28, height: 28)
-                    .background(theme.chipBackground)
-                    .clipShape(Circle())
-            }
-            .a11yHitTarget()
-            .accessibilityIdentifier("typographyButton")
-            .accessibilityLabel("Cài đặt phông chữ")
+            ReaderIconButton(symbol: "textformat.size", theme: theme, iconSize: 13) { showSheet = true }
+                .accessibilityIdentifier("typographyButton")
+                .accessibilityLabel("Cài đặt phông chữ")
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, -6)
+        #if os(macOS)
+            .padding(.bottom, 12)
+        #else
+            .padding(.bottom, -6)
+        #endif
     }
 
     private func handleEdgeSwipe(value: DragGesture.Value, width: CGFloat) {

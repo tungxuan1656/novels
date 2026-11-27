@@ -33,6 +33,10 @@ struct ReaderBottomSheet: View {
                         }
                         .accessibilityLabel("Cài đặt")
                         .a11yHitTarget()
+                        #if os(macOS)
+                        Button("Đóng", action: onClose)
+                            .keyboardShortcut(.cancelAction)
+                        #endif
                     }
                     .padding(.top, 4)
 

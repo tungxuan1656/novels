@@ -48,7 +48,17 @@ struct LibraryView: View {
                                     }
                                 }
                                 .frame(minHeight: DesignTokens.rowMinHeight)
-                                .contentShape(Rectangle())
+                                #if os(macOS)
+                                    .padding(.trailing, DesignTokens.spacing24)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .overlay(alignment: .trailing) {
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(DesignTokens.muted)
+                                            .accessibilityHidden(true)
+                                    }
+                                #endif
+                                    .contentShape(Rectangle())
                             }
                             .listRowBackground(DesignTokens.surface)
                             .listRowSeparatorTint(DesignTokens.border)
@@ -69,6 +79,7 @@ struct LibraryView: View {
                                     .tint(DesignTokens.accent)
                                 }
                             #else
+                                .buttonStyle(.plain)
                                 .contextMenu {
                                     Button("Thông tin", systemImage: "info.circle") {
                                         viewModel.selected = book
@@ -97,24 +108,30 @@ struct LibraryView: View {
             .toolbar {
                 if router.path.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
+                        Button("Thêm sách", systemImage: "plus") {
                             router.push(.addBook)
-                        } label: {
-                            Image(systemName: "plus")
-                                .accessibilityLabel("Thêm sách")
                         }
-                        .a11yHitTarget()
+                        .labelStyle(.iconOnly)
+                        #if os(iOS)
+                            .a11yHitTarget()
+                        #endif
                     }
+                    #if os(macOS)
+                    .sharedBackgroundVisibility(.hidden)
+                    #endif
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
+                        Button("Cài đặt", systemImage: "gearshape") {
                             router.push(.settings)
-                        } label: {
-                            Image(systemName: "gearshape")
-                                .accessibilityLabel("Cài đặt")
                         }
+                        .labelStyle(.iconOnly)
                         .accessibilityIdentifier("settingsButton")
-                        .a11yHitTarget()
+                        #if os(iOS)
+                            .a11yHitTarget()
+                        #endif
                     }
+                    #if os(macOS)
+                    .sharedBackgroundVisibility(.hidden)
+                    #endif
                 }
             }
             .loadingOverlay(isLoading: viewModel.isLoading)

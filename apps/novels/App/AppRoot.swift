@@ -17,43 +17,23 @@ struct AppRoot: View {
         NavigationStack(path: $router.path) {
             LibraryView(router: router, viewModel: libraryViewModel)
                 .navigationDestination(for: Router.Route.self) { route in
-                    // swiftlint:disable switch_case_alignment
-                    switch route {
-                        case let .reading(bookId):
-                            ReaderView(bookId: bookId, router: router)
-                        case let .references(bookId):
-                            let repo = router.repository
-                            if let book = try? repo.book(slug: bookId) {
-                                ReferencesView(
-                                    book: book,
-                                    current: settingsStore.session?.chapterNumber ?? 1,
-                                    onSelect: { number in
-                                        router.chapterSelectedInContents = true
-                                        settingsStore.session?.chapterNumber = number
-                                        settingsStore.session?.offset = 0
-                                        settingsStore.session?.bookId = bookId
-                                        settingsStore.save()
-                                        ReadingProgressStore.shared.save(bookId: bookId, chapter: number, anchor: nil)
-                                    },
-                                    router: router
-                                )
-                            } else {
-                                Text("Không tìm thấy chương")
-                                    .font(.subheadline)
-                                    .foregroundStyle(DesignTokens.muted)
+                    #if os(macOS)
+                    if case .reading = route {
+                        destination(for: route)
+                    } else {
+                        destination(for: route)
+                            .navigationBarBackButtonHidden(true)
+                            .toolbar {
+                                ToolbarItem(placement: .navigation) {
+                                    Button("Quay lại", systemImage: "chevron.left") { router.pop() }
+                                        .labelStyle(.iconOnly)
+                                        .help("Quay lại")
+                                }
                             }
-                        case .addBook:
-                            AddBookView(viewModel: makeImportViewModel())
-                        case .settings:
-                            SettingsView()
-                        case .cacheManager:
-                            CacheManagerView()
-                        case let .settingEditor(settingKey):
-                            SettingEditorView(settingKey: settingKey)
-                        case let .apiLog(bookId, initialFilter):
-                            LogScreen(bookId: bookId, initialFilter: initialFilter)
                     }
-                    // swiftlint:enable switch_case_alignment
+                    #else
+                    destination(for: route)
+                    #endif
                 }
         }
         .environment(router)
@@ -78,6 +58,47 @@ struct AppRoot: View {
         .task {
             router.restoreInitialRoute()
         }
+    }
+
+    @ViewBuilder
+    private func destination(for route: Router.Route) -> some View {
+        // swiftlint:disable switch_case_alignment
+        switch route {
+            case let .reading(bookId):
+                ReaderView(bookId: bookId, router: router)
+            case let .references(bookId):
+                let repo = router.repository
+                if let book = try? repo.book(slug: bookId) {
+                    ReferencesView(
+                        book: book,
+                        current: settingsStore.session?.chapterNumber ?? 1,
+                        onSelect: { number in
+                            router.chapterSelectedInContents = true
+                            settingsStore.session?.chapterNumber = number
+                            settingsStore.session?.offset = 0
+                            settingsStore.session?.bookId = bookId
+                            settingsStore.save()
+                            ReadingProgressStore.shared.save(bookId: bookId, chapter: number, anchor: nil)
+                        },
+                        router: router
+                    )
+                } else {
+                    Text("Không tìm thấy chương")
+                        .font(.subheadline)
+                        .foregroundStyle(DesignTokens.muted)
+                }
+            case .addBook:
+                AddBookView(viewModel: makeImportViewModel())
+            case .settings:
+                SettingsView()
+            case .cacheManager:
+                CacheManagerView()
+            case let .settingEditor(settingKey):
+                SettingEditorView(settingKey: settingKey)
+            case let .apiLog(bookId, initialFilter):
+                LogScreen(bookId: bookId, initialFilter: initialFilter)
+        }
+        // swiftlint:enable switch_case_alignment
     }
 
     private func makeImportViewModel() -> ImportViewModel {

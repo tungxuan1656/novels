@@ -19,6 +19,10 @@ struct AddBookView: View {
                             Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
                         }
                     } label: {
+                        #if os(macOS)
+                        Label("Sắp xếp", systemImage: "arrow.up.arrow.down")
+                            .labelStyle(.iconOnly)
+                        #else
                         HStack(spacing: DesignTokens.spacing4) {
                             Text(bindable.sortOption == .nameAZ ? "A→Z" : "Mới nhất")
                         }
@@ -27,10 +31,16 @@ struct AddBookView: View {
                         .padding(.horizontal, DesignTokens.spacing4)
                         .frame(minHeight: 44)
                         .contentShape(Rectangle())
+                        #endif
                     }
+                    #if os(iOS)
                     .a11yHitTarget()
+                    #endif
                     .accessibilityLabel("Sắp xếp")
                 }
+                #if os(macOS)
+                .sharedBackgroundVisibility(.hidden)
+                #endif
             }
             .overlay {
                 if viewModel.importState != .idle {
@@ -159,8 +169,22 @@ struct AddBookView: View {
                                     }
                                 }
                                 .frame(minHeight: DesignTokens.rowMinHeight, alignment: .leading)
-                                .contentShape(Rectangle())
+                                #if os(macOS)
+                                    .padding(.vertical, DesignTokens.spacing8)
+                                    .padding(.trailing, DesignTokens.spacing24)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .overlay(alignment: .trailing) {
+                                        Image(systemName: "arrow.down.circle")
+                                            .font(.title3)
+                                            .foregroundStyle(DesignTokens.accent)
+                                            .accessibilityHidden(true)
+                                    }
+                                #endif
+                                    .contentShape(Rectangle())
                             }
+                            #if os(macOS)
+                            .buttonStyle(.plain)
+                            #endif
                             .listRowBackground(DesignTokens.surface)
                             .listRowSeparatorTint(DesignTokens.border)
                             .accessibilityIdentifier("addbook.row.\(exp.book.slug)")

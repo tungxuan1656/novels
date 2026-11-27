@@ -35,19 +35,9 @@ struct ReaderHeader: View {
             .background(theme.headerBackground)
 
             HStack {
-                Button {
-                    onBack()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(theme.iconTint)
-                        .frame(width: 28, height: 28)
-                        .background(theme.chipBackground)
-                        .clipShape(Circle())
-                }
-                .a11yHitTarget()
-                .accessibilityIdentifier("backButton")
-                .accessibilityLabel("Quay lại Thư viện")
+                ReaderIconButton(symbol: "chevron.left", theme: theme, iconSize: 13, action: onBack)
+                    .accessibilityIdentifier("backButton")
+                    .accessibilityLabel("Quay lại Thư viện")
 
                 Spacer()
 
@@ -102,24 +92,38 @@ struct ReaderHeader: View {
                     .background(theme.chipBackground)
                     .clipShape(Capsule())
 
-                    Button {
-                        onContents()
-                    } label: {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(theme.iconTint)
-                            .frame(width: 28, height: 28)
-                            .background(theme.chipBackground)
-                            .clipShape(Circle())
-                    }
-                    .a11yHitTarget()
-                    .disabled(!isReaderReady)
-                    .accessibilityIdentifier("tocButton")
-                    .accessibilityLabel("Mục lục")
+                    ReaderIconButton(symbol: "list.bullet", theme: theme, action: onContents)
+                        .disabled(!isReaderReady)
+                        .accessibilityIdentifier("tocButton")
+                        .accessibilityLabel("Mục lục")
                 }
             }
             .padding(.horizontal, 8)
         }
         .accessibilityIdentifier("header")
+    }
+}
+
+struct ReaderIconButton: View {
+    let symbol: String
+    let theme: ReadingTheme
+    var size: CGFloat = 28
+    var iconSize: CGFloat = 12
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(theme.iconTint)
+                .frame(width: size, height: size)
+                .background(theme.chipBackground, in: Circle())
+                .contentShape(Circle())
+        }
+        #if os(macOS)
+        .buttonStyle(.plain)
+        #else
+        .a11yHitTarget()
+        #endif
     }
 }
