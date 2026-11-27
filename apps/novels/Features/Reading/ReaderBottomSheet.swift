@@ -33,6 +33,10 @@ struct ReaderBottomSheet: View {
                         }
                         .accessibilityLabel("Cài đặt")
                         .a11yHitTarget()
+                        #if os(macOS)
+                        Button("Đóng", action: onClose)
+                            .keyboardShortcut(.cancelAction)
+                        #endif
                     }
                     .padding(.top, 4)
 
@@ -202,6 +206,7 @@ struct ReaderBottomSheet: View {
             if viewModel.aiMode == .bilingual {
                 bilingualLanguageSection
             }
+            #if os(iOS)
             if viewModel.aiMode != .none {
                 Button {
                     Task { await viewModel.startBackgroundPrefetch() }
@@ -219,6 +224,7 @@ struct ReaderBottomSheet: View {
                 .font(.caption)
                 .foregroundStyle(theme.textMuted)
             }
+            #endif
             apiLogButton(viewModel: viewModel)
         }
     }

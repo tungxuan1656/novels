@@ -18,7 +18,7 @@ struct LibraryView: View {
                     Text("Nhấn + để thêm sách")
                 } actions: {
                     Button("Thêm sách") {
-                        router.push(.addBook)
+                        router.push(.addBook(UUID()))
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -28,30 +28,27 @@ struct LibraryView: View {
                 List {
                     Section {
                         ForEach(viewModel.books, id: \.id) { book in
-                            Button {
+                            BookRowButton(accessory: .open) {
                                 router.push(.reading(bookId: book.id))
                             } label: {
                                 VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                                     Text(book.name)
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(DesignTokens.Typography.subheadline.weight(.semibold))
                                         .foregroundStyle(DesignTokens.text)
                                         .lineLimit(2)
                                     HStack(spacing: DesignTokens.spacing8) {
                                         if let author = book.author {
                                             Text(author)
-                                                .font(.footnote)
+                                                .font(DesignTokens.Typography.footnote)
                                                 .foregroundStyle(DesignTokens.muted)
                                         }
                                         Text("\(book.count) chương")
-                                            .font(.footnote)
+                                            .font(DesignTokens.Typography.footnote)
                                             .foregroundStyle(DesignTokens.muted)
                                     }
                                 }
-                                .frame(minHeight: DesignTokens.rowMinHeight)
-                                .contentShape(Rectangle())
                             }
-                            .listRowBackground(DesignTokens.surface)
-                            .listRowSeparatorTint(DesignTokens.border)
+                            #if os(iOS)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 Button(role: .destructive) {
                                     viewModel.confirmDelete(book)
@@ -67,6 +64,9 @@ struct LibraryView: View {
                                 }
                                 .tint(DesignTokens.accent)
                             }
+                            #else
+                            .contextMenu { bookContextMenu(for: book) }
+                            #endif
                             .accessibilityIdentifier("library.row.\(book.id)")
                         }
                     }
@@ -79,66 +79,75 @@ struct LibraryView: View {
             }
         }
         .navigationTitle("Thư viện")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            if router.path.isEmpty {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        router.push(.addBook)
-                    } label: {
-                        Image(systemName: "plus")
-                            .accessibilityLabel("Thêm sách")
+        #if os(iOS)
+            .toolbarTitleDisplayMode(.large)
+        #endif
+            .toolbar {
+                if router.path.isEmpty {
+                    PrimaryToolbarItem {
+                        Button("Thêm sách", systemImage: "plus") {
+                            router.push(.addBook(UUID()))
+                        }
+                        .labelStyle(.iconOnly)
                     }
-                    .a11yHitTarget()
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        router.push(.settings)
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .accessibilityLabel("Cài đặt")
+                    PrimaryToolbarItem {
+                        Button("Cài đặt", systemImage: "gearshape") {
+                            router.push(.settings)
+                        }
+                        .labelStyle(.iconOnly)
+                        .accessibilityIdentifier("settingsButton")
                     }
-                    .accessibilityIdentifier("settingsButton")
-                    .a11yHitTarget()
                 }
             }
-        }
-        .loadingOverlay(isLoading: viewModel.isLoading)
-        .sheet(isPresented: $viewModel.showInfo) {
-            if let book = viewModel.selected {
-                BookInfoSheet(book: book)
+            .loadingOverlay(isLoading: viewModel.isLoading)
+            .sheet(isPresented: $viewModel.showInfo) {
+                if let book = viewModel.selected {
+                    BookInfoSheet(book: book)
+                }
             }
-        }
-        // Delete confirmation uses a single boolean-driven alert, so presentation
-        // does not depend on row identity. Duplicate book ids are removed
-        // upstream by first-wins dedupe in FileBookRepository.listBooks(),
-        // keeping List(id: \.id) diffing stable.
-        .alert(
-            "Xóa sách?",
-            isPresented: Binding(
-                get: { viewModel.showDeleteConfirm != nil },
-                set: { isPresented in
-                    if !isPresented {
+            // Delete confirmation uses a single boolean-driven alert, so presentation
+            // does not depend on row identity. Duplicate book ids are removed
+            // upstream by first-wins dedupe in FileBookRepository.listBooks(),
+            // keeping List(id: \.id) diffing stable.
+            .alert(
+                "Xóa sách?",
+                isPresented: Binding(
+                    get: { viewModel.showDeleteConfirm != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            viewModel.showDeleteConfirm = nil
+                        }
+                    }
+                ),
+                actions: {
+                    Button("Xóa", role: .destructive) {
+                        viewModel.deleteConfirmed()
+                    }
+                    Button("Hủy", role: .cancel) {
                         viewModel.showDeleteConfirm = nil
                     }
+                },
+                message: {
+                    if let book = viewModel.showDeleteConfirm {
+                        Text("Bạn có chắc muốn xóa “\(book.name)” không?")
+                    }
                 }
-            ),
-            actions: {
-                Button("Xóa", role: .destructive) {
-                    viewModel.deleteConfirmed()
-                }
-                Button("Hủy", role: .cancel) {
-                    viewModel.showDeleteConfirm = nil
-                }
-            },
-            message: {
-                if let book = viewModel.showDeleteConfirm {
-                    Text("Bạn có chắc muốn xóa “\(book.name)” không?")
-                }
+            )
+            .task {
+                await viewModel.load()
             }
-        )
-        .task {
-            await viewModel.load()
+    }
+
+    #if os(macOS)
+    @ViewBuilder
+    private func bookContextMenu(for book: Book) -> some View {
+        Button("Thông tin", systemImage: "info.circle") {
+            viewModel.selected = book
+            viewModel.showInfo = true
+        }
+        Button("Xóa", systemImage: "trash", role: .destructive) {
+            viewModel.confirmDelete(book)
         }
     }
+    #endif
 }

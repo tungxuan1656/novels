@@ -34,7 +34,7 @@ struct LogScreen: View {
         }
         .background(DesignTokens.backgroundWhite)
         .navigationTitle("Nhật ký AI")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .toolbar {
             NavigationLink(value: Router.Route.cacheManager) {
                 Image(systemName: "internaldrive")
@@ -86,7 +86,9 @@ struct LogScreen: View {
                 .foregroundStyle(DesignTokens.muted)
                 .accessibilityHidden(true)
             TextField("Tìm chương, trạng thái, sự kiện…", text: $query)
+            #if os(iOS)
                 .textInputAutocapitalization(.never)
+            #endif
                 .autocorrectionDisabled()
                 .accessibilityIdentifier("logFilter-search")
                 .accessibilityLabel("Tìm trong nhật ký")

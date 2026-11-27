@@ -1,6 +1,8 @@
 import SwiftUI
 #if canImport(UIKit)
 import UIKit
+#elseif os(macOS)
+import AppKit
 #endif
 
 extension Color {
@@ -43,24 +45,37 @@ enum DesignTokens {
     static let surface = Color(uiColor: .adapted(lightHex: 0xFFFFFF, dark: UIColor(hex: 0x171D23)))
     static let text = Color(uiColor: .adapted(lightHex: 0x111111, dark: .label))
     static let muted = Color(uiColor: .adapted(lightHex: 0x6B7280, dark: .secondaryLabel))
-    static let accent = Color(hex: 0x2563EB)
-    static let success = Color(hex: 0x16A34A)
-    static let warning = Color(hex: 0xEA580C)
-    static let error = Color(hex: 0xDC2626)
     static let border = Color(uiColor: .adapted(lightHex: 0xE5E7EB, dark: UIColor(hex: 0x232B33)))
     #else
-    static let backgroundPaper = Color(hex: 0xF5F1E5)
-    static let backgroundWhite = Color(hex: 0xF5F5F5)
-    static let backgroundGrouped = Color(hex: 0xF5F5F5)
-    static let surface = Color(hex: 0xFFFFFF)
-    static let text = Color(hex: 0x111111)
-    static let muted = Color(hex: 0x6B7280)
+    static let backgroundPaper = Color(nsColor: .windowBackgroundColor)
+    static let backgroundWhite = Color(nsColor: .windowBackgroundColor)
+    static let backgroundGrouped = Color(nsColor: .windowBackgroundColor)
+    static let surface = Color(nsColor: .controlBackgroundColor)
+    static let text = Color.primary
+    static let muted = Color.secondary
+    static let border = Color(nsColor: .separatorColor)
+    #endif
+
     static let accent = Color(hex: 0x2563EB)
     static let success = Color(hex: 0x16A34A)
     static let warning = Color(hex: 0xEA580C)
     static let error = Color(hex: 0xDC2626)
-    static let border = Color(hex: 0xE5E7EB)
-    #endif
+
+    enum Typography {
+        #if os(macOS)
+        static let body: Font? = .system(size: 15)
+        static let subheadline: Font = .system(size: 15)
+        static let footnote: Font = .system(size: 13)
+        static let caption: Font = .system(size: 13)
+        static let caption2: Font = .system(size: 13)
+        #else
+        static let body: Font? = nil // Inherit the native list label font.
+        static let subheadline: Font = .subheadline
+        static let footnote: Font = .footnote
+        static let caption: Font = .caption
+        static let caption2: Font = .system(size: 11)
+        #endif
+    }
 
     static let radiusSmall: CGFloat = 8
     static let radiusMedium: CGFloat = 12

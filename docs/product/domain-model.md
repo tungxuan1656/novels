@@ -62,7 +62,7 @@ idle ──► checking cache ──► processing sequentially ──► done
 | **BilingualChapter** | Versioned paired payload in ProcessedChapter.content for bilingual | `version=1`, `paragraphs[{id,vi,en}]` | Processed chapter cache |
 | **AI_BILINGUAL_PROMPT** | Independent bilingual system prompt | `prompt` | Persistent settings store |
 | **AI_PROMPT** | Configurable rewrite system prompt | `prompt` | Persistent settings store |
-| **ReadingSession** | Persisted reading position | `bookId`, `onScreen`, `offset` | Persistent settings store |
+| **ReadingSession** | Local reader session | `bookId`, `onScreen`, `offset`, `chapterNumber` | Persistent settings store |
 | **TypographySetting** | Reader appearance | `font`, `fontSize`, `lineHeight` | Persistent settings store |
 | **PrefetchStatus** | Background prefetch progress (runtime only) | `isRunning`, `currentBookId`, `totalChapters`, `processedChapters`, `message`, `errors[]` | Runtime |
 

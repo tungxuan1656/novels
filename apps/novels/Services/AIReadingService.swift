@@ -344,6 +344,7 @@ actor AIReadingService {
         bookId: String, chapterNumber: Int, mode: AIMode, rawText: String,
         runId: UUID, source: String, refresh: Bool
     ) async throws -> String {
+        #if os(iOS)
         await BackgroundAIExecution.shared.operationStarted()
         do {
             let result = try await process(
@@ -356,6 +357,12 @@ actor AIReadingService {
             await BackgroundAIExecution.shared.operationFinished()
             throw error
         }
+        #else
+        try await process(
+            bookId: bookId, chapterNumber: chapterNumber, mode: mode,
+            rawText: rawText, runId: runId, source: source, refresh: refresh
+        )
+        #endif
     }
 
     // swiftlint:disable:next function_parameter_count function_body_length

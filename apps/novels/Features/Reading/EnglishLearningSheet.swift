@@ -1,4 +1,6 @@
+#if os(iOS)
 import SafariServices
+#endif
 import SwiftUI
 
 struct EnglishLearningSheet: View {
@@ -7,7 +9,11 @@ struct EnglishLearningSheet: View {
     let settings: SettingsStore
     private let sentences: [EnglishSentence]
     @Environment(\.dismiss) private var dismiss
+    #if os(iOS)
     @State private var lookup: GoogleLookup?
+    #else
+    @Environment(\.openURL) private var openURL
+    #endif
     @State private var loadingSentenceID: Int?
 
     init(paragraph: BilingualParagraph, theme: ReadingTheme, speech: ReaderSpeech, settings: SettingsStore) {
@@ -62,7 +68,11 @@ struct EnglishLearningSheet: View {
                                 Button {
                                     speech.stop()
                                     if let url = EnglishLearning.googleURL(for: sentence.text) {
+                                        #if os(iOS)
                                         lookup = GoogleLookup(url: url)
+                                        #else
+                                        openURL(url)
+                                        #endif
                                     }
                                 } label: {
                                     Label("Tra cứu", systemImage: "magnifyingglass")
@@ -79,7 +89,7 @@ struct EnglishLearningSheet: View {
             }
             .background(theme.background)
             .navigationTitle("Học tiếng Anh")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng", systemImage: "xmark") { dismiss() }
@@ -90,10 +100,14 @@ struct EnglishLearningSheet: View {
                         .accessibilityLabel("Dừng tải hoặc phát âm")
                 }
             }
+            #if os(iOS)
             .sheet(item: $lookup) { item in
                 GoogleSearchBrowser(url: item.url)
                     .ignoresSafeArea()
             }
+            #else
+            .frame(minWidth: 420, minHeight: 340)
+            #endif
         }
         .preferredColorScheme(theme.preferredColorScheme)
         .onChange(of: settings.audioSource) { speech.stop() }
@@ -101,6 +115,7 @@ struct EnglishLearningSheet: View {
     }
 }
 
+#if os(iOS)
 private struct GoogleLookup: Identifiable {
     let id = UUID()
     let url: URL
@@ -115,3 +130,4 @@ private struct GoogleSearchBrowser: UIViewControllerRepresentable {
 
     func updateUIViewController(_ controller: SFSafariViewController, context: Context) {}
 }
+#endif

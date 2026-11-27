@@ -11,7 +11,7 @@ for arg in "$@"; do
       echo "Usage: ./init.sh [--quick]"
       echo "  --quick, -q   Format + lint only; skip build and unit tests"
       echo "  --help, -h    Show this help"
-      echo "Full verification: format + lint + build + focused unit tests"
+      echo "Full verification: format + lint + iOS and macOS builds + focused iOS unit tests"
       exit 0
       ;;
     *)
@@ -50,6 +50,8 @@ if [ "$QUICK" -eq 1 ]; then
 else
   run_check xcodebuild build -project apps/novels.xcodeproj -scheme novels \
     -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" -quiet
+  run_check xcodebuild build -project apps/novels.xcodeproj -scheme novels \
+    -destination "platform=macOS" CODE_SIGNING_ALLOWED=NO -quiet
   run_check xcodebuild test -project apps/novels.xcodeproj -scheme novels \
     -destination "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5" \
     -only-testing:novelsTests -parallel-testing-enabled NO -quiet

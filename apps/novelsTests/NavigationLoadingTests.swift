@@ -5,6 +5,50 @@ import XCTest
 
 @MainActor
 final class NavigationLoadingTests: XCTestCase {
+    func testOldImportCompletionCannotPopAnotherRouteOrAnotherImport() throws {
+        let suite = "NavigationLoadingTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let router = Router(settingsStore: SettingsStore(userDefaults: defaults), repository: NavigationRepository())
+        let completed = Router.Route.addBook(UUID())
+        let newImport = Router.Route.addBook(UUID())
+        let reader = Router.Route.reading(bookId: "sample")
+
+        router.path = [reader, newImport]
+        router.pop(ifTop: completed)
+        XCTAssertEqual(router.path, [reader, newImport])
+        router.pop(ifTop: newImport)
+        XCTAssertEqual(router.path, [reader])
+        router.pop(ifTop: completed)
+        XCTAssertEqual(router.path, [reader])
+    }
+
+    func testReaderBackOnlyPopsMatchingTopRoute() throws {
+        let suite = "NavigationLoadingTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(userDefaults: defaults)
+        settings.session = ReadingSession(bookId: "sample", onScreen: true, offset: 42, chapterNumber: 3)
+        let router = Router(settingsStore: settings, repository: NavigationRepository())
+        let reader = Router.Route.reading(bookId: "sample")
+        let references = Router.Route.references(bookId: "sample", current: 3)
+
+        router.path = [reader, references]
+        router.popReading(bookId: "sample")
+        XCTAssertEqual(router.path, [reader, references])
+        XCTAssertTrue(try XCTUnwrap(settings.session).onScreen)
+
+        router.path = [.reading(bookId: "another-book")]
+        router.popReading(bookId: "sample")
+        XCTAssertEqual(router.path, [.reading(bookId: "another-book")])
+        XCTAssertTrue(try XCTUnwrap(settings.session).onScreen)
+
+        router.path = [reader]
+        router.popReading(bookId: "sample")
+        XCTAssertTrue(router.path.isEmpty)
+        XCTAssertFalse(try XCTUnwrap(settings.session).onScreen)
+    }
+
     func testLibraryReusesLoadedBooksAndRefreshesAfterInvalidation() async {
         let reads = NavigationReadProbe()
         let repository = NavigationRepository(onList: {

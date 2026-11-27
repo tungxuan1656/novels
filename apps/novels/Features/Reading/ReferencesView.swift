@@ -55,6 +55,6 @@ struct ReferencesView: View {
         }
         .background(DesignTokens.backgroundWhite)
         .navigationTitle("Mục lục")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
     }
 }

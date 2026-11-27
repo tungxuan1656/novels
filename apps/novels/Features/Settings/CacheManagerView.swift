@@ -37,14 +37,16 @@ struct CacheManagerView: View {
                         bookSection
                     }
                 }
+                #if os(iOS)
                 .listSectionSpacing(DesignTokens.spacing8)
+                #endif
                 .scrollContentBackground(.hidden)
                 .background(DesignTokens.backgroundWhite)
                 .refreshable { await viewModel.load() }
             }
         }
         .navigationTitle("Quản lý bộ nhớ đệm")
-        .navigationBarTitleDisplayMode(.inline)
+        .toolbarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
         .confirmationDialog(
             "Xác nhận xóa tất cả?",

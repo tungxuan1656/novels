@@ -18,8 +18,10 @@ import Observation
     @ObservationIgnored private var loadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored private var currentUtterance: AVSpeechUtterance?
+    #if os(iOS)
     @ObservationIgnored private let audioSession = AVAudioSession.sharedInstance()
     @ObservationIgnored private var audioSessionIsActive = false
+    #endif
 
     private static let sessionAudioCache: NSCache<NSArray, NSData> = {
         let cache = NSCache<NSArray, NSData>()
@@ -34,7 +36,9 @@ import Observation
         self.client = client
         self.audioCache = audioCache ?? Self.sessionAudioCache
         super.init()
+        #if os(iOS)
         synthesizer.usesApplicationAudioSession = true
+        #endif
         synthesizer.delegate = self
     }
 
@@ -104,7 +108,7 @@ import Observation
         guard let voice = AVSpeechSynthesisVoice(language: "en-US")
             ?? AVSpeechSynthesisVoice.speechVoices().first(where: { $0.language.hasPrefix("en-") })
         else {
-            errorMessage = "Chưa có giọng tiếng Anh. Hãy tải giọng đọc trong Cài đặt iOS."
+            errorMessage = "Chưa có giọng tiếng Anh. Hãy tải giọng đọc trong cài đặt hệ thống."
             return
         }
         let utterance = AVSpeechUtterance(string: sentence)
@@ -135,16 +139,20 @@ import Observation
     }
 
     private func activateAudioSession() throws {
+        #if os(iOS)
         // Explicit listening should remain audible with the Ring/Silent switch on.
         try audioSession.setCategory(.playback, mode: .spokenAudio, options: .duckOthers)
         try audioSession.setActive(true)
         audioSessionIsActive = true
+        #endif
     }
 
     private func deactivateAudioSession() {
+        #if os(iOS)
         guard audioSessionIsActive else { return }
         try? audioSession.setActive(false, options: .notifyOthersOnDeactivation)
         audioSessionIsActive = false
+        #endif
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {

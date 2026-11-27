@@ -1,6 +1,6 @@
 # Screens — Novels
 
-> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). iPhone only, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md).
+> **Scope owner:** This file owns the screen inventory and per-screen behavior. For graph see [navigation.md](./navigation.md), flows see [../product/flows.md](../product/flows.md), overview see [../product/overview.md](../product/overview.md). Shared iPhone and Mac screens, Vietnamese UI — see [ARCHITECTURE.md](../../ARCHITECTURE.md).
 
 ## 1. Screen Map
 
@@ -10,8 +10,8 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 
 | Screen | Purpose | Key Elements | States | Transitions |
 |---|---|---|---|---|
-| **Home Library** | Browse books | Header with add and settings; row with name, author, count | Empty (add prompt), Content, Refreshing | Tap → Reading; swipe Info/Delete; add → Add Book |
-| **Add Book** | Import book | Header back; remote list; download overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → back |
+| **Home Library** | Browse books | Header with add and settings; row with name, author, count | Empty (add prompt), Content, Refreshing | Tap → Reading; use iPhone swipe or Mac context menu for Info/Delete; add → Add Book |
+| **Add Book** | Import book | Header back; remote list; Mac refresh button; blocking import overlay | Loading, Empty, Error (retry), Downloading | Pick → download → unzip → Library |
 | **Reading** | Read and navigate | Header index+title+status; raw title (body + 8, bold) above native paragraph text or ordered VI/EN pairs; English paragraph opens sentence learning; back; prev/next; to-bottom; sheet button | Loading, Content, Error | Prev/Next in place; scroll saves offset; index → References |
 | **References** | Jump chapter | Header back; title list; current bold | Content at current index, Empty | Tap → set chapter → back |
 | **Settings** | Edit config | Header; grouped list, Audio source with API-only key/model; cards for data | Content | Row → Editor; Data → Cache |
@@ -21,7 +21,7 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 
 ## 3. Shared Patterns
 
-**Bottom Sheet.** Overlay on Home and Reading. Sheet slides up and backdrop dims. Drag down or tap backdrop to close. Reading sheet includes:
+**Bottom Sheet.** On iPhone, the sheet slides up and the backdrop dims; drag down or tap the backdrop to close. On Mac, use “Đóng” or Escape. The Reading sheet includes:
 - Font picker
 - Inline "Chế độ đọc" picker: Bản gốc / Dịch / Song ngữ; "Xử lý lại" applies to the selected processed mode only
 - In Song ngữ, row `Ngôn ngữ chính: <Tiếng Việt / Tiếng Anh>` with trailing icon-only swap button (no explanatory text)
@@ -29,13 +29,13 @@ Map → [navigation.md](./navigation.md) §1. Shared container with safe area, h
 - Log button ("Nhật ký") below AI section → push Log timeline for the current book. "Xem lỗi" selects failed runs when errors are present. Filters select whole runs and never strip sibling requests or retries.
 Gear opens Settings.
 
-**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google in a nested system browser sheet only after a tap. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
+**English Learning Sheet.** Tap an English paragraph to choose a sentence. "Nghe" uses configured Apple speech or "Nghe · Online" uses API audio with privacy/cost notice and loading/error feedback; the text-only "Dừng" button cancels loading and stops playback, and is disabled when idle. "Tra cứu" opens Google only after a tap, in an iPhone browser sheet or the Mac default browser. Keep the privacy/cost notice to one short sentence; do not truncate it at accessibility text sizes. See [bilingual-learning](../product/functional-specs/bilingual-learning.md).
 
 **Diagnostic Log.** One row per AI-processing run, newest first: book/chapter/mode, reader/prefetch/manual source, duration, chunk progress and outcome. Cache-only reads and general queue events are omitted. Cancelled is separate from failed; a short cause includes chunk and attempt when available. Expand for one outcome per API attempt, validation failures and shared-request context; retries remain visible. Technical codes, sanitized endpoint and model are available in detail. Search matches whole runs by safe labels/codes, never raw bodies. JSON remains RAM-only. HTTP 200 alone does not mean valid bilingual output.
 
 **Cache Inventory.** The existing Cache Manager reads SQLite metadata, not diagnostics history. Counts distinguish saved chapter/mode versions from distinct chapters. Expand each book title/slug for ordered chapter, mode and update time. Pull to refresh; opening/query/deletion errors are explicit. Existing per-book/all deletes require confirmation and do not delete the original book.
 
-**Swipe Row.** Home only. Swipe left shows Info (blue, external link) and Delete (red, confirm then remove). Actions close swipe on tap. Cancel keeps data.
+**Book Rows.** Library and Add Book share a row button. On Mac, rows are full-width with a trailing open or download icon. Library offers Info and Delete via the context menu; on iPhone, swipe left to reveal them. Delete requires confirmation.
 
 **Toast.** Top and global. Colors:
 - Success uses green
@@ -64,7 +64,7 @@ Duration is 3s for <60 chars, 4s for <150 chars, and 5s for long text. Tap to di
 | ZIP missing files | Fail, no entry, error |
 | Invalid AI headers/body JSON | Ignored, request proceeds without merge |
 | Empty Prompt | Fallback to default prompt (BR-12) |
-| No network on Add Book | Error, pull to retry |
+| No network on Add Book | Show error with retry; pull to refresh on iPhone or use Refresh on Mac |
 | Empty chapters | Empty state, nav disabled |
 
 ## Links

@@ -46,7 +46,11 @@
 
 Sentence pronunciation defaults to `AVSpeechSynthesizer` and an installed English voice; unavailable voices show a download hint. Optional API audio uses an independent key/model and returns in-memory audio for a user-selected sentence. The sheet warns of online transmission/possible charges, exposes loading/errors and cancels stale work without retries or implicit fallback. API audio reuses a bounded app-session memory cache; uncached/evicted sentences need network. No persisted audio or dictionary integration. Wire details: [audio-service](../contracts/audio-service.md).
 
-Explicit sentence lookup opens `https://www.google.com/search` in `SFSafariViewController`, using URL-encoded selected text plus a Vietnamese explanation request. The sheet warns that Google receives that sentence. Network, results and AI Overviews are not guaranteed; the app does not scrape or store responses. Local reading remains independent. See [bilingual-learning](functional-specs/bilingual-learning.md).
+Explicit sentence lookup opens `https://www.google.com/search` in an in-app Safari sheet on iPhone or the default browser on Mac, using URL-encoded selected text plus a Vietnamese explanation request. The sheet warns that Google receives that sentence. Network, results and AI Overviews are not guaranteed; the app does not scrape or store responses. Local reading remains independent. See [bilingual-learning](functional-specs/bilingual-learning.md).
+
+## 4. iCloud Reading Progress
+
+Private CloudKit syncs only the reading checkpoint for an installed book between devices using the same Apple Account. The app does not need an account of its own. Offline reading uses local state and retries unsent progress when the app next becomes active or the book opens. See [reading progress sync](../decisions/reading-progress-sync.md).
 
 ## Contract Separation
 

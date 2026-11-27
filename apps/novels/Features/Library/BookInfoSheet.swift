@@ -15,7 +15,7 @@ struct BookInfoSheet: View {
             }
             .background(DesignTokens.backgroundGrouped)
             .navigationTitle("Thông tin sách")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button {
@@ -29,6 +29,9 @@ struct BookInfoSheet: View {
                 }
             }
         }
+        #if os(macOS)
+        .frame(minWidth: 420, minHeight: 340)
+        #endif
     }
 
     private var infoCard: some View {

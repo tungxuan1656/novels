@@ -1,3 +1,4 @@
+#if os(iOS)
 import BackgroundTasks
 import Foundation
 import UIKit
@@ -190,3 +191,4 @@ enum ContinuedPrefetchError: LocalizedError {
             : "Không có lượt tải trước đang chạy"
     }
 }
+#endif

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct AddBookView: View {
+    let id: UUID
     @State var viewModel: ImportViewModel
     @Environment(Router.self) private var router
     @Environment(ToastCenter.self) private var toast
@@ -10,25 +11,47 @@ struct AddBookView: View {
         contentView
             .background(DesignTokens.backgroundWhite)
             .navigationTitle("Thêm sách")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbarTitleDisplayMode(.inline)
+        #if os(macOS)
+            .navigationBarBackButtonHidden(true)
+        #else
+            .navigationBarBackButtonHidden(viewModel.importState != .idle)
+        #endif
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                #if os(macOS)
+                MacBackToolbarItem(isEnabled: viewModel.importState == .idle) {
+                    guard viewModel.importState == .idle else { return }
+                    router.pop(ifTop: .addBook(id))
+                }
+                PrimaryToolbarItem {
+                    Button("Làm mới", systemImage: "arrow.clockwise") {
+                        Task { await viewModel.loadCatalog() }
+                    }
+                    .labelStyle(.iconOnly)
+                    .help("Làm mới")
+                    .keyboardShortcut("r")
+                    .disabled(viewModel.catalogState == .loading || viewModel.importState != .idle)
+                }
+                #endif
+                PrimaryToolbarItem {
                     Menu {
                         Picker("Sắp xếp", selection: $bindable.sortOption) {
                             Text("A→Z").tag(ImportViewModel.SortOption.nameAZ)
                             Text("Mới nhất").tag(ImportViewModel.SortOption.updatedNewest)
                         }
                     } label: {
-                        HStack(spacing: DesignTokens.spacing4) {
-                            Text(bindable.sortOption == .nameAZ ? "A→Z" : "Mới nhất")
-                        }
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(DesignTokens.text)
-                        .padding(.horizontal, DesignTokens.spacing4)
-                        .frame(minHeight: 44)
-                        .contentShape(Rectangle())
+                        #if os(macOS)
+                        Label("Sắp xếp", systemImage: "arrow.up.arrow.down")
+                            .labelStyle(.iconOnly)
+                        #else
+                        Text(bindable.sortOption == .nameAZ ? "A→Z" : "Mới nhất")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(DesignTokens.text)
+                            .padding(.horizontal, DesignTokens.spacing4)
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                        #endif
                     }
-                    .a11yHitTarget()
                     .accessibilityLabel("Sắp xếp")
                 }
             }
@@ -104,12 +127,13 @@ struct AddBookView: View {
                 List {
                     Section {
                         ForEach(viewModel.sortedBooks, id: \.id) { exp in
-                            Button {
+                            BookRowButton(accessory: .download) {
                                 Task {
+                                    guard viewModel.importState == .idle else { return }
                                     do {
                                         try await viewModel.importBook(exp)
                                         toast.show("Đã nhập sách", type: .success)
-                                        router.pop()
+                                        router.pop(ifTop: .addBook(id))
                                     } catch let error as ImportError {
                                         switch error {
                                             case .downloadFailed:
@@ -130,27 +154,27 @@ struct AddBookView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
                                     Text(exp.book.name)
-                                        .font(.subheadline.weight(.semibold))
+                                        .font(DesignTokens.Typography.subheadline.weight(.semibold))
                                         .foregroundStyle(DesignTokens.text)
                                         .lineLimit(2)
                                         .truncationMode(.tail)
                                         .lineSpacing(2)
                                         .multilineTextAlignment(.leading)
                                     Text(exp.book.author ?? "Không rõ")
-                                        .font(.footnote)
+                                        .font(DesignTokens.Typography.footnote)
                                         .foregroundStyle(DesignTokens.muted)
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                     Text(
                                         "\(exp.book.chapterCount ?? 0) chương • \(ByteCountFormatter.string(fromByteCount: Int64(exp.fileSize), countStyle: .file))"
                                     )
-                                    .font(.caption)
+                                    .font(DesignTokens.Typography.caption)
                                     .foregroundStyle(DesignTokens.muted)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                                     if let syn = exp.book.synopsis, !syn.isEmpty {
                                         Text(syn)
-                                            .font(.caption)
+                                            .font(DesignTokens.Typography.caption)
                                             .foregroundStyle(DesignTokens.muted)
                                             .lineLimit(2)
                                             .truncationMode(.tail)
@@ -158,11 +182,8 @@ struct AddBookView: View {
                                             .multilineTextAlignment(.leading)
                                     }
                                 }
-                                .frame(minHeight: DesignTokens.rowMinHeight, alignment: .leading)
-                                .contentShape(Rectangle())
                             }
-                            .listRowBackground(DesignTokens.surface)
-                            .listRowSeparatorTint(DesignTokens.border)
+                            .accessibilityHint("Tải sách về thư viện")
                             .accessibilityIdentifier("addbook.row.\(exp.book.slug)")
                         }
                     }
