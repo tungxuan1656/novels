@@ -139,8 +139,10 @@ struct ReaderView: View {
                     }
                 }
                 .sensoryFeedback(.impact(weight: .light), trigger: hapticTrigger)
-                .task {
+                // A covered reader can stay mounted when the contents closes.
+                .task(id: router.chapterSelectedInContents) {
                     scrollProxy = proxy
+                    guard router.chapterSelectedInContents || !isReaderReady else { return }
                     await openReader()
                 }
                 .onDisappear {
@@ -337,6 +339,9 @@ struct ReaderView: View {
 
     private func openReader() async {
         let selectedChapter = router.chapterSelectedInContents
+        if selectedChapter {
+            cancelOffsetSave()
+        }
         if !hasOpened, !selectedChapter {
             let saved = await ReadingProgressStore.shared.progressOnOpen(bookId: bookId)
             guard !Task.isCancelled else { return }
@@ -352,12 +357,12 @@ struct ReaderView: View {
             ? .returnFromLog : .chapterChange
         await viewModel.load(source: source)
         guard !Task.isCancelled else { return }
+        readyChapter = viewModel.chapterNumber
         if selectedChapter {
-            router.chapterSelectedInContents = false
             pendingRestore = nil
             scrollToTop()
+            router.chapterSelectedInContents = false
         }
-        readyChapter = viewModel.chapterNumber
     }
 
     private func useSavedProgress(_ progress: ReadingProgress, isLocal: Bool) {

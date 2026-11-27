@@ -8,7 +8,7 @@ final class Router {
     var toast = ToastCenter()
     private let settingsStore: SettingsStore
     let repository: BookRepository
-    @ObservationIgnored var chapterSelectedInContents = false
+    var chapterSelectedInContents = false
     private var isPushing = false
 
     init(settingsStore: SettingsStore = .shared, repository: BookRepository? = nil) {
