@@ -35,7 +35,7 @@ Gear opens Settings.
 
 **Cache Inventory.** The existing Cache Manager reads SQLite metadata, not diagnostics history. Counts distinguish saved chapter/mode versions from distinct chapters. Expand each book title/slug for ordered chapter, mode and update time. Pull to refresh; opening/query/deletion errors are explicit. Existing per-book/all deletes require confirmation and do not delete the original book.
 
-**Book Rows.** On Mac, Library and Add Book use full-width rows with a trailing open or download icon. Library offers Info and Delete via the context menu; on iPhone, swipe left to reveal them. Delete requires confirmation.
+**Book Rows.** Library and Add Book share a row button. On Mac, rows are full-width with a trailing open or download icon. Library offers Info and Delete via the context menu; on iPhone, swipe left to reveal them. Delete requires confirmation.
 
 **Toast.** Top and global. Colors:
 - Success uses green

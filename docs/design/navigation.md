@@ -37,7 +37,7 @@ Abstract stack:
 
 - Root: Home Library. Back at root exits app.
 - Push: Add Book, Reading, References, Settings, Cache Manager, Setting Editor, Log (diagnostic timeline from Reading).
-- Pop: header back or system back goes one level up. Mac destinations provide a visible toolbar Back button; Reader uses its own Back and clears `onScreen`.
+- Pop: header back or system back goes one level up. Mac destinations provide a visible toolbar Back button and support `Command-[`. Reader uses its own Back action for both and clears `onScreen`.
 - Reading disables swipe-back to avoid loss of position. Others allow it.
 - The Reading settings sheet is not a route. On Mac, close it with “Đóng” or Escape. The gear closes it before pushing Settings; Back from Settings returns to its caller.
 - English learning is an item-driven Reader sheet, not a stack route. Google opens a nested browser sheet on iPhone or the default browser on Mac. Reader exit, backgrounding and content/mode/chapter changes dismiss learning and stop speech.

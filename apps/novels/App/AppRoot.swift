@@ -26,6 +26,7 @@ struct AppRoot: View {
                             .toolbar {
                                 ToolbarItem(placement: .navigation) {
                                     Button("Quay lại", systemImage: "chevron.left") { router.pop() }
+                                        .keyboardShortcut("[")
                                         .labelStyle(.iconOnly)
                                         .help("Quay lại")
                                 }

@@ -28,7 +28,7 @@ struct LibraryView: View {
                 List {
                     Section {
                         ForEach(viewModel.books, id: \.id) { book in
-                            Button {
+                            BookRowButton(accessory: .open) {
                                 router.push(.reading(bookId: book.id))
                             } label: {
                                 VStack(alignment: .leading, spacing: DesignTokens.spacing4) {
@@ -47,50 +47,27 @@ struct LibraryView: View {
                                             .foregroundStyle(DesignTokens.muted)
                                     }
                                 }
-                                .frame(minHeight: DesignTokens.rowMinHeight)
-                                #if os(macOS)
-                                    .padding(.trailing, DesignTokens.spacing24)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .overlay(alignment: .trailing) {
-                                        Image(systemName: "chevron.right")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundStyle(DesignTokens.muted)
-                                            .accessibilityHidden(true)
-                                    }
-                                #endif
-                                    .contentShape(Rectangle())
                             }
-                            .listRowBackground(DesignTokens.surface)
-                            .listRowSeparatorTint(DesignTokens.border)
                             #if os(iOS)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        viewModel.confirmDelete(book)
-                                    } label: {
-                                        Label("Xóa", systemImage: "trash")
-                                    }
-                                    .tint(DesignTokens.error)
-                                    Button {
-                                        viewModel.selected = book
-                                        viewModel.showInfo = true
-                                    } label: {
-                                        Label("Thông tin", systemImage: "info.circle")
-                                    }
-                                    .tint(DesignTokens.accent)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    viewModel.confirmDelete(book)
+                                } label: {
+                                    Label("Xóa", systemImage: "trash")
                                 }
+                                .tint(DesignTokens.error)
+                                Button {
+                                    viewModel.selected = book
+                                    viewModel.showInfo = true
+                                } label: {
+                                    Label("Thông tin", systemImage: "info.circle")
+                                }
+                                .tint(DesignTokens.accent)
+                            }
                             #else
-                                .buttonStyle(.plain)
-                                .contextMenu {
-                                    Button("Thông tin", systemImage: "info.circle") {
-                                        viewModel.selected = book
-                                        viewModel.showInfo = true
-                                    }
-                                    Button("Xóa", systemImage: "trash", role: .destructive) {
-                                        viewModel.confirmDelete(book)
-                                    }
-                                }
+                            .contextMenu { bookContextMenu(for: book) }
                             #endif
-                                .accessibilityIdentifier("library.row.\(book.id)")
+                            .accessibilityIdentifier("library.row.\(book.id)")
                         }
                     }
                 }
@@ -107,31 +84,19 @@ struct LibraryView: View {
         #endif
             .toolbar {
                 if router.path.isEmpty {
-                    ToolbarItem(placement: .primaryAction) {
+                    PrimaryToolbarItem {
                         Button("Thêm sách", systemImage: "plus") {
                             router.push(.addBook)
                         }
                         .labelStyle(.iconOnly)
-                        #if os(iOS)
-                            .a11yHitTarget()
-                        #endif
                     }
-                    #if os(macOS)
-                    .sharedBackgroundVisibility(.hidden)
-                    #endif
-                    ToolbarItem(placement: .primaryAction) {
+                    PrimaryToolbarItem {
                         Button("Cài đặt", systemImage: "gearshape") {
                             router.push(.settings)
                         }
                         .labelStyle(.iconOnly)
                         .accessibilityIdentifier("settingsButton")
-                        #if os(iOS)
-                            .a11yHitTarget()
-                        #endif
                     }
-                    #if os(macOS)
-                    .sharedBackgroundVisibility(.hidden)
-                    #endif
                 }
             }
             .loadingOverlay(isLoading: viewModel.isLoading)
@@ -172,4 +137,17 @@ struct LibraryView: View {
                 await viewModel.load()
             }
     }
+
+    #if os(macOS)
+    @ViewBuilder
+    private func bookContextMenu(for book: Book) -> some View {
+        Button("Thông tin", systemImage: "info.circle") {
+            viewModel.selected = book
+            viewModel.showInfo = true
+        }
+        Button("Xóa", systemImage: "trash", role: .destructive) {
+            viewModel.confirmDelete(book)
+        }
+    }
+    #endif
 }

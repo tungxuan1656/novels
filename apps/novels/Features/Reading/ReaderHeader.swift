@@ -36,6 +36,7 @@ struct ReaderHeader: View {
 
             HStack {
                 ReaderIconButton(symbol: "chevron.left", theme: theme, iconSize: 13, action: onBack)
+                    .keyboardShortcut("[")
                     .accessibilityIdentifier("backButton")
                     .accessibilityLabel("Quay lại Thư viện")
 

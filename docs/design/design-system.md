@@ -73,7 +73,7 @@ Radius: card 12-16, pill 24, sheet 24 top only. Elevation: flat for lists, raise
 
 - **Swipe left:** reveals Info and Delete. Short threshold, no auto-delete.
 - **Bottom sheet:** handle on top, drag down or tap backdrop to close, height fits content.
-- **Pull to refresh:** Home and Add Book.
+- **Refresh:** Pull to refresh in Home and Add Book on iPhone. On Mac, use the Add Book toolbar refresh button or `Command-R`.
 - **Scroll:** Reading saves offset at 300ms. New chapter starts at top.
 - **Tap:** min 44×44, steppers +10 hit slop. Simple slide/fade only.
 
