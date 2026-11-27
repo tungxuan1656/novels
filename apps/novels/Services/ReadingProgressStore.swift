@@ -34,7 +34,17 @@ nonisolated struct ReadingProgress: Codable, Equatable {
 
 @MainActor
 final class ReadingProgressStore {
-    static let shared = ReadingProgressStore()
+    static let shared: ReadingProgressStore = {
+        let store = ReadingProgressStore(
+            defaults: .standard,
+            cloud: ReadingProgressCloud.live(),
+            chapterCount: { try FileBookRepository(root: AppPaths.booksRoot()).book(slug: $0)?.count ?? 0 }
+        )
+        if store.cloud != nil {
+            store.observeAccount()
+        }
+        return store
+    }()
 
     nonisolated struct Entry: Codable, Equatable {
         let progress: ReadingProgress
@@ -51,30 +61,44 @@ final class ReadingProgressStore {
 
     private struct Account {
         let owner: String
-        let token: (any NSObjectProtocol)?
+        let token: String?
         let generation: Int
     }
 
-    private let defaults = UserDefaults.standard
-    private lazy var repository = FileBookRepository(root: AppPaths.booksRoot())
+    private struct Binding: Codable {
+        let token: String
+        let owner: String
+    }
+
+    private let defaults: UserDefaults
+    private let cloud: ReadingProgressCloud?
+    private let chapterCount: (String) throws -> Int
     private let storageKey = "readingProgress.v2"
+    private let bindingKey = "readingProgress.account.v1"
     private let localOnly = "local"
     private lazy var entries = loadEntries()
-    private lazy var container = CKContainer(identifier: "iCloud.com.tungxuan.novels")
+    private lazy var binding = loadBinding()
+    private var provisional: [String: (token: String, progress: ReadingProgress)] = [:]
     private var inFlight: [String: Task<Bool, Never>] = [:]
     private var account: Account?
     private var generation = 0
-    private var accountObservers: [any NSObjectProtocol] = []
 
-    private init() {
-        accountObservers = [Notification.Name.CKAccountChanged, .NSUbiquityIdentityDidChange].map { name in
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.accountChanged() }
+    init(defaults: UserDefaults, cloud: ReadingProgressCloud?, chapterCount: @escaping (String) throws -> Int) {
+        self.defaults = defaults
+        self.cloud = cloud
+        self.chapterCount = chapterCount
+    }
+
+    private func observeAccount() {
+        for name in [Notification.Name.CKAccountChanged, .NSUbiquityIdentityDidChange] {
+            _ = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { _ = self?.accountChanged() }
             }
         }
     }
 
     func progressOnOpen(bookId: String) async -> (progress: ReadingProgress, isLocal: Bool)? {
+        guard cloud != nil else { return entries[localOnly]?[bookId].map { ($0.progress, true) } }
         let sync = synchronize(bookId: bookId)
         let (stream, continuation) = AsyncStream<Bool>.makeStream()
         let fetch = Task {
@@ -94,27 +118,32 @@ final class ReadingProgressStore {
     }
 
     func save(bookId: String, chapter: Int, anchor: ReadingProgress.Anchor?) {
+        let token = cloud?.token()
         let known = account.flatMap { isCurrent($0) ? $0 : nil }
         let previous = latestEntry(bookId: bookId)?.progress
         let now = Date()
         let updatedAt = max(now, previous?.updatedAt.addingTimeInterval(0.001) ?? now)
         let progress = ReadingProgress(chapter: chapter, anchor: anchor, updatedAt: updatedAt)
         setEntry(Entry(progress: progress, isLocal: true, pending: false), bookId: bookId, owner: localOnly)
-        if let known, known.token != nil {
-            enqueue(progress, bookId: bookId, owner: known.owner)
-            return
-        }
-        guard let known else {
+        guard cloud != nil else { return }
+        if let token {
+            if let owner = known?.owner ?? (binding?.token == token ? binding?.owner : nil) {
+                enqueue(progress, bookId: bookId, owner: owner)
+            } else {
+                provisional[bookId] = (token, progress)
+                synchronize(bookId: bookId)
+            }
+        } else if let known {
+            // Without a token, verify this edit immediately against the previously known account.
+            Task {
+                guard let verified = try? await verifiedAccount(), verified.owner == known.owner,
+                      verified.generation == known.generation, entries[localOnly]?[bookId]?.progress == progress,
+                      (entries[verified.owner]?[bookId]?.progress.updatedAt ?? .distantPast) < updatedAt
+                else { return }
+                enqueue(progress, bookId: bookId, owner: verified.owner)
+            }
+        } else {
             synchronize(bookId: bookId)
-            return
-        }
-        Task {
-            // CloudKit-only signing may have no ubiquity token. Verify this edit against the known account now.
-            guard let verified = try? await verifiedAccount(), verified.owner == known.owner,
-                  verified.generation == known.generation, entries[localOnly]?[bookId]?.progress == progress,
-                  (entries[verified.owner]?[bookId]?.progress.updatedAt ?? .distantPast) < updatedAt
-            else { return }
-            enqueue(progress, bookId: bookId, owner: verified.owner)
         }
     }
 
@@ -123,17 +152,16 @@ final class ReadingProgressStore {
         synchronize(bookId: bookId)
     }
 
-    func retryPending() {
+    @discardableResult
+    func retryPending() -> Task<Void, Never> {
         Task {
             guard let verified = try? await verifiedAccount() else { return }
-            for (bookId, entry) in entries[verified.owner, default: [:]] where entry.pending {
-                synchronize(bookId: bookId)
+            let tasks = entries[verified.owner, default: [:]].filter(\.value.pending)
+                .map { synchronize(bookId: $0.key) }
+            for task in tasks {
+                _ = await task.value
             }
         }
-    }
-
-    private var identityToken: (any NSObjectProtocol)? {
-        FileManager.default.ubiquityIdentityToken
     }
 
     private var currentOwner: String? {
@@ -142,39 +170,50 @@ final class ReadingProgressStore {
     }
 
     private func isCurrent(_ verified: Account) -> Bool {
-        verified.generation == generation && tokensMatch(verified.token, identityToken)
-    }
-
-    private func tokensMatch(_ before: (any NSObjectProtocol)?, _ after: (any NSObjectProtocol)?) -> Bool {
-        before?.isEqual(after) ?? (after == nil)
+        verified.generation == generation && verified.token == cloud?.token()
     }
 
     private func verifiedAccount() async throws -> Account? {
+        guard let cloud else { return nil }
         let started = generation
-        let token = identityToken
-        let id = try await container.userRecordID()
-        guard !Task.isCancelled, started == generation, tokensMatch(token, identityToken) else { return nil }
-        let owner = SHA256.hex(id.recordName)
+        let token = cloud.token()
+        let owner = try await cloud.owner()
+        guard !Task.isCancelled, started == generation, token == cloud.token() else { return nil }
         if let account, account.owner != owner {
             invalidateAccount()
         }
         let verified = Account(owner: owner, token: token, generation: generation)
         account = verified
+        if let token, binding?.token != token || binding?.owner != owner {
+            let current = Binding(token: token, owner: owner)
+            binding = current
+            defaults.set(try? JSONEncoder().encode(current), forKey: bindingKey)
+        }
+        let candidates = provisional
+        provisional.removeAll()
+        for (bookId, candidate) in candidates where candidate.token == token {
+            guard entries[localOnly]?[bookId]?.progress == candidate.progress,
+                  (entries[owner]?[bookId]?.progress.updatedAt ?? .distantPast) < candidate.progress.updatedAt
+            else { continue }
+            enqueue(candidate.progress, bookId: bookId, owner: owner)
+        }
         return verified
     }
 
     private func invalidateAccount() {
         generation += 1
         account = nil
+        provisional.removeAll()
     }
 
-    private func accountChanged() {
+    @discardableResult
+    func accountChanged() -> Task<Void, Never> {
         invalidateAccount()
         for task in inFlight.values {
             task.cancel()
         }
         inFlight.removeAll()
-        retryPending()
+        return retryPending()
     }
 
     @discardableResult
@@ -209,13 +248,12 @@ final class ReadingProgressStore {
     }
 
     private func reconcile(bookId: String, account verified: Account) async throws {
-        guard !Task.isCancelled, isCurrent(verified) else { return }
+        guard let cloud, !Task.isCancelled, isCurrent(verified) else { return }
         let owner = verified.owner
-        let database = container.privateCloudDatabase
         let id = CKRecord.ID(recordName: SHA256.hex(bookId))
         var record: CKRecord
         do {
-            record = try await database.record(for: id)
+            record = try await cloud.fetch(id)
         } catch let error as CKError where error.code == .unknownItem {
             record = CKRecord(recordType: "ReadingProgress", recordID: id)
         }
@@ -224,7 +262,7 @@ final class ReadingProgressStore {
         let local = entries[owner]?[bookId]
         let remote = (record["checkpoint"] as? Data).flatMap(ReadingProgress.decode)
         if let remote, remote.supersedesLocal(local?.progress) {
-            let count = try repository.book(slug: bookId)?.count ?? 0
+            let count = try chapterCount(bookId)
             if let local {
                 setEntry(local.resolving(remote, chapterCount: count), bookId: bookId, owner: owner)
             } else if remote.fits(chapterCount: count) {
@@ -232,23 +270,20 @@ final class ReadingProgressStore {
             }
             return
         }
-        while entries[owner]?[bookId]?.pending == true {
-            // Revalidate after the fetch and every suspension before submitting private data.
-            guard let refreshed = try await verifiedAccount(), refreshed.owner == owner,
-                  refreshed.generation == verified.generation, isCurrent(refreshed),
-                  let entry = entries[owner]?[bookId], entry.pending else { return }
+        var checked = fetchedFor
+        while let entry = entries[owner]?[bookId], entry.pending {
             let progress = entry.progress
             record["checkpoint"] = try JSONEncoder().encode(progress) as NSData
-            let result = try await database.modifyRecords(
-                saving: [record],
-                deleting: [],
-                savePolicy: .ifServerRecordUnchanged
-            )
-            guard !Task.isCancelled, isCurrent(refreshed), let saved = result.saveResults[id] else { return }
-            record = try saved.get()
+            record = try await cloud.save(record)
+            guard !Task.isCancelled, isCurrent(checked) else { return }
             if entries[owner]?[bookId] == entry {
                 setEntry(Entry(progress: progress, isLocal: true, pending: false), bookId: bookId, owner: owner)
+                return
             }
+            // A newer edit arrived during the write. Revalidate before sending it.
+            guard let refreshed = try await verifiedAccount(), refreshed.owner == owner,
+                  refreshed.generation == verified.generation, isCurrent(refreshed) else { return }
+            checked = refreshed
         }
     }
 
@@ -256,6 +291,11 @@ final class ReadingProgressStore {
         let local = entries[localOnly]?[bookId]
         guard let owner = currentOwner, let scoped = entries[owner]?[bookId] else { return local }
         return scoped.progress.supersedesLocal(local?.progress) ? scoped : local
+    }
+
+    private func loadBinding() -> Binding? {
+        guard let data = defaults.data(forKey: bindingKey) else { return nil }
+        return try? JSONDecoder().decode(Binding.self, from: data)
     }
 
     private func loadEntries() -> [String: [String: Entry]] {

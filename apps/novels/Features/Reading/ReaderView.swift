@@ -124,7 +124,8 @@ struct ReaderView: View {
                         viewModel: viewModel,
                         theme: theme,
                         isReaderReady: isReaderReady,
-                        onBack: { router.popReading() },
+                        isActive: router.path.last == .reading(bookId: bookId),
+                        onBack: { router.popReading(bookId: bookId) },
                         onPrevious: { changeChapter(forward: false) },
                         onNext: { changeChapter(forward: true) },
                         onContents: { router.push(.references(bookId: bookId, current: viewModel.chapterNumber)) }
@@ -159,7 +160,7 @@ struct ReaderView: View {
             }
         }
         .background(theme.background)
-        .colorScheme(theme.preferredColorScheme)
+        .environment(\.colorScheme, theme.preferredColorScheme)
         .navigationBarBackButtonHidden(true)
         #if os(iOS)
             .toolbar(.hidden, for: .navigationBar)

@@ -98,9 +98,11 @@ final class Router {
         isPushing = false
     }
 
-    func popReading() {
+    func popReading(bookId: String) {
+        let readingRoute = Route.reading(bookId: bookId)
+        guard path.last == readingRoute else { return }
         didPopFromReading()
-        pop()
+        pop(ifTop: readingRoute)
     }
 
     func didPopFromReading() {

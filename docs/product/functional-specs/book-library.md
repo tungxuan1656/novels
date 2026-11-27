@@ -5,9 +5,9 @@
 ## Flow (ordered steps actor / system)
 
 1. On first load or refresh, system scans the local book repository outside UI execution. It reads each `book.json` and validates chapters. Invalid folders are skipped. Returning from Settings reuses the loaded list.
-2. System renders. If books exist, show rows with name, author, chapter count, and cover. If empty, show prompt to add via Add action.
-3. Actor taps a row. System opens a details sheet with metadata (name, author, synopsis, status, last updated) and the ordered chapter index.
-4. Actor swipes a row to delete. System shows confirm dialog. If confirmed, system removes the whole book folder from file storage and the library entry, then shows success feedback. If cancelled, no change occurs.
+2. If books exist, show rows with name, author, and chapter count. Selecting a row opens Reader. If empty, show the Add Book prompt.
+3. Swipe a row on iPhone or open its context menu on Mac for Info or Delete. Info shows title, author, and chapter count.
+4. Delete asks for confirmation. If confirmed, remove the book folder and refresh the list. If cancelled, leave the book unchanged.
 5. Delete failure → show "Cannot delete book", keep entry. No network needed.
 
 ## Rules (business rules, link to business-rules.md)
@@ -29,7 +29,6 @@
 | Case | Result |
 |------|--------|
 | Folder without `book.json` | Skipped, not shown |
-| Cover missing | Row shows text only |
 | Delete while book is open in reader | Folder removed; next navigation shows error |
 | Delete fails (lock) | Show error, keep entry |
 | Empty repository | Show prompt with Add action |
@@ -37,9 +36,9 @@
 
 ## Acceptance
 
-- [ ] Library shows every valid book with name, author, chapter count, and cover when present.
-- [ ] Tap opens details sheet with metadata and chapter index.
-- [ ] Swipe-to-delete asks for confirmation and, when confirmed, removes the folder and entry.
+- [ ] Library shows every valid book with name, author, and chapter count.
+- [ ] Selecting a row opens Reader; Info is available in the book actions.
+- [ ] Delete asks for confirmation and, when confirmed, removes the folder and entry.
 - [ ] Cancel leaves library unchanged.
 - [ ] Empty state shows prompt to add.
 

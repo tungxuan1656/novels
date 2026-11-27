@@ -4,6 +4,7 @@ struct ReaderHeader: View {
     let viewModel: ReaderViewModel
     let theme: ReadingTheme
     let isReaderReady: Bool
+    let isActive: Bool
     let onBack: () -> Void
     let onPrevious: () -> Void
     let onNext: () -> Void
@@ -36,7 +37,7 @@ struct ReaderHeader: View {
 
             HStack {
                 ReaderIconButton(symbol: "chevron.left", theme: theme, iconSize: 13, action: onBack)
-                    .keyboardShortcut("[")
+                    .keyboardShortcut(isActive ? KeyboardShortcut("[") : nil)
                     .accessibilityIdentifier("backButton")
                     .accessibilityLabel("Quay lại Thư viện")
 
